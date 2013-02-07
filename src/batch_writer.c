@@ -167,6 +167,13 @@ void batch_writer_input_init(char* match_filename, char* splice_exact_filename,
 
   input_p->genome = genome;
 
+  // internal
+  input_p->bam_file = NULL;
+  input_p->total_batches = 0;
+  input_p->total_reads = 0;
+  input_p->total_mappings = 0;
+  input_p->num_mapped_reads = 0;
+  input_p->limit_print = 0;
 }
 
 //------------------------------------------------------------------------------------

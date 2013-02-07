@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
     timing_display(timing_p);
   }
 
-  basic_statistics_display(basic_st, !strcmp(command, "rna"));
+//  basic_statistics_display(basic_st, !strcmp(command, "rna"));
 
   if (time_on){ timing_free(timing_p); }
 

@@ -35,6 +35,14 @@ typedef struct batch_writer_input {
   genome_t* genome;
 
   list_t* list_p;
+
+  // internal
+  bam_file_t *bam_file;
+  size_t total_batches;
+  size_t total_reads;
+  size_t total_mappings;
+  size_t num_mapped_reads;
+  size_t limit_print;
 } batch_writer_input_t;
 
 //------------------------------------------------------------------------------------

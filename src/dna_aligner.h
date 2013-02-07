@@ -25,6 +25,8 @@
 #include "options.h"
 #include "statistics.h"
 
+#include "workflow_scheduler.h"
+
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     pair_mng_t *pair_mng, options_t *options);
