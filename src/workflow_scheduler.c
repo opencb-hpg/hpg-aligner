@@ -328,9 +328,9 @@ void workflow_schedule(workflow_t *wf) {
      if (item) {
 	  workflow_stage_function_t stage_function = wf->stage_functions[item->stage_id];
 
-	  printf("--> %s: %x begin...\n", wf->stage_labels[item->stage_id], item->data);
+//	  printf("--> %s: %x begin...\n", wf->stage_labels[item->stage_id], item->data);
 	  int next_stage = stage_function(item->data);
-	  printf("\t<-- %s: %x ...done !!!\n", wf->stage_labels[item->stage_id], item->data);
+//	  printf("\t<-- %s: %x ...done !!!\n", wf->stage_labels[item->stage_id], item->data);
 	  item->stage_id = next_stage;
 	  
 	  if (next_stage >= 0 && next_stage < wf->num_stages) {
@@ -434,20 +434,19 @@ void *thread_function(void *wf_context) {
   workflow_consumer_function_t consumer_function = wf->consumer_function;
 
   while (workflow_get_status(wf) == WORKFLOW_STATUS_RUNNING) {
-    //    printf("num_completed items = %i, are pre stages completed ? %i\n", workflow_get_num_completed_items(wf), workflow_are_pre_stages_completed(wf));
 
     if (producer_function                        &&
 	workflow_get_num_items(wf) < num_threads && 
 	(!workflow_is_producer_finished(wf))     &&
 	workflow_lock_producer(wf)) {
 	 
-	 printf("--> %s: begin...\n", wf->producer_label);
+//	 printf("--> %s: begin...\n", wf->producer_label);
 	 if (data = producer_function(input)) {
 	      workflow_insert_item(data, wf);
 	 } else {
 	      workflow_producer_finished(wf);
 	 }
-	 printf("\t<-- %s: %x ...done !!!\n", wf->producer_label, data);
+//	 printf("\t<-- %s: %x ...done !!!\n", wf->producer_label, data);
 	 workflow_unlock_producer(wf);
 	 
     } else if (consumer_function                         &&
@@ -455,9 +454,9 @@ void *thread_function(void *wf_context) {
 	       workflow_lock_consumer(wf)) {
 	 
 	 if (data = workflow_remove_item(wf)) {
-	      printf("--> %s: %x begin ...\n", wf->consumer_label, data);
+//	      printf("--> %s: %x begin ...\n", wf->consumer_label, data);
 	      consumer_function(data);
-	      printf("\t<-- %s: %x ...done !!!\n", wf->consumer_label, data);
+//	      printf("\t<-- %s: %x ...done !!!\n", wf->consumer_label, data);
 	 }
 	 workflow_unlock_consumer(wf);
 	 

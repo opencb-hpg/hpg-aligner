@@ -372,6 +372,8 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 	  timing_start(MAIN_INDEX, 0, timing_p);
      }
      
+     struct timeval start_time, stop_time;
+     gettimeofday(&start_time, NULL);
      //--------------------------------------------------------------------------------------
      // workflow management
      //
@@ -402,6 +404,10 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      //
      // end of workflow management
      //--------------------------------------------------------------------------------------
+     gettimeofday(&stop_time, NULL);
+     printf("Alignment time = %0.4f sec\n", 
+	    (stop_time.tv_sec - start_time.tv_sec) + 
+	    ((stop_time.tv_usec - start_time.tv_usec) / 1000000.0));
 
 
      //closing files
