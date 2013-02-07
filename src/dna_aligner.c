@@ -220,7 +220,7 @@ int bam_writer(void *data) {
 
 int bwt_stage(void *data) {
      batch_t *batch = (batch_t *) data;
-//     apply_bwt(batch->bwt_input, batch->mapping_batch);
+     apply_bwt(batch->bwt_input, batch->mapping_batch);
 
      // go to the next stage
      if (batch->mapping_batch->num_targets > 0) {
@@ -231,6 +231,8 @@ int bwt_stage(void *data) {
      return CONSUMER_STAGE;
 }
 
+//--------------------------------------------------------------------
+
 int seeding_stage(void *data) {
      batch_t *batch = (batch_t *) data;
      apply_seeding(batch->region_input, batch->mapping_batch);
@@ -238,6 +240,8 @@ int seeding_stage(void *data) {
      // go to the next stage
      return CAL_STAGE;
 }
+
+//--------------------------------------------------------------------
 
 int cal_stage(void *data) {
      batch_t *batch = (batch_t *) data;
@@ -252,6 +256,8 @@ int cal_stage(void *data) {
      return CONSUMER_STAGE;
 }
 
+//--------------------------------------------------------------------
+
 int pre_pair_stage(void *data) {
      batch_t *batch = (batch_t *) data;
      apply_pair(batch->pair_input, batch->mapping_batch);
@@ -262,6 +268,8 @@ int pre_pair_stage(void *data) {
      }
      return CONSUMER_STAGE;
 }
+
+//--------------------------------------------------------------------
 
 int sw_stage(void *data) {
      batch_t *batch = (batch_t *) data;
@@ -274,6 +282,8 @@ int sw_stage(void *data) {
      return CONSUMER_STAGE;
 }
 
+//--------------------------------------------------------------------
+
 int post_pair_stage(void *data) {
      batch_t *batch = (batch_t *) data;
      prepare_alignments(batch->pair_input, batch->mapping_batch);
@@ -281,6 +291,8 @@ int post_pair_stage(void *data) {
      return CONSUMER_STAGE;
 }
 
+//--------------------------------------------------------------------
+// run dna aligner
 //--------------------------------------------------------------------
 
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
