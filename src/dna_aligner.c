@@ -4,12 +4,16 @@
 bam_header_t *create_bam_header_by_genome(genome_t *genome);
 //--------------------------------------------------------------------
   
-#define BWT_STAGE         0
-#define SEEDING_STAGE     1
-#define CAL_STAGE         2
-#define PRE_PAIR_STAGE    3
-#define SW_STAGE          4
-#define POST_PAIR_STAGE   5
+#define BWT_STAGE         0 // 1
+#define SEEDING_STAGE     1 // 2
+#define CAL_STAGE         2 // 3
+#define PRE_PAIR_STAGE    3 // 4
+#define SW_STAGE          4 // 5
+#define POST_PAIR_STAGE   5 // 6
+
+#define READER_STAGE      6 // 7
+#define WRITER_STAGE      7 // 8
+
 #define CONSUMER_STAGE   -1
 
 //--------------------------------------------------------------------
@@ -405,7 +409,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      // end of workflow management
      //--------------------------------------------------------------------------------------
      gettimeofday(&stop_time, NULL);
-     printf("Alignment time = %0.4f sec\n", 
+     printf("\t\t-----------------> Alignment time = %0.4f sec\n", 
 	    (stop_time.tv_sec - start_time.tv_sec) + 
 	    ((stop_time.tv_usec - start_time.tv_usec) / 1000000.0));
 

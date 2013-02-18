@@ -50,7 +50,8 @@ typedef struct workflow {
      
      int running_producer;
      int running_consumer;
-     
+
+     pthread_barrier_t barrier;
      pthread_cond_t producer_cond;
      pthread_cond_t consumer_cond;
      

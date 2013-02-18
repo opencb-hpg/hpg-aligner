@@ -1,7 +1,8 @@
 #include "workflow_scheduler.h"
+#include "extrae_user_events.h" 
 
 //----------------------------------------------------------------------------------------
-// work_item
+//  work_item
 //----------------------------------------------------------------------------------------
 
 work_item_t *work_item_new(int stage_id, void *data) {
@@ -238,9 +239,9 @@ void *workflow_remove_item(workflow_t *wf) {
      }
      
      item = array_list_remove_at(0, wf->completed_items);
-     
+      
      pthread_cond_broadcast(&wf->producer_cond);
-     
+    
      pthread_mutex_unlock(&wf->main_mutex);
      
      if (item) {
@@ -314,9 +315,11 @@ void workflow_schedule(workflow_t *wf) {
   
      work_item_t *item = NULL;
 
-     pthread_mutex_lock(&wf->main_mutex);
+      pthread_mutex_lock(&wf->main_mutex);
+//     printf("thread %ld - scheduling inside...\n", pthread_self());
 
-     for (int i = wf->num_stages - 1; i >= 0; i--) {
+//     for (int i = wf->num_stages - 1; i >= 0; i--) {
+     for (int i = 0 ; i <= wf->num_stages - 1; i++) {
 	  item = array_list_remove_at(0, wf->pending_items[i]);
 	  if (item) {
 	       break;
@@ -326,10 +329,16 @@ void workflow_schedule(workflow_t *wf) {
      pthread_mutex_unlock(&wf->main_mutex);
 
      if (item) {
+//	  printf("thread %ld - processing stage %i...\n", pthread_self(), item->stage_id);
+
 	  workflow_stage_function_t stage_function = wf->stage_functions[item->stage_id];
 
 //	  printf("--> %s: %x begin...\n", wf->stage_labels[item->stage_id], item->data);
+	  Extrae_event(6000019, item->stage_id + 1); 
+//	  printf("Extrae - event : %i\n", item->stage_id);
+	  //Extrae_event(6000019, 4); 
 	  int next_stage = stage_function(item->data);
+	  Extrae_event(6000019, 0); 
 //	  printf("\t<-- %s: %x ...done !!!\n", wf->stage_labels[item->stage_id], item->data);
 	  item->stage_id = next_stage;
 	  
@@ -346,7 +355,7 @@ void workflow_schedule(workflow_t *wf) {
 	       pthread_mutex_lock(&wf->main_mutex);
 	       wf->num_pending_items--;
 	       array_list_insert(item, wf->completed_items);
-	       pthread_cond_signal(&wf->consumer_cond);
+	       pthread_cond_broadcast(&wf->consumer_cond);
 	       pthread_mutex_unlock(&wf->main_mutex);  
 	       
 	  } else {
@@ -403,13 +412,16 @@ int workflow_unlock_consumer(workflow_t *wf) {
 //----------------------------------------------------------------------------------------
 
 typedef struct workflow_context {
+//  int id;
   void *input;
   workflow_t *wf;
 } workflow_context_t;
 
 workflow_context_t *workflow_context_new(void *input, workflow_t *wf) {
+//workflow_context_t *workflow_context_new(int id, void *input, workflow_t *wf) {
   workflow_context_t *c = calloc(1, sizeof(workflow_context_t));
 
+//  c->id = id;
   c->input = input;
   c->wf = wf;
 
@@ -433,15 +445,24 @@ void *thread_function(void *wf_context) {
   workflow_producer_function_t producer_function = wf->producer_function;
   workflow_consumer_function_t consumer_function = wf->consumer_function;
 
+//  printf("-----------------> thread %ld - thread function...\n", pthread_self());
+
+  pthread_barrier_wait(&wf->barrier);
+
   while (workflow_get_status(wf) == WORKFLOW_STATUS_RUNNING) {
 
     if (producer_function                        &&
 	workflow_get_num_items(wf) < num_threads && 
 	(!workflow_is_producer_finished(wf))     &&
 	workflow_lock_producer(wf)) {
-	 
+
+//	 printf("thread %ld - reading...\n", pthread_self());
 //	 printf("--> %s: begin...\n", wf->producer_label);
-	 if (data = producer_function(input)) {
+	 Extrae_event(6000019, 7); 
+	 data = producer_function(input);
+	 Extrae_event(6000019, 0); 
+
+	 if (data) {
 	      workflow_insert_item(data, wf);
 	 } else {
 	      workflow_producer_finished(wf);
@@ -455,7 +476,10 @@ void *thread_function(void *wf_context) {
 	 
 	 if (data = workflow_remove_item(wf)) {
 //	      printf("--> %s: %x begin ...\n", wf->consumer_label, data);
+//	      printf("thread %ld - writting...\n", pthread_self());
+	      Extrae_event(6000019, 8); 
 	      consumer_function(data);
+	      Extrae_event(6000019, 0); 
 //	      printf("\t<-- %s: %x ...done !!!\n", wf->consumer_label, data);
 	 }
 	 workflow_unlock_consumer(wf);
@@ -470,6 +494,8 @@ void *thread_function(void *wf_context) {
 
 void workflow_run_with(int num_threads, void *input, workflow_t *wf) {
 
+     Extrae_init();
+
      wf->num_threads = num_threads;
      wf->max_num_work_items = num_threads * 3;
      printf("num. threads = %i\n", num_threads);
@@ -478,7 +504,7 @@ void workflow_run_with(int num_threads, void *input, workflow_t *wf) {
      pthread_attr_t attr;
      
      int num_cpus = 64;
-     int cpuArray[100];
+     int cpuArray[num_cpus];
      
      for (int i = 0; i < num_cpus; i++) {
 	  cpuArray[i] = i;
@@ -489,19 +515,27 @@ void workflow_run_with(int num_threads, void *input, workflow_t *wf) {
      
      int ret;
      workflow_context_t *wf_context = workflow_context_new(input, wf);
+
+     pthread_barrier_init(&wf->barrier, NULL, num_threads);
      
+     struct timeval start_time, stop_time;
+     gettimeofday(&start_time, NULL);
+
      for(int i = 0; i < num_threads; i++){
+
 	  cpu_set_t cpu_set;
 	  CPU_ZERO( &cpu_set);
 	  CPU_SET( cpuArray[i % num_cpus], &cpu_set);
 	  sched_setaffinity(syscall(SYS_gettid), sizeof(cpu_set), &cpu_set);
+
+//	  printf("***** creating thread %i...\n", i);
 	  
 	  if (ret = pthread_create(&threads[i], &attr, thread_function, (void *) wf_context)) {
 	       printf("ERROR; return code from pthread_create() is %d\n", ret);
 	       exit(-1);
 	  }
      }
-     
+
      // free attribute and wait for the other threads
      void *status;
      pthread_attr_destroy(&attr);
@@ -511,7 +545,14 @@ void workflow_run_with(int num_threads, void *input, workflow_t *wf) {
 	       exit(-1);
 	  }
      }
+
+     gettimeofday(&stop_time, NULL);
+     printf("\t\t---------------> Workflow time = %0.4f sec\n", 
+	    (stop_time.tv_sec - start_time.tv_sec) + 
+	    ((stop_time.tv_usec - start_time.tv_usec) / 1000000.0));
      
+     Extrae_fini();
+
      workflow_context_free(wf_context);
 }
 
