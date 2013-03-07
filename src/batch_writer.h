@@ -53,12 +53,8 @@ void batch_writer_input_init(char* match_filename, char* splice_exact_filename,
 
 //====================================================================================
 
-void batch_writer(batch_writer_input_t* input_p);
-void batch_writer2(batch_writer_input_t* input_p);
-
 bam_header_t *create_bam_header_by_genome(genome_t *genome);
 
-//void batch_writer_splice(batch_writer_splice_input_t* input_p);
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 

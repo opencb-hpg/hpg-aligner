@@ -739,7 +739,7 @@ inline int remove_items(size_t *valid_items, array_list_t *list) {
 // main functions: apply pair and prperare alignments
 //====================================================================================
 
-void apply_pair(pair_server_input_t* input, batch_t *batch) {
+int apply_pair(pair_server_input_t* input, batch_t *batch) {
   /*
   {
     size_t index, num_seqs = batch->num_targets;
@@ -933,11 +933,17 @@ void apply_pair(pair_server_input_t* input, batch_t *batch) {
     printf("to_do = %i\n", to_do);
   }
   */
+
+  // go to the next stage
+  if (batch->mapping_batch->num_targets > 0) {
+    return SW_STAGE;
+  }
+  return POST_PAIR_STAGE;
 }
 
 //------------------------------------------------------------------------------------
 
-void prepare_alignments(pair_server_input_t *input, batch_t *batch) {
+int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
   if (batch->mapping_mode == DNA_MODE) {
     prepare_single_alignments(input, batch->mapping_batch);
   }
@@ -945,6 +951,8 @@ void prepare_alignments(pair_server_input_t *input, batch_t *batch) {
   if (input->pair_mng->pair_mode != SINGLE_END_MODE) {
     prepare_paired_alignments(input, batch->mapping_batch);
   }
+  return CONSUMER_STAGE;
+
   //printf("pair_server.c: prepare_alignments done (pair mode = %i)\n", input->pair_mng->pair_mode);
   //  printf("pair_server.c: 1: after prepare_single_alignments\n");
 }

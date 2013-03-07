@@ -8,7 +8,7 @@
 
 
 /*
-buffer_item_t *buffer_item_new(fastq_read_t *fq_read, array_list_t *array_list) {
+  buffer_item_t *buffer_item_new(fastq_read_t *fq_read, array_list_t *array_list) {
   buffer_item_t *item = (buffer_item_t *)malloc(sizeof(buffer_item_t));
   item->read = fq_read;
   item->alignments_list = array_list;

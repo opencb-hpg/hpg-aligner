@@ -405,7 +405,7 @@ inline void sw_channel_update(size_t read_index, unsigned int cal_index, unsigne
 
 //FILE *fd_ref = NULL, *fd_query = NULL;
 
-void apply_sw(sw_server_input_t* input, batch_t *batch) {
+int apply_sw(sw_server_input_t* input, batch_t *batch) {
 
   //  if (fd_ref == NULL) { fd_ref = fopen("sw_ref2.txt", "w"); }
   //  if (fd_query == NULL) { fd_query = fopen("sw_query2.txt", "w"); }
@@ -658,6 +658,14 @@ void apply_sw(sw_server_input_t* input, batch_t *batch) {
 
   // free
   sw_multi_output_free(output);
+
+  // go to the next stage
+  if (batch->mapping_batch->num_targets > 0 || 
+      batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
+    return POST_PAIR_STAGE;
+  }
+  
+  return CONSUMER_STAGE;
 
   //  printf("END: apply_sw, (%d Smith-Waterman, %d valids)\n", total, valids);
 }

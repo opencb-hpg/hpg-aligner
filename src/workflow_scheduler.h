@@ -1,8 +1,6 @@
 #ifndef WORKFLOW_SCHEDULER_H
 #define WORKFLOW_SCHEDULER_H
 
-#define _GNU_SOURCE
-
 #include <sys/syscall.h>
 #include <sched.h>
 #include <stdio.h>

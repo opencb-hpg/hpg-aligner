@@ -88,6 +88,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
   return RNA_PREPROCESS_STAGE;
 
+  // this code does not offer great improvements !!!
+  // should we comment it ?
   if (mapping_batch->extra_stage_do) {
     //printf("Go to original targets & Fusion...\n");
     targets_aux = mapping_batch->targets;
@@ -137,6 +139,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   cal_t *cal;
   array_list_t *cal_list;
 
+  size_t num_chromosomes = input->genome->num_chromosomes + 1;
   size_t num_targets = mappping_batch->num_targets;
   size_t *targets = mappping_batch->targets;
   size_t new_num_targets = 0;
@@ -158,6 +161,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     num_cals = bwt_generate_cal_list_linkedlist(mappping_batch->mapping_lists[read_index], 
 						input->cal_optarg,
 						&min_seeds, &max_seeds,
+						num_chromosomes,
 						list);
     // filter CALs by the number of seeds
     if (min_seeds == max_seeds) {
@@ -216,8 +220,6 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   }
   
   return POST_PAIR_STAGE;
-  
-
 }
 
 //------------------------------------------------------------------------------------
