@@ -5,9 +5,10 @@
 
 #include "commons/log.h"
 #include "commons/file_utils.h"
-#include "buffers.h"
 #include "bioformats/fastq/fastq_batch_reader.h"
-#include "bioformats/bam-sam/bam_file.h"
+#include "bioformats/bam/bam_file.h"
+
+#include "buffers.h"
 #include "bwt_server.h"
 #include "region_seeker.h"
 #include "cal_seeker.h"

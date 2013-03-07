@@ -40,12 +40,10 @@ env['objects'] = []
 
 
 # Targets
-formats = ['fastq', 'bam-sam']
-aligners = ['bwt', 'sw']
 
 SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path
-            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
+            ], exports = ['env', 'debug', 'compiler'])
 
 env.Program('hpg-aligner',
              source = [Glob('src/*.c'),

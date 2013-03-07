@@ -14,7 +14,7 @@
 
 #include "bioformats/fastq/fastq_file.h"
 #include "bioformats/fastq/fastq_batch.h"
-#include "bioformats/bam-sam/bam_file.h"
+#include "bioformats/bam/bam_file.h"
 
 #include "buffers.h"
 #include "timing.h"

@@ -32,7 +32,6 @@ double avx1_matrix_t = 0.0f, avx1_tracking_t = 0.0f;
 char time_on = 0;
 char statistics_on = 0;
 timing_t* timing = NULL;
-int num_of_chromosomes;
 basic_statistics_t *basic_st;
 cal_st_t cal_st;
 double kl_time;

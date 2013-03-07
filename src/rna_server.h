@@ -13,7 +13,7 @@
 #include "containers/list.h"
 #include "commons/commons.h"
 #include "commons/system_utils.h"
-#include "bioformats/bam-sam/alignment.h"
+#include "bioformats/bam/alignment.h"
 #include "aligners/bwt/bwt.h"
 #include "aligners/bwt/genome.h"
 

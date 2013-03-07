@@ -4,7 +4,7 @@
 #include "containers/array_list.h"
 #include "containers/list.h"
 
-#include "bioformats/bam-sam/alignment.h"
+#include "bioformats/bam/alignment.h"
 #include "aligners/bwt/bwt.h"
 #include "aligners/bwt/genome.h"
 #include "timing.h"
