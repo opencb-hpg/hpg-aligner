@@ -1,5 +1,5 @@
 #include "workflow_scheduler.h"
-#include "extrae_user_events.h" 
+//#include "extrae_user_events.h" 
 
 //----------------------------------------------------------------------------------------
 //  work_item
@@ -333,13 +333,9 @@ void workflow_schedule(workflow_t *wf) {
 
 	  workflow_stage_function_t stage_function = wf->stage_functions[item->stage_id];
 
-//	  printf("--> %s: %x begin...\n", wf->stage_labels[item->stage_id], item->data);
-	  Extrae_event(6000019, item->stage_id + 1); 
-//	  printf("Extrae - event : %i\n", item->stage_id);
-	  //Extrae_event(6000019, 4); 
+//	  Extrae_event(6000019, item->stage_id + 1); 
 	  int next_stage = stage_function(item->data);
-	  Extrae_event(6000019, 0); 
-//	  printf("\t<-- %s: %x ...done !!!\n", wf->stage_labels[item->stage_id], item->data);
+	  //	  Extrae_event(6000019, 0); 
 	  item->stage_id = next_stage;
 	  
 	  if (next_stage >= 0 && next_stage < wf->num_stages) {
@@ -458,9 +454,9 @@ void *thread_function(void *wf_context) {
 
 //	 printf("thread %ld - reading...\n", pthread_self());
 //	 printf("--> %s: begin...\n", wf->producer_label);
-	 Extrae_event(6000019, 7); 
+//	 Extrae_event(6000019, 7); 
 	 data = producer_function(input);
-	 Extrae_event(6000019, 0); 
+	 //	 Extrae_event(6000019, 0); 
 
 	 if (data) {
 	      workflow_insert_item(data, wf);
@@ -477,9 +473,9 @@ void *thread_function(void *wf_context) {
 	 if (data = workflow_remove_item(wf)) {
 //	      printf("--> %s: %x begin ...\n", wf->consumer_label, data);
 //	      printf("thread %ld - writting...\n", pthread_self());
-	      Extrae_event(6000019, 8); 
+//	      Extrae_event(6000019, 8); 
 	      consumer_function(data);
-	      Extrae_event(6000019, 0); 
+	      //	      Extrae_event(6000019, 0); 
 //	      printf("\t<-- %s: %x ...done !!!\n", wf->consumer_label, data);
 	 }
 	 workflow_unlock_consumer(wf);
@@ -494,7 +490,7 @@ void *thread_function(void *wf_context) {
 
 void workflow_run_with(int num_threads, void *input, workflow_t *wf) {
 
-     Extrae_init();
+  //     Extrae_init();
 
      wf->num_threads = num_threads;
      wf->max_num_work_items = num_threads * 3;
@@ -551,7 +547,7 @@ void workflow_run_with(int num_threads, void *input, workflow_t *wf) {
 	    (stop_time.tv_sec - start_time.tv_sec) + 
 	    ((stop_time.tv_usec - start_time.tv_usec) / 1000000.0));
      
-     Extrae_fini();
+     //     Extrae_fini();
 
      workflow_context_free(wf_context);
 }
