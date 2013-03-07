@@ -85,7 +85,7 @@ void statistics_display(statistics_t* statistics_p) {
 
 void timing_and_statistics_display(statistics_t* statistics_p, timing_t *t_p) {
 
-  if (t_p == NULL) return;
+  /*  if (t_p == NULL) return;
 
   printf("\n");
   printf("=============================================================================\n");
@@ -112,18 +112,18 @@ void timing_and_statistics_display(statistics_t* statistics_p, timing_t *t_p) {
   printf("=============================================================================\n");
   printf("=============================================================================\n");
   printf("\n");
-
+  */
 }
 
 //---------------------------------------------------------------------------------------
 
-void basic_statistics_display(basic_statistics_t statistics, int rna_mode){
-  size_t total_reads = statistics.total_reads;
-  size_t num_mapped_reads = statistics.num_mapped_reads;
-  size_t total_mappings = statistics.total_mappings;
+void basic_statistics_display(basic_statistics_t *statistics, int rna_mode){
+  size_t total_reads = statistics->total_reads;
+  size_t num_mapped_reads = statistics->num_mapped_reads;
+  size_t total_mappings = statistics->total_mappings;
 
-  size_t total_sp = statistics.total_sp;
-  size_t uniq_sp = statistics.uniq_sp;
+  size_t total_sp = statistics->total_sp;
+  size_t uniq_sp = statistics->uniq_sp;
 
   printf("END: batch_writer\n");
   printf("-------------------------------------------------\n");
@@ -155,3 +155,27 @@ void basic_statistics_sp_init(size_t total_sp, size_t uniq_sp, basic_statistics_
   statistics->uniq_sp = uniq_sp;
 }
 
+//------------------------------------------------------------------------------------------
+
+
+basic_statistics_t *basic_statistics_new() {
+  basic_statistics_t *basic = (basic_statistics_t *)malloc(sizeof(basic_statistics_t));
+  pthread_mutex_init(&(basic->mutex), NULL);
+  basic->total_reads = 0;
+  basic->num_mapped_reads = 0;
+  basic->total_mappings = 0;
+  basic->total_sp = 0;
+  basic->uniq_sp = 0;
+  return basic;
+}
+
+
+//-------------------------------------------------------------------------------------------
+
+void basic_statistics_add(size_t total_reads, size_t num_mapped_reads, size_t total_mappings, basic_statistics_t *basic) {
+  pthread_mutex_lock(&basic->mutex);
+  basic->total_reads += total_reads;
+  basic->num_mapped_reads += num_mapped_reads;
+  basic->total_mappings += total_mappings;
+  pthread_mutex_unlock(&basic->mutex);
+}

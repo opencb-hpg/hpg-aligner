@@ -15,7 +15,7 @@
 
 #include "timing.h"
 #include "buffers.h"
-
+#include "rna_splice.h"
 //====================================================================================
 //  Input structure for Smith-Waterman server
 //====================================================================================
@@ -26,7 +26,7 @@
  * This structure contains all required parameters by
  * the Smith-Waterman server function (@see sw_server).
  */
-typedef struct sw_server_input {
+struct sw_server_input {
      float match;      /**< Penalty for match. */
      float mismatch;   /**< Penalty for mismatch. */
      float gap_open;   /**< Penalty for gap opening. */
@@ -47,7 +47,8 @@ typedef struct sw_server_input {
      list_t* alignment_list_p; /**< Pointer to the list that contains the output aligned sequences. */
      genome_t* genome_p;   /**< Pointer to the genome structure to get the reference sequences. */
      bwt_optarg_t* bwt_optarg_p;
-} sw_server_input_t;
+     allocate_splice_elements_t *chromosome_avls_p;
+};
 
 //------------------------------------------------------------------------------------
 
@@ -71,7 +72,8 @@ typedef struct sw_server_input {
 void sw_server_input_init(list_t* sw_list_p, list_t* write_list_p, unsigned int write_size, 
 			  float match, float mismatch, float gap_open, float gap_extend, 
 			  float min_score, unsigned int flank_length, genome_t* genome_p,
-			  size_t max_intron_size, int min_intron_size, size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, 
+			  size_t max_intron_size, int min_intron_size, size_t seed_max_distance, 
+			  bwt_optarg_t* bwt_optarg_p, allocate_splice_elements_t *chromosome_avls_p,
 			  sw_server_input_t* input_p);
 
 //====================================================================================
@@ -201,7 +203,7 @@ void sw_output_free(sw_output_t *p);
 
 //--------------------------------------------------------------------------------------
 
-void apply_sw(sw_server_input_t* input, mapping_batch_t *batch);
+void apply_sw(sw_server_input_t* input, batch_t *batch);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

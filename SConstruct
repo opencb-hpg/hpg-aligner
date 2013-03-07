@@ -12,8 +12,8 @@ vars.Add(PathVariable('CPROPS_LIBRARY_PATH', 'Path to the compiled cprops librar
 vars.Add(PathVariable('SAMTOOLS_INCLUDE_PATH', 'Path to the headers of samtools library', '', PathVariable.PathAccept))
 vars.Add(PathVariable('SAMTOOLS_LIBRARY_PATH', 'Path to the compiled samtools library', '', PathVariable.PathAccept))
 
-vars.Add(PathVariable('EXTRAE_INCLUDE_PATH', 'Path to the headers of extrae library', '', PathVariable.PathAccept))
-vars.Add(PathVariable('EXTRAE_LIBRARY_PATH', 'Path to the compiled extrae library', '', PathVariable.PathAccept))
+#vars.Add(PathVariable('EXTRAE_INCLUDE_PATH', 'Path to the headers of extrae library', '', PathVariable.PathAccept))
+#vars.Add(PathVariable('EXTRAE_LIBRARY_PATH', 'Path to the compiled extrae library', '', PathVariable.PathAccept))
 
 compiler = ARGUMENTS.get('compiler', 'gcc')
 

@@ -6,10 +6,15 @@
 #include <stdlib.h>
 #include <omp.h>
 #include <string.h>
+
 #include "cprops/avl.h"
 #include "containers/list.h"
 #include "buffers.h"
 #include "timing.h"
+
+#define FROM_FILE 0
+#define FROM_READ 1
+
 
 typedef struct allocate_buffers {
   write_batch_t *write_exact_sp;
@@ -42,7 +47,7 @@ typedef struct splice_end{
  * Reserve memory for a new @a splice_end_t structure and initialize their fields. 
  */
 splice_end_t* new_splice_end(unsigned char strand, size_t end, 
-			     size_t splice_end);
+			     int type_orig, size_t splice_end);
 
 
 void free_splice_end(splice_end_t *splice_end_p);
@@ -118,7 +123,7 @@ node_element_splice_t* insert_end_splice(splice_end_t *splice_end_p,
  */
 node_element_splice_t* search_and_insert_end_splice(unsigned int chromosome, unsigned char strand, 
 						    size_t end , size_t splice_start, 
-						    size_t splice_end, 
+						    size_t splice_end, int type_orig, 
 						    node_element_splice_t *element_p);
 
 /**
@@ -128,7 +133,7 @@ node_element_splice_t* search_and_insert_end_splice(unsigned int chromosome, uns
  * 
  * Firt initialize and reserve memory for each avl need and then initialize each mutex. 
  */
-allocate_splice_elements_t* init_allocate_splice_elements(allocate_splice_elements_t* chromosomes_splice_avls_p);
+allocate_splice_elements_t* init_allocate_splice_elements(allocate_splice_elements_t* chromosomes_splice_avls_p, size_t nchromosomes);
 
 
 /**
@@ -148,7 +153,8 @@ allocate_splice_elements_t* init_allocate_splice_elements(allocate_splice_elemen
  */
 allocate_splice_elements_t* allocate_new_splice(unsigned int chromosome, unsigned char strand, 
 						size_t end, size_t start, 
-						size_t splice_start, size_t splice_end, 
+						size_t splice_start, size_t splice_end,
+						int type_orig,
 						allocate_splice_elements_t* chromosomes_splice_avls_p);
 
 /**
@@ -187,7 +193,9 @@ allocate_buffers_t* process_avlnode_ends_in_order(node_element_splice_t *node, u
  */
 void write_chromosome_avls(allocate_splice_elements_t *chromosome_avls, 
 			   list_t* write_list_p, char *extend_sp, char *exact_sp, 
-			   unsigned int write_size);
+			   unsigned int write_size, size_t nchromosomes);
+
+void load_intron_file(genome_t *genome, char* intron_filename, allocate_splice_elements_t *avls);
 
 //====================================================================================================
 

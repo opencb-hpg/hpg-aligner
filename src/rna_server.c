@@ -19,14 +19,16 @@
 #define SEARCH_START 0
 #define SEARCH_END 1
 #define POSSIBLES_MARKS 2
-
 #define STRANDS_NUMBER 2
+#define MAX_FUSION 2028
+#define MIN_HARD_CLIPPING 10
 
 int ii = -1;
 
 void cal_fusion_data_init(unsigned int id, size_t start, size_t end, 
 			  unsigned int strand, unsigned int chromosome, unsigned int fusion_start, 
 			  unsigned int fusion_end, cal_fusion_data_t *cal_fusion_data_p) {
+
   cal_fusion_data_p->genome_strand = strand;
   cal_fusion_data_p->id = id;
   cal_fusion_data_p->genome_start = start;
@@ -34,6 +36,7 @@ void cal_fusion_data_init(unsigned int id, size_t start, size_t end,
   cal_fusion_data_p->genome_end = end;
   cal_fusion_data_p->fusion_start = fusion_start;
   cal_fusion_data_p->fusion_end = fusion_end;
+
 }
 
 char* cigar_automata_status(unsigned char status){
@@ -146,6 +149,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 
   //=========CIGAR INFO. && BAM/SAM ========//
   int error_cigar;
+  int hard_clipping;
+  short int large_hard_clipping;
   unsigned int cigar_soft;
   unsigned int value;
   int cigar_value;
@@ -192,8 +197,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
   canonical_CT_AC[3] = 'C';
   //================================================//
 
-  /*    
-  printf("======================== Process Output SW %d=========================\n", depth);
+
+  /*  printf("======================== Process Output SW %d=========================\n", depth);
   sw_simd_input_display(depth, input_p);
   sw_simd_output_display(depth, output_p);
   printf("======================================================================\n");
@@ -210,8 +215,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
       continue;
     }
     AS =(int)output_p->score_p[i];
-        
-    /*printf("=========================== BEFORE [Depth %d - Total CALs %d]==================================\n",
+    large_hard_clipping = 0;
+    /*    printf("=========================== BEFORE [Depth %d - Total CALs %d]==================================\n",
     i, depth_cal_fusion_p[i].cal_number);
     for(int c = 0; c < depth_cal_fusion_p[i].cal_number; c++){
       printf("CAL %d :\n", c);
@@ -660,9 +665,13 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
     
     //Hard and Soft clipped start
     if (output_p->start_seq_p[i] > 0) {
-      sprintf(cigar_segment, "%iH", output_p->start_seq_p[i] + j_start);
+      hard_clipping = output_p->start_seq_p[i] + j_start;
+      sprintf(cigar_segment, "%iH", hard_clipping);
       cigar_str = strcat(cigar_str, cigar_segment);
       num_cigar_op++;
+      if (MIN_HARD_CLIPPING <= hard_clipping) {
+	large_hard_clipping = 1;
+      }
     }
     
     if (cigar_p[0].type == CIGAR_MATCH_MISMATCH) {
@@ -725,10 +734,13 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
      }
     
     if (((output_p->mapped_len_p[i] - deletions_tot) + output_p->start_seq_p[i]) < input_p->seq_len_p[i]) {
-      sprintf(cigar_segment, "%iH", input_p->seq_len_p[i] - 
-	      ((output_p->mapped_len_p[i] - deletions_tot) + output_p->start_seq_p[i]));
+      hard_clipping = input_p->seq_len_p[i] - ((output_p->mapped_len_p[i] - deletions_tot) + output_p->start_seq_p[i]);
+      sprintf(cigar_segment, "%iH", hard_clipping);
       cigar_str = strcat(cigar_str, cigar_segment);
       num_cigar_op++;
+      if (MIN_HARD_CLIPPING <= hard_clipping) {
+	large_hard_clipping = 2;
+      }
     }
     
     //printf("Cigar(%d):%s\n", cigar_pos, cigar_str);
@@ -761,6 +773,7 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
       quality_strand[str_pos] = '\0';
       quality_match = quality_strand;
     }
+
     //printf("CIGAR: %s\n", cigar_str);
     p = optional_fields;
     sprintf(p, "ASi");
@@ -775,9 +788,12 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 
     optional_fields_length = p - optional_fields;
     //printf("Start mapped %i\n", start_mapped);
-    alignment_init_single_end(header_match, read_match, quality_match, depth_cal_fusion_p[i].allocate_data->genome_strand, 
-			      depth_cal_fusion_p[i].allocate_data->genome_chromosome - 1, start_mapped - 1, cigar_str, num_cigar_op, 
-			      (int)output_p->norm_score_p[i] * 254, 1, primary_alignment, optional_fields_length, optional_fields, alignment_p);
+    alignment_init_single_end(header_match, read_match, quality_match, 
+			      depth_cal_fusion_p[i].allocate_data->genome_strand, 
+			      depth_cal_fusion_p[i].allocate_data->genome_chromosome - 1, start_mapped - 1, 
+			      cigar_str, num_cigar_op, (int)output_p->norm_score_p[i] * 254, 1, 
+			      primary_alignment, optional_fields_length, optional_fields, large_hard_clipping, 
+			      alignment_p);
 
     //printf("Score %i\n", alignment_p->map_quality);
     //printf("seq: %s\n", alignment_p->sequence);
@@ -802,9 +818,9 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
     //Report Splice Junctions
     for (unsigned int s = 0; s < splice_number; s++) {
       pthread_mutex_lock(&(chromosome_avls_p[depth_cal_fusion_p[i].allocate_data[0].genome_chromosome].mutex));
-          allocate_new_splice(depth_cal_fusion_p[i].allocate_data->genome_chromosome, allocate_splice[s].strand_sp, 
+      allocate_new_splice(depth_cal_fusion_p[i].allocate_data->genome_chromosome - 1, allocate_splice[s].strand_sp, 
 			  allocate_splice[s].end_sp, allocate_splice[s].start_sp, allocate_splice[s].start_extend_sp, 
-			  allocate_splice[s].end_extend_sp, chromosome_avls_p);
+			  allocate_splice[s].end_extend_sp, FROM_READ, chromosome_avls_p);
       pthread_mutex_unlock(&(chromosome_avls_p[depth_cal_fusion_p[i].allocate_data[0].genome_chromosome].mutex));
     }
   }//End loop depth
@@ -830,34 +846,26 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 
 
 
-void rna_server_omp_smith_waterman(sw_server_input_t* input_p, allocate_splice_elements_t *chromosome_avls_p){
+int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
   /**----------------------------------------------------------------------------------**
    **                                    RNA-SEQ                                       **
    **----------------------------------------------------------------------------------**/
-  
-  LOG_DEBUG_F("rna_server (%i): START\n", omp_get_thread_num());
+  //printf("RNA Server\n");
+  struct timeval start, end;
+  double time;
+
+  if (time_on) { start_timer(start); }
+
+  mapping_batch_t *mapping_batch_p = batch->mapping_batch;  
   unsigned int seed_max_distance = input_p->seed_max_distance;
+  allocate_splice_elements_t *chromosome_avls_p = input_p->chromosome_avls_p;
+  unsigned int flank_length = input_p->flank_length;
+  unsigned int max_intron_size = input_p->max_intron_size;
 
   size_t j, z, k, num_reads, read, bytes, num_cals, cals_positive, cals_negative;
   size_t i;
 
-  //lists and items
-  list_t* sw_list_p = input_p->sw_list_p;
-  list_item_t *sw_item_p = NULL;
-  mapping_batch_t* mapping_batch_p = NULL;
-  
-  list_item_t* item_p = NULL;
-	
-  list_t* alignment_list_p = input_p->alignment_list_p;
-  unsigned int write_size = input_p->write_size;
-  //write_batch_t* write_batch_p = write_batch_new(write_size, MATCH_FLAG);
-  
-  int sw_id = omp_get_thread_num();
-
   // genome
-  char* ref_p;
-  unsigned int ref_len;
-  
   genome_t* genome_p = input_p->genome_p;
   int min_intron_length = input_p->min_intron_size;
   
@@ -865,395 +873,265 @@ void rna_server_omp_smith_waterman(sw_server_input_t* input_p, allocate_splice_e
   unsigned int depth = 4, curr_depth = 0;
   sw_simd_input_t* sw_input_p = sw_simd_input_new(depth);
   sw_simd_output_t* sw_output_p = sw_simd_output_new(depth);
-  
   sw_simd_context_t *context_p = sw_simd_context_new(input_p->match, input_p->mismatch, input_p->gap_open, input_p->gap_extend);
-  
-
   float min_score = input_p->min_score;
 	
-  // for tracking what reads are being mapped successfully
-  size_t allocated_cals = 10000;
-  size_t maximum_allocate = 100;
   array_list_t *cals_list =  array_list_new(MAX_RNA_CALS + 32,
 					    1.25f,
 					    COLLECTION_MODE_ASYNCHRONIZED);
- //= (unsigned char*) calloc (allocated_mapping_reads, sizeof(unsigned char));
-  //if (mapping_reads_p == NULL) { exit(-1); }
 
-  // for tracking the current read, cal being processed using sw_channel_t
   sw_channel_t *channel_p, *sw_channels_p = (sw_channel_t*) calloc(depth, sizeof(sw_channel_t));
-
-  unsigned int header_len, read_len;
+  size_t header_len, read_len;
   unsigned int total = 0, total_valids = 0, total_reads = 0;
   
-  cal_t cal_tmp;
-  unsigned int *cals_per_chromosome = (unsigned int *) malloc (CHROMOSOME_NUMBER * STRANDS_NUMBER * sizeof(unsigned int));
-  if (cals_per_chromosome == NULL) { exit(-1); }
-
-  unsigned int chromosome_tot = 0, cal_chromosome_start = 0, cal_chromosome_end = 0;
-  char read_seq[2000];
-  char *seq_p;  
-  size_t start, end, start_before, end_before;
   size_t len;
-  char *reference, header_id[1024];
-  unsigned int len_increment = 512;
-  //unsigned int pos_strand;
-  char action;
-  unsigned int reference_fusion_len = 0;
+  size_t reference_fusion_len;
+  size_t max_reference_fusion = 2048;
+  size_t max_reference = 2048;
 
-  unsigned int chromosome;
-  unsigned int cal_indice;
+  char *reference = (char *)malloc(sizeof(char)*max_reference);
+  if (reference == NULL) { exit(-1); }
+  char *reference_fusion_p = (char *)malloc(sizeof(char)*max_reference_fusion);
+  if (reference_fusion_p == NULL) { exit(-1); }
+
   allocate_fusion_data_t *cals_fusion_p, *allocate_cals_fusion_p = (allocate_fusion_data_t *)calloc(depth, sizeof(allocate_fusion_data_t));
   if (allocate_cals_fusion_p == NULL) { exit(-1); }
 
-  char *header_id_match_p, *search_match_p, *quality_match_p, *cigar_p;
-  unsigned int len_id_header;
   alignment_t *alignment_p;
-  cal_t *cal_prev, *cal_next, *cal_p;
-  short int strand;
-  unsigned int cals_offset, start_incr, pos_strand;
-  unsigned int chromosome_id;
-  unsigned int flank_length = input_p->flank_length;
-  size_t num_batches = 0, total_reads_process = 0, total_reads_unmapped = 0, num_sw_process = 0;
+  cal_t *cal_prev, *cal_next, *cal, *cal_p, *cal_aux, *cal_orig, *cal_target;
+  size_t  num_sw_process = 0;
   size_t sw_no_valids = 0;
-  unsigned int chr_before;
   unsigned int num_cals_fusion;
-  //  int distance;
-  char no_store;
-  size_t distance;
-  unsigned int max_intron_size = input_p->max_intron_size;
-  
   int num_mappings;
-  alignment_t *alignment_aux;
-  array_list_t **allocate_mappings;
-
-  size_t n_alignments_report = 0; 
-  size_t n_total_reads_process = 0;
   char *read_reverse;
-  unsigned char found_negative;
-  size_t reads_no_random = 0;
+  char *seq_p;
   size_t num_targets;
-  size_t max_reference = 2048;
-  size_t maximum_reference_len = 1024;//2048;
-  char *reference_fusion_p = (char *)malloc(sizeof(char)*maximum_reference_len);
-  if (reference_fusion_p == NULL) { exit(-1); }
   char *optional_fields;
-  //int optional_fields_length;
+  unsigned char *associate_list;
+  preprocess_data_t *preprocess_data = (preprocess_data_t *)batch->optional_data;
+  unsigned char *negative_strand = preprocess_data->negative_strand;
+  int num_cal_targets;
+  int *cal_targets;
+  size_t c_orig, c_target;
+  unsigned char no_store;
+  size_t flank;
 
-  //allocate_mappings = (array_list_t **)malloc(allocated_mapping_reads*sizeof(array_list_t *));
-
-  reference = (char *)malloc(sizeof(char)*max_reference);
-  
-  if (reference == NULL) { exit(-1); }
-
-  // start main loop
-  while ( (sw_item_p = list_remove_item(sw_list_p)) != NULL ) {
-    num_batches++;
-    //printf("RNA Server Processing Batch...\n");
-    if (time_on) { timing_start(SW_SERVER, sw_id, timing_p); }
+  curr_depth = 0;
+  num_targets = mapping_batch_p->num_targets;//sw_batch_p->num_reads;
+  num_reads = array_list_size(mapping_batch_p->fq_batch);
+  total_reads += num_targets;
     
-    curr_depth = 0;
-    mapping_batch_p = (mapping_batch_t*) sw_item_p->data_p;
-    num_targets = mapping_batch_p->num_targets;//sw_batch_p->num_reads;
-    num_reads = array_list_size(mapping_batch_p->fq_batch);
-    total_reads += num_targets;
-    
-    /*    
-    if (num_reads >= allocated_mapping_reads) {
-      cals_list = num_reads*1.25;
-      //mapping_reads_p = (unsigned char *) realloc(mapping_reads_p, allocated_mapping_reads * sizeof(unsigned char));
-      allocate_mappings = (array_list_t **)realloc(allocate_mappings, allocated_mapping_reads *sizeof(array_list_t *));
+  /** for each read **/
+  for (i = 0; i < num_targets; i++) {      
+    num_cal_targets = preprocess_data->num_cal_targets[i];
+    cal_targets = preprocess_data->cal_targets[i];
+    associate_list = preprocess_data->associate_cals[i];
+    //cals_list = mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]];
+
+    fastq_read_t *read_p = array_list_get(mapping_batch_p->targets[i], mapping_batch_p->fq_batch); 
+    //rintf("%s\n", read_p->sequence);
+    //read_len = read_p->length;
+    read_len = strlen(read_p->sequence);
+
+    header_len = strlen(read_p->id);
+    num_cals = array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
+    if (!num_cals) { continue; }
+    //printf("Process %lu CALs\n", num_cals);
+    //printf("RNA SERVER :: %d - %d\n", read_len, header_len);
+    total += num_cals;
+    //printf("Process read(%i): %s\n", i, read_p->sequence);
+    //printf("Need Reverse? (%i)\n", negative_strand[i]);
+    // Order CALs and count number of CALs per chromosome and initialize cal type array
+    if (negative_strand[i]) {
+      read_reverse = (char *)calloc((read_len + 1), sizeof(char));
+      memcpy(read_reverse, read_p->sequence, read_len);
+      seq_reverse_complementary(read_reverse, read_len);
     }
-    */
-    //memset(mapping_reads_p, 0, allocated_mapping_reads * sizeof(unsigned char));
+    
+    //printf("NUM CALS %i\n", num_cals);
+    for (j = 0; j < num_cals; j++) {
+      cal = (cal_t *)array_list_get(j, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
+      //printf("%i - %i, chr %i:(%i)[%lu-%lu]\n", j, i, cal->chromosome_id, cal->strand, cal->start, cal->end);
+      array_list_insert(cal, cals_list);
+    }
+    mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]->size = 0;    
 
-    /** for each read **/
-    //total_reads_process += num_reads;
-    for (i = 0; i < num_targets; i++) {      
-      //if (allocate_mappings[i] == NULL) {
-      /*allocate_mappings[i] = array_list_new(100, 
-					    1.25f, 
-      				    COLLECTION_MODE_ASYNCHRONIZED);
-	//      }
-	*/
-      fastq_read_t *read_p = array_list_get(mapping_batch_p->targets[i], mapping_batch_p->fq_batch); 
-      read_len = strlen(read_p->sequence);
-      //printf("Proces(%d) %s\n", read_len, read_p->id);
-      header_len = strlen(read_p->id);
-      num_cals = array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
-      //printf("Process %lu CALs\n", num_cals);
-      //printf("RNA SERVER :: %d - %d\n", read_len, header_len);
-      total += num_cals;
-      //memcpy(read_seq, &(sw_batch_p->read_p[sw_batch_p->read_indices_p[read]]), read_len);
+   
+    for (int t = 0; t < num_cal_targets; t++) {
+      j = cal_targets[t];
       
-      memset(cals_per_chromosome, 0, CHROMOSOME_NUMBER * STRANDS_NUMBER *  sizeof(unsigned int));
-      /*   
-      printf("\n");
-      printf("CALS BEFORE ORDER:\n");
-      for(int t = 0; t < array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]); t++){
-	cal_p = (cal_t *)array_list_get(t, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
-	printf("\t%d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", t, cal_p->chromosome_id, cal_p->strand, cal_p->start, cal_p->end);
-      }*/
-      //exit(-1);
+      cals_fusion_p = &allocate_cals_fusion_p[curr_depth];
+      cals_fusion_p->allocate_data = (cal_fusion_data_t *)calloc(num_cals, sizeof(cal_fusion_data_t));      
+      num_cals_fusion = 0;
       
-      // Order CALs and count number of CALs per chromosome and initialize cal type array
-      found_negative = 0;
-      for (j = 0; j < num_cals; j++) {
-	cal_p = (cal_t *)array_list_get(j, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
-	if (cal_p->strand == 1 && !found_negative) {
-	  read_reverse = (char *)calloc((read_len + 1), sizeof(char));
-	  memcpy(read_reverse, read_p->sequence, read_len);
-	  seq_reverse_complementary(read_reverse, read_len);
-	  found_negative = 1;
+      c_orig = j;
+      c_target = associate_list[j];
+      //printf("\tORGI: %i to TARGET: %i\n", c_orig, c_target);
+      cal_p = (cal_t *)array_list_get(j, cals_list);
+      
+      cal_target = (cal_t *)array_list_get(c_target, cals_list);
+      cal_orig = (cal_t *)array_list_get(c_orig, cals_list);
+
+      if ( (cal_p->flank_start + 1) >= cal_p->start) {
+	cal_p->start = 0;
+      } else {
+	cal_p->start -= (cal_p->flank_start + 1); 
+      }
+
+      if (c_orig == c_target) {
+	flank = cal_p->flank_end + 1; 
+      }	else {
+	flank = flank_length; 
+      }
+      
+      cal_p->end += flank; 
+      if (cal_p->end >= genome_p->chr_size[cal_p->chromosome_id - 1]) {
+	cal_p->end = genome_p->chr_size[cal_p->chromosome_id - 1] - 1;
+      }
+      
+      
+      //printf("\tNew CAL Pos[%i-%i]\n", cal_p->start, cal_p->end);
+      reference_fusion_len = cal_p->end - cal_p->start + 1;
+      
+      if(reference_fusion_len >= max_reference_fusion) {
+	max_reference_fusion += 1.25*reference_fusion_len;
+	free(reference_fusion_p);
+	reference_fusion_p = (char *)malloc(max_reference_fusion*sizeof(char));
+	if (reference_fusion_p == NULL) { exit(-1); }
+      }
+      
+      genome_read_sequence_by_chr_index(reference_fusion_p, 0,
+					cal_p->chromosome_id - 1, &cal_p->start, &cal_p->end, genome_p);
+      
+      cal_fusion_data_init(j, cal_p->start, cal_p->end, cal_p->strand, cal_p->chromosome_id, 
+			   0, reference_fusion_len - 1, 
+			   &cals_fusion_p->allocate_data[num_cals_fusion]);
+      
+      no_store = 0;
+      while (j < c_target) {
+	j++;
+	cal_p = (cal_t *)array_list_get(j, cals_list);
+	num_cals_fusion++;
+	//printf("\t<--- Extend left %i\n", flank_length);
+	if ( flank_length >= cal_p->start) {
+	  cal_p->start = 0;
+	} else {
+	  cal_p->start -= flank_length; 
 	}
-	cals_per_chromosome[cal_p->chromosome_id * STRANDS_NUMBER + cal_p->strand] += 1;
-	array_list_insert(cal_p, cals_list);
-      }
-      mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]->size = 0;
-
-      //CALs actualization and extend 
-      j = 0;
-      cal_prev = (cal_t *)array_list_get(j, cals_list);
       
-      if (cal_prev->start <= flank_length) {
-        cal_prev->start = 0;
-      }else {
-        cal_prev->start -= flank_length;
-      }
-
-      cal_prev->end += flank_length;
-      if (cal_prev->end >= genome_p->chr_size[cal_prev->chromosome_id - 1]) {
-	cal_prev->end = genome_p->chr_size[cal_prev->chromosome_id - 1] - 1;
-      }
-
-      j++;
-      while(j < num_cals){	  
-	cal_next = (cal_t *)array_list_get(j, cals_list);
-
-	if (cal_next->start <= flank_length) {
-          cal_next->start = 0;
-        }else {
-          cal_next->start -= flank_length;
-        }
-
-        cal_next->end += flank_length;
-        if (cal_next->end >= genome_p->chr_size[cal_next->chromosome_id - 1]) {
-          cal_next->end = genome_p->chr_size[cal_next->chromosome_id - 1] - 1;
-        }
-
-	if((cal_next->chromosome_id == cal_prev->chromosome_id) && 
-	   (cal_next->strand == cal_prev->strand) && 
-	   (cal_next->start <= (cal_prev->end + seed_max_distance))){
-	  //printf("Fusion CALs %d with %d\n", j - 1, j);
-	  cal_next->start = cal_prev->start;
-	  cal_prev = cal_next;
-	  cal_p = array_list_remove_at(j - 1, cals_list);
-	  cals_per_chromosome[cal_p->chromosome_id * STRANDS_NUMBER + cal_p->strand] -= 1;
-	  cal_free(cal_p);
-	  num_cals--;
-	}else{
-	  cal_prev = cal_next;
-	  j++;
+	if (j == c_target) {
+	  flank = cal_p->flank_end + 1; 
+	} else {
+	  flank = flank_length; 
 	}
-      }
-        /*          
-	printf("\n");
-	printf("CALS AFTER REFUSION:\n");
-	for(int t = 0; t < array_list_size(sw_batch_p->allocate_cals_p[i]); t++){
-	  cal_p = (cal_t *)array_list_get(t, sw_batch_p->allocate_cals_p[i]);
-	  printf("\t%d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", t, cal_p->chromosome_id, cal_p->strand, cal_p->start, cal_p->end);
-	}	
-      */
-      /*
-      printf("\n");
-      printf("CALS BEFORE ORDER:\n");
-      for(int t = 0; t < array_list_size(cals_list); t++){
-	cal_p = (cal_t *)array_list_get(t, cals_list);
-	printf("\t%d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", t, cal_p->chromosome_id, cal_p->strand, cal_p->start, cal_p->end);
-	}*/
-      //if (array_list_size(sw_batch_p->allocate_cals_p[i]) > 10) { printf("%s\n", sw_batch_p->allocate_reads_p[i]->sequence);exit(0);}
-      chromosome_tot = 0;
-      
-      for(int c = 0; c < CHROMOSOME_NUMBER*STRANDS_NUMBER; c+=2){
-	if(cals_per_chromosome[c]){ chromosome_tot++; }
-	if(cals_per_chromosome[c + 1]){ chromosome_tot++; }
-      }
-      
-      //printf("cals chromosome tot %d\n", chromosome_tot);
-      
-      // Loop Chromosome CALs
-      cal_chromosome_start = 0;
-      cal_chromosome_end = 0;
-      
-      for(int c = 0; c < chromosome_tot; c++){
-	cal_p = (cal_t *)array_list_get(cal_chromosome_start, cals_list);
-	//printf("Process read %s\n", sw_batch_p->allocate_reads_p[i]->id);
-	strand = cal_p->strand;
-	num_cals = cals_per_chromosome[cal_p->chromosome_id*STRANDS_NUMBER + cal_p->strand];
-	//printf("Num Cals %d\n", num_cals);
-	cal_chromosome_end += num_cals;	
+
+	cal_p->end += flank; 
+	if (cal_p->end >= genome_p->chr_size[cal_p->chromosome_id - 1]) {
+	  cal_p->end = genome_p->chr_size[cal_p->chromosome_id - 1] - 1;
+	}
 	
-	reference_fusion_p[0] = '\0';
-	reference_fusion_len = 0;
+	len = cal_p->end - cal_p->start + 1;
+	if(reference_fusion_len + len >= MAX_FUSION) {
+	  no_store = 1;
+	  break;
+	}
 	
-	j = cal_chromosome_start;
+	//printf("%lu >= %lu\n", len, max_reference);
+	if(len >= max_reference) {
+	  max_reference += 1.25*len;
+	  free(reference);
+	  reference = (char *)malloc(max_reference*sizeof(char));
+	  if (reference == NULL) { exit(-1); }
+	}
+	
+	//printf("\tCAL fusion data fusion chr:%i-strand%i-[%i-%i] %i...\n", cal_p->chromosome_id, cal_p->strand, cal_p->start, cal_p->end, j);
+	
+	genome_read_sequence_by_chr_index(reference, 0, 
+					  cal_p->chromosome_id - 1, &cal_p->start, &cal_p->end, genome_p);
+	
+	cal_fusion_data_init(j, cal_p->start, cal_p->end, cal_p->strand, cal_p->chromosome_id, 
+			     reference_fusion_len, reference_fusion_len + len - 1, 
+			     &cals_fusion_p->allocate_data[num_cals_fusion]);
+	
+	reference_fusion_len += len;
+	strcat(reference_fusion_p, reference);
+      } //End While concatenate
+      
+      if (no_store){
 	no_store = 0;
-	//printf("Process from cal %d to cal %d\n", cal_chromosome_start, cal_chromosome_end);
-	while( j < cal_chromosome_end ){
-	  
-	  cals_fusion_p = &allocate_cals_fusion_p[curr_depth];
-	  cals_fusion_p->allocate_data = (cal_fusion_data_t *)calloc(num_cals, sizeof(cal_fusion_data_t));
-	  
-	  cal_p = (cal_t *)array_list_get(j, cals_list);
-
-	  start_before =  cal_p->start;
-	  end_before =  cal_p->end;
-	  len = end_before - start_before + 1;
-	  
-	  start = start_before;
-	  end = end_before;
-
-	  //printf("\tExtract cal %d : chr%d(%d)=[%d-%d]\n", j, cal_p->chromosome_id, strand, start, end);
-
-	  num_cals_fusion = 0;
-	  reference_fusion_len = 0;
-	  
-	  reference_fusion_p[0] = '\0';
-	  //cal_indice = 0;
-	  distance = 0;
-	  
-	  while(distance < max_intron_size){
-	    
-	    cal_fusion_data_init(j, start, end, cal_p->strand, cal_p->chromosome_id, 
-				 reference_fusion_len, reference_fusion_len + len -1, 
-				 &cals_fusion_p->allocate_data[num_cals_fusion]);
-	    
-	    if(len > max_reference){
-	      max_reference += 1.25*len;
-	      free(reference);
-	      reference = (char *)malloc(max_reference*sizeof(char));
-	      if (reference == NULL) { exit(-1); }
-	    }
-	    
-	    genome_read_sequence_by_chr_index(reference, 0, 
-					      cal_p->chromosome_id - 1, &start, &end, genome_p);
-	    
-	    //printf("chr:%i - CAL[%i-%i]\n", cal_p->chromosome_id, start, end);
-	    reference_fusion_len += len;
-	    
-	    if(reference_fusion_len >= maximum_reference_len){
-	      no_store = 1;
-	      //printf("No process\n");
-	      break;
-	      // printf("Reallocate\n");
-	      //maximum_reference_len += 1.25*len;
-	      //reference_fusion_p = (char *)realloc(reference_fusion_p, sizeof(char)*maximum_reference_len);
-	    }	     
-	    strcat(reference_fusion_p, reference);
-	    j++;
-	    num_cals_fusion++;
-	    if( j < cal_chromosome_end){
-	      //printf("\tFusion cals...\n");
-	      cal_p = (cal_t *)array_list_get(j, cals_list);
-	      
-	      start_before = start;
-	      start = cal_p->start;
-	      end = cal_p->end;
-		
-	      distance = start - start_before;
-	      
-	      len = end - start + 1;
-	    }else{
-	      break;
-	    }
-	  }//while to concatenate CALs 
-	  
-	  if(no_store){
-	    free(cals_fusion_p->allocate_data);
-	    no_store = 0;
-	    break;
-	  }
-	  
-
-	  //printf("Proceses one sw %i\n", reference_fusion_len);
-	  
-	  cal_indice = 0;
-	  cals_fusion_p->cal_number = num_cals_fusion;   	  
-	  channel_p = &sw_channels_p[curr_depth];
-	  
-	  sw_channel_allocate_ref(reference_fusion_len + 1, channel_p);
-	  
-	  memcpy(channel_p->ref_p, reference_fusion_p, reference_fusion_len + 1);
-	  channel_p->ref_p[reference_fusion_len]= '\0';
-	  
-	  sw_channel_update(mapping_batch_p->targets[i], strand, read_len, header_len, reference_fusion_len, channel_p);
-	  //i
-	  //Reverse read
-	  //seq_p = (char *)malloc(sizeof(char *)*(read_len + 1));
-	  seq_p = (char *)calloc((read_len + 1), sizeof(char));
-	  	  
-	  if(strand == 1){
-	    //printf("\tReverse complementary\n");
-	    memcpy(seq_p, read_reverse, read_len);
-	  }else {
-	    memcpy(seq_p, read_p->sequence, read_len);
-	  }
-
-	  //seq_p[read_len] = '\0';
-
-	  sw_simd_input_add(seq_p, read_len,
-			    channel_p->ref_p, channel_p->ref_len, 
-			    curr_depth, sw_input_p);
-
-	  //	  printf("Stored int position %i\n", i); 
-
-	  
-	  if ((++curr_depth) == depth) {
-	    smith_waterman_simd(sw_input_p, sw_output_p, context_p);
-	    search_splice_junctions_sw_output(sw_input_p, sw_output_p, curr_depth, 
-					      allocate_cals_fusion_p, chromosome_avls_p, sw_channels_p, 
-					      mapping_batch_p, sw_id, &sw_no_valids,
-					      min_score, genome_p, min_intron_length);
-	    num_sw_process += curr_depth;
-	    curr_depth = 0;
-	  }
-	  
-	  //printf("Process End\n");
-	}//while from cal_chromosome_start to cal_chromosome_end
-	//printf("End process CALs\n");
-	cal_chromosome_start += num_cals;
-	
-      }//end for start to chromosome_tot
-      //printf("End process read %s\n", read_p->id);
-      if (found_negative) { free(read_reverse); } 
-      array_list_clear(cals_list, cal_free);
-    } // end of for 0..num_reads
-    
-    //printf("%d.Seq(%d): %s\n",cal_p->strand, read_len, sw_batch_p->allocate_reads_p[i]->sequence);
-    if (curr_depth > 0) {
-      //printf("Current depth %d/%d\n", curr_depth, depth);
-      num_sw_process += curr_depth;
-      for(k = curr_depth ; k < depth ; k++) {
-	//printf("STORE : %s\n", sw_input_p->seq_p[0]);
-	sw_simd_input_add(sw_input_p->seq_p[0], sw_input_p->seq_len_p[0],
-			  channel_p->ref_p, channel_p->ref_len, 
-			  k, sw_input_p);
-	//printf("k=%d : %s\n", k , sw_input_p->seq_p[k]);
+	while (j <= c_target) { j++; }
+	//exit(-1);
+	continue;
       }
-      //printf("Run smith waterman... %i\n", i);
-      smith_waterman_simd(sw_input_p, sw_output_p, context_p);
       
-      search_splice_junctions_sw_output(sw_input_p, sw_output_p, curr_depth, 
-					allocate_cals_fusion_p, chromosome_avls_p,  
-					sw_channels_p, mapping_batch_p,
-					sw_id, &sw_no_valids, min_score, genome_p, 
-					min_intron_length);
+      //printf("\tStoring reference...\n");
+      cals_fusion_p->cal_number = num_cals_fusion + 1;   	  
+      channel_p = &sw_channels_p[curr_depth];
       
-      //found_write_p = process_sw_output(sw_output_p, sw_input_p, min_score, curr_depth, sw_channels_p, sw_batch_p, write_list_p, found_write_p, write_size, sw_id, &total_valids, mapping_reads_p, genome_p);
-      curr_depth = 0;
-    }
+      sw_channel_allocate_ref(reference_fusion_len + 1, channel_p);
+      
+      memcpy(channel_p->ref_p, reference_fusion_p, reference_fusion_len);
+      channel_p->ref_p[reference_fusion_len]= '\0';
+      
+      sw_channel_update(mapping_batch_p->targets[i], cal_p->strand, read_len, header_len, reference_fusion_len, channel_p);
+      seq_p = (char *)calloc((read_len + 1), sizeof(char));
+      if(cal_p->strand){
+	memcpy(seq_p, read_reverse, read_len);
+      }else {
+	memcpy(seq_p, read_p->sequence, read_len);
+      }
+
+      sw_simd_input_add(seq_p, read_len,
+			channel_p->ref_p, channel_p->ref_len, 
+			curr_depth, sw_input_p);
+
+      if ((++curr_depth) == depth) {
+	smith_waterman_simd(sw_input_p, sw_output_p, context_p);
+	//printf("\tProcess sw done\n");
+	search_splice_junctions_sw_output(sw_input_p, sw_output_p, curr_depth, 
+					  allocate_cals_fusion_p, chromosome_avls_p, sw_channels_p, 
+					  mapping_batch_p, 0, &sw_no_valids,
+					  min_score, genome_p, min_intron_length);
+	num_sw_process += curr_depth;
+	curr_depth = 0;
+      }
+      //printf("\tStored reference done!\n");
+      //printf("%i\n", associate_list[i]);
+    } //End Loop CALs
+    //printf("End Loop\n");
     
-    //**************************************************
+    if (negative_strand[i]) { free(read_reverse); } 
+    //printf("Clear list...\n");
+    array_list_clear(cals_list, cal_free);
+    //printf("Clear done...\n");
+  }// end of for 0..num_reads
+  //printf("End process reads\n");
+
+  //printf("%d.Seq(%d): %s\n",cal_p->strand, read_len, sw_batch_p->allocate_reads_p[i]->sequence);
+  if (curr_depth > 0) {
+    //printf("Current depth %d/%d\n", curr_depth, depth);
+    num_sw_process += curr_depth;
+    for(k = curr_depth ; k < depth ; k++) {
+      //printf("STORE : %s\n", sw_input_p->seq_p[0]);
+      sw_simd_input_add(sw_input_p->seq_p[0], sw_input_p->seq_len_p[0],
+			channel_p->ref_p, channel_p->ref_len, 
+			k, sw_input_p);
+      //printf("k=%d : %s\n", k , sw_input_p->seq_p[k]);
+    }
+    //printf("Run smith waterman... %i\n", i);
+    smith_waterman_simd(sw_input_p, sw_output_p, context_p);
+      
+    search_splice_junctions_sw_output(sw_input_p, sw_output_p, curr_depth, 
+				      allocate_cals_fusion_p, chromosome_avls_p,  
+				      sw_channels_p, mapping_batch_p,
+				      0, &sw_no_valids, min_score, genome_p, 
+				      min_intron_length);
+    
+    //found_write_p = process_sw_output(sw_output_p, sw_input_p, min_score, curr_depth, sw_channels_p, sw_batch_p, write_list_p, found_write_p, write_size, sw_id, &total_valids, mapping_reads_p, genome_p);
+    curr_depth = 0;
+  }
+  
+  //**************************************************
     //PROCESS OUTPUT ALIGNMENTS
     for (i = 0; i < num_targets; i++) {
       //num_mappings = array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
@@ -1280,104 +1158,12 @@ void rna_server_omp_smith_waterman(sw_server_input_t* input_p, allocate_splice_e
 	array_list_set_flag(0, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
       }
     }
-
-    //printf("Process Alignments %i\n", num_reads);
-    /*
-    fastq_read_t *read_p;
-    for (i = 0; i < num_reads; i++) {
-      read_p = array_list_get(i, mapping_batch_p->fq_batch);
-      //printf("Read %i : %i\n", i, array_list_size(allocate_mappings[i]));
-      n_total_reads_process++;
-      //if (ii == i && ii != -1) { printf("1.READ %i -- Mappings found %i\n", ii, array_list_size(allocate_mappings[i]));  }
-      num_mappings = alignments_filter(input_p->bwt_optarg_p->report_all, 
-				       input_p->bwt_optarg_p->report_best, 
-				       input_p->bwt_optarg_p->report_n_hits, 
-				       mapping_batch_p->mapping_lists[i]); 
-      
-      //if (ii == i && ii != -1) { printf("2.Mappings found %i\n", num_mappings); exit(-1); }
-      //printf("Read[%i] => %i\n", i, num_mappings);
-      for (size_t m = 0; m < num_mappings; m++) {
-	alignment_aux = array_list_get(m, mapping_batch_p->mapping_lists[i]);
-	//printf("\t%i.%s\n", m, alignment_aux->cigar);
-	if ( write_batch_p->size >= write_batch_p->allocated_size - 1) {
-	  item_p = list_item_new(0, WRITE_ITEM, write_batch_p);
-	  if (time_on) { timing_stop(SW_SERVER, sw_id, timing_p); }
-	  list_insert_item(item_p, write_list_p);
-	  if (time_on) { timing_start(SW_SERVER, sw_id, timing_p); }
-	  
-	  write_batch_p = write_batch_new(write_size, MATCH_FLAG);
-	  
-	}
-
-	((alignment_t **)write_batch_p->buffer_p)[write_batch_p->size] = alignment_aux;
-	write_batch_p->size++;
-      }
-
-      if (!num_mappings) {
-	//printf("****************** read %i NO MAPPED %i!!!\n", i, mapping_reads_p[i]);
-	total_reads_unmapped++;
-	read_len = strlen(read_p->sequence);
-	header_len = strlen(read_p->id);
-	
-	if ( write_batch_p->size >= write_batch_p->allocated_size - 1) {
-	  item_p = list_item_new(0, WRITE_ITEM, write_batch_p);
-	  if (time_on) { timing_stop(SW_SERVER, sw_id, timing_p); }
-	  list_insert_item(item_p, write_list_p);
-	  if (time_on) { timing_start(SW_SERVER, sw_id, timing_p); }
-	  
-	  write_batch_p = write_batch_new(write_size, MATCH_FLAG);
-	}
-	
-	search_match_p = (char *)malloc(sizeof(char)*(read_len + 1));
-	memcpy(search_match_p, read_p->sequence, read_len);
-	search_match_p[read_len] = '\0';
-	
-	quality_match_p = (char *)malloc(sizeof(char)*(read_len + 1));
-	memcpy(quality_match_p, read_p->quality, read_len);
-	quality_match_p[read_len] = '\0';
-	
-	header_id_match_p = (char *)malloc(sizeof(char)*header_len);
-	//memcpy(header_id_match_p, &header_id, len_id_header);
-	len_id_header = get_to_first_blank(read_p->id, header_len, header_id_match_p);
-
-
-	//	if (strncmp("@rand", sw_batch_p->allocate_reads_p[i]->id, 5)) { reads_no_random++; printf("%s\n", sw_batch_p->allocate_reads_p[i]->sequence); exit(-1);}
-	
-	alignment_p = alignment_new();
-	cigar_p = (char *)malloc(sizeof(char)*10);
-	sprintf(cigar_p, "%d%c\0", read_len, 'X');
-	//TODO:chromosome 0??
-	
-	alignment_init_single_end(header_id_match_p, search_match_p, quality_match_p, 
-				  0, -1, -1, cigar_p, 1, 0, 0, 0, 0, NULL, alignment_p);
-	
-	//printf("seq: %s\n", alignment_p->sequence);
-	((alignment_t **)write_batch_p->buffer_p)[write_batch_p->size] = alignment_p;
-	write_batch_p->size++;
-
-
-	//mapping_reads_p[i] = 2;
-      }
-      //allocate_mappings[i]->size = 0;
-      array_list_free(mapping_batch_p->mapping_lists[i], NULL);
-      //array_list_free(allocate_mappings[i], NULL);     
-    }
-
-    */
-    //**************************************************
     
-    /*    printf("Reads mapped with global variable at this moment %d\n", reads_mapped_global);
-    printf("Reads mapped with local  variable at this moment %d\n", total_reads_unmapped);
-    */
-    //mapping_batch_free(mapping_batch_p);
-    //list_item_free(sw_item_p);
-    
-    if (time_on) { timing_stop(SW_SERVER, sw_id, timing_p); }
-    list_insert_item(sw_item_p, alignment_list_p); 
+
     //printf("RNA Server process batch finish!\n");
-  } // end of while
+
   
-  array_list_free(cals_list, NULL);
+    array_list_free(cals_list, NULL);
 
   // insert or free memory
   /*  if (write_batch_p != NULL) {
@@ -1400,35 +1186,16 @@ void rna_server_omp_smith_waterman(sw_server_input_t* input_p, allocate_splice_e
   sw_simd_context_free(context_p);
 
   free(allocate_cals_fusion_p);
-  free(cals_per_chromosome);
   //free(mapping_reads_p);
   
   free(reference_fusion_p);
   free(reference);
 
-  /*
-  for (i = 0; i < allocated_mapping_reads; i++){
-    array_list_free(allocate_mappings[i], NULL);
-  }
-  */
-  free(allocate_mappings);
+  preprocess_data_free(preprocess_data);
 
-  list_decr_writers(alignment_list_p);
-  /*
-  if (statistics_on) { 
-    statistics_add(SW_SERVER_ST, 0, num_batches, statistics_p); 
-    statistics_add(SW_SERVER_ST, 1, total_reads_process, statistics_p); 
-    statistics_add(SW_SERVER_ST, 2, total_reads_process - total_reads_unmapped, statistics_p); 
-    statistics_add(SW_SERVER_ST, 3, total_reads_unmapped, statistics_p); 
-    statistics_add(SW_SERVER_ST, 4, num_sw_process, statistics_p); 
-    statistics_add(SW_SERVER_ST, 5, num_sw_process - sw_no_valids, statistics_p); 
-    statistics_add(SW_SERVER_ST, 6, sw_no_valids, statistics_p); 
-    statistics_add(TOTAL_ST, 1, total_reads_process - total_reads_unmapped, statistics_p); 
-    statistics_add(TOTAL_ST, 2, total_reads_unmapped, statistics_p); 
-  }
-  */
-  
-  LOG_DEBUG_F("rna_server (%i): END\n", omp_get_thread_num());
-  
-  return;
-  }
+  if (time_on) { stop_timer(start, end, time); timing_add(time, RNA_SERVER, timing); }
+
+  //printf("RNA End\n");  
+  return POST_PAIR_STAGE;
+
+}

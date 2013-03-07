@@ -8,7 +8,9 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 			  float match, float mismatch, float gap_open, float gap_extend, 
 			  float min_score, unsigned int flank_length, genome_t* genome, 
 			  size_t max_intron_size, int min_intron_size, 
-			  size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, sw_server_input_t* input) {
+			  size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, 
+			  allocate_splice_elements_t *chromosome_avls_p, 
+			  sw_server_input_t* input) {
   
   input->sw_list_p = sw_list;
   input->alignment_list_p = alignment_list;
@@ -61,6 +63,7 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 
   // CAL
   input->flank_length = flank_length;
+  input->chromosome_avls_p = chromosome_avls_p;
 }
 
 //====================================================================================
@@ -402,18 +405,18 @@ inline void sw_channel_update(size_t read_index, unsigned int cal_index, unsigne
 
 //FILE *fd_ref = NULL, *fd_query = NULL;
 
-void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
+void apply_sw(sw_server_input_t* input, batch_t *batch) {
 
   //  if (fd_ref == NULL) { fd_ref = fopen("sw_ref2.txt", "w"); }
   //  if (fd_query == NULL) { fd_query = fopen("sw_query2.txt", "w"); }
 
   //  printf("START: apply_sw\n"); 
   int tid = omp_get_thread_num();
-
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
   cal_t *cal = NULL;
   array_list_t *cal_list = NULL, *mapping_list = NULL;//, *old_list = NULL, *new_list = NULL;
 
-  array_list_t *fq_batch = batch->fq_batch;
+  array_list_t *fq_batch = mapping_batch->fq_batch;
   fastq_read_t *fq_read;
 
   size_t start, end;
@@ -441,13 +444,13 @@ void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
   size_t read_index, num_cals;
   //  size_t total = 0, valids = 0;
 
-  size_t num_targets = batch->num_targets;
+  size_t num_targets = mapping_batch->num_targets;
   size_t new_num_targets = 0;
 
-  size_t sw_total = batch->num_to_do;
+  size_t sw_total = mapping_batch->num_to_do;
 
   // set to zero
-  batch->num_to_do = 0;
+  mapping_batch->num_to_do = 0;
 
   /*
   // for all seqs pending to process !!
@@ -485,12 +488,12 @@ void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
   for (size_t i = 0; i < num_targets; i++) {
     //    printf("sw_server: target #%i of %i\n", i, num_seqs);
 
-    read_index = batch->targets[i];
+    read_index = mapping_batch->targets[i];
     fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
 
     //    printf("sw_server: read #%i\n", read_index);
 
-    cal_list = batch->mapping_lists[read_index];
+    cal_list = mapping_batch->mapping_lists[read_index];
     num_cals = array_list_size(cal_list);
 
     read_len = fq_read->length;
@@ -604,7 +607,7 @@ void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
     if (norm_score >= min_score) {
       // valid mappings, 
       //insert in the list for further processing
-      mapping_list = batch->mapping_lists[read_index];
+      mapping_list = mapping_batch->mapping_lists[read_index];
       array_list_set_flag(0, mapping_list);
 
       if (array_list_size(mapping_list) == 0) {
@@ -613,7 +616,7 @@ void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
       //				      COLLECTION_MODE_ASYNCHRONIZED);
 	
       //	batch->mapping_lists[index] = mapping_list;
-	batch->targets[new_num_targets++] = read_index;
+	mapping_batch->targets[new_num_targets++] = read_index;
       }
 
       sw_output = sw_output_new(strands[i],
@@ -629,7 +632,7 @@ void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
 				output->ref_map_p[i]);
       array_list_insert(sw_output, mapping_list);
 
-      batch->num_to_do++;
+      mapping_batch->num_to_do++;
 
       // debugging
       //unmapped_by_score[index] = 1;
@@ -639,7 +642,7 @@ void apply_sw(sw_server_input_t* input, mapping_batch_t *batch) {
     free(q[i]);
     free(r[i]);
   }
-  batch->num_targets = new_num_targets;
+  mapping_batch->num_targets = new_num_targets;
   /*
   // debugging
   for (size_t i = 0; i < fq_batch->num_reads; i++) {

@@ -1,3 +1,6 @@
+#ifndef WORKFLOW_SCHEDULER_H
+#define WORKFLOW_SCHEDULER_H
+
 #define _GNU_SOURCE
 
 #include <sys/syscall.h>
@@ -38,25 +41,25 @@ typedef int (*workflow_consumer_function_t) (void *data);
 // workflow
 //----------------------------------------------------------------------------------------
 
-typedef struct workflow {
+typedef struct workflow workflow_t;
 
+struct workflow {
      int num_threads;
      int max_num_work_items;
-
      int num_stages;
      int completed_producer;
-     
-     int num_pending_items;
-     
+     int num_pending_items;     
      int running_producer;
      int running_consumer;
 
-     pthread_barrier_t barrier;
+     int complete_extra_stage;
+     
      pthread_cond_t producer_cond;
      pthread_cond_t consumer_cond;
-     
+     pthread_cond_t workers_cond;
+
      pthread_mutex_t producer_mutex;
-     pthread_mutex_t consumer_mutex;
+     pthread_mutex_t consumer_mutex;     
      
      pthread_mutex_t main_mutex;
      
@@ -71,7 +74,8 @@ typedef struct workflow {
      
      workflow_consumer_function_t *consumer_function;
      char* consumer_label;
-} workflow_t;
+  //int (*status_function)(workflow_t *);
+};
 
 workflow_t *workflow_new();
 void workflow_free(workflow_t *wf);
@@ -86,16 +90,18 @@ void workflow_set_consumer(workflow_consumer_function_t *function,
 int workflow_get_num_items(workflow_t *wf);
 int workflow_get_num_items_at(int stage_id, workflow_t *wf);
 int workflow_get_num_completed_items(workflow_t *wf);
-
 int workflow_is_producer_finished(workflow_t *wf);
 
 void workflow_insert_item(void *data, workflow_t *wf);
 void workflow_insert_item_at(int stage_id, void *data, workflow_t *wf);
+void workflow_insert_stage_item_at(void *data, int new_stage, workflow_t *wf);
 void *workflow_remove_item(workflow_t *wf);
 void *workflow_remove_item_at(int stage_id, workflow_t *wf);
 
 int workflow_get_status(workflow_t *wf);
+int workflow_get_simple_status(workflow_t *wf);
 void workflow_producer_finished(workflow_t *wf);
+void workflow_change_status_function(workflow_t *wf);
 
 void workflow_run(void *input, workflow_t *wf);
 void workflow_run_with(int num_threads, void *input, workflow_t *wf);
@@ -103,7 +109,4 @@ void workflow_run_with(int num_threads, void *input, workflow_t *wf);
 //----------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------
 
-
-
-
-
+#endif

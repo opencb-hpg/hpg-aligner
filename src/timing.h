@@ -5,32 +5,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
 #include <sys/time.h>
 
 
 typedef struct timing {
   int num_sections;
-
-  char** section_labels_p;
-  int* num_threads_p;
-
-  double* section_times_p;
-  double** thread_times_p;
-  struct timeval** start_times_p;
-  struct timeval** stop_times_p;
+  char** section_labels;
+  double* section_times;
+  pthread_mutex_t time_mutex;
 } timing_t;
 
 
-timing_t* timing_new(char** section_labels, int* num_threads_p, int num_sections);
+timing_t* timing_new(char** section_labels, int num_sections);
 void timing_free(timing_t* timing_p);
-
-void timing_start(int section_id, int thread_id, timing_t* timing_p);
-void timing_stop(int section_id, int thread_id, timing_t* timing_p);
 void timing_display(timing_t* timing_p);
-
+void timing_add(double time, size_t section_id, timing_t *t_p);
 
 extern char time_on;
-extern timing_t *timing_p;
+extern timing_t *timing;
 
 // for debugging
 extern double bwt_time[100], seeding_time[100], cal_time[100], sw_time[100];

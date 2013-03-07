@@ -11,11 +11,32 @@
 #include "statistics.h"
 #include "commons/log.h"
 
-//#include "bam_commons.h"
+//#include "bwt_server.h"
+
+//====================================================================================
+//  Workflow Vars
+//====================================================================================
+
+#define BWT_STAGE               0
+#define SEEDING_STAGE           1
+#define CAL_STAGE               2
+#define PRE_PAIR_STAGE          3
+#define RNA_PREPROCESS_STAGE    3
+#define SW_STAGE                4
+#define POST_PAIR_STAGE         5
+#define CONSUMER_STAGE         -1
+
+//------------------------------------------------------------------------------------
+
 
 //====================================================================================
 //  globals
 //====================================================================================
+
+#define DNA_MODE           0
+#define RNA_MODE           1
+
+//------------------------------------------------------------------------------------
 
 #define DNA_FLAG           1
 #define RNA_FLAG           2
@@ -63,32 +84,35 @@
 
 //------------------------------------------------------------------------------------
 
-#define INIT_BWT_INDEX         	0
+#define FASTQ_READER         	0
 #define BWT_SERVER	   	1
 #define REGION_SEEKER		2
 #define CAL_SEEKER	   	3
-#define SW_SERVER	    	4
-#define FREE_MAIN         	5
-#define MAIN_INDEX         	6
-
-//------------------------------------------------------------------------------------
-
-#define BWT_SERVER_ST	   	0
-#define REGION_SEEKER_ST	1
-#define CAL_SEEKER_ST	   	2
-#define SW_SERVER_ST	    	3
-#define TOTAL_ST         	4
-//------------------------------------------------------------------------------------
-
-#define CHROMOSOME_NUMBER 100
+#define RNA_PREPROCESS	    	4
+#define RNA_SERVER	    	5
+#define BAM_WRITER         	6
+#define TOTAL_TIME         	7
 
 //------------------------------------------------------------------------------------
 
 #define MAX_READ_MAPPINGS 100 
 
+//------------------------------------------------------------------------------------
+
+#define UNKNWON_ACTION 0
+#define BWT_ACTION     1
+#define SEEDING_ACTION 2
+#define CAL_ACTION     3
+#define PAIR_ACTION    4
+#define SW_ACTION      5
+
+
 //====================================================================================
 //  structures and prototypes
 //====================================================================================
+
+bam_header_t *create_bam_header_by_genome(genome_t *genome);
+
 
 /**
  * @brief Structure for store in files all the process data.
@@ -159,32 +183,27 @@ pair_mng_t *pair_mng_new(int pair_mode, size_t min_distance, size_t max_distance
 void pair_mng_free(pair_mng_t *p);
 
 //=====================================================================================
-//=====================================================================================
-
-#define UNKNWON_ACTION 0
-#define BWT_ACTION     1
-#define SEEDING_ACTION 2
-#define CAL_ACTION     3
-#define PAIR_ACTION    4
-#define SW_ACTION      5
-
-//------------------------------------------------------------------------------------
 
 typedef struct mapping_batch {
   int action;
   size_t num_targets;
+  size_t num_extra_targets;
   size_t num_allocated_targets;
-
   size_t num_to_do;
-
+  unsigned char extra_stage_do;
+  unsigned char was_process;
+  unsigned char *extra_stage_id;
   array_list_t *fq_batch;
   size_t *targets;
+  size_t *extra_targets;
   array_list_t **mapping_lists;
-  char *status; //TODO: ¿?
+  char *status; 
   pair_mng_t *pair_mng;
+  array_list_t **old_mapping_lists;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);
+mapping_batch_t *mapping_batch_new_by_num(size_t num_reads, pair_mng_t *pair_mng);
 void mapping_batch_free(mapping_batch_t *p);
 
 //=====================================================================================
@@ -279,6 +298,43 @@ unsigned int pack_junction(unsigned int chromosome, unsigned int strand,
 			   size_t start, size_t end, 
 			   size_t junction_id, size_t num_reads, 
 			   char* buffer_p);
+
+
+
+typedef struct bwt_server_input bwt_server_input_t;
+typedef struct region_seeker_input region_seeker_input_t;
+typedef struct cal_seeker_input cal_seeker_input_t;
+typedef struct preprocess_rna_input preprocess_rna_input_t;
+typedef struct pair_server_input pair_server_input_t;
+typedef struct sw_server_input sw_server_input_t;
+typedef struct batch_writer_input batch_writer_input_t;
+
+
+typedef struct batch {
+  int mapping_mode;
+  bwt_server_input_t *bwt_input;
+  region_seeker_input_t *region_input;
+  cal_seeker_input_t *cal_input;
+  preprocess_rna_input_t *preprocess_rna;
+  pair_server_input_t *pair_input;
+  sw_server_input_t *sw_input;
+  batch_writer_input_t *writer_input;
+  mapping_batch_t *mapping_batch;
+  void *optional_data;
+} batch_t;
+
+
+batch_t *batch_new(bwt_server_input_t *bwt_input,
+                   region_seeker_input_t *region_input,
+                   cal_seeker_input_t *cal_input,
+                   pair_server_input_t *pair_input,
+		   preprocess_rna_input_t *preprocess_rna,
+                   sw_server_input_t *sw_input,
+                   batch_writer_input_t *writer_input,
+		   int mapping_mode,
+                   mapping_batch_t *mapping_batch);
+
+void batch_free(batch_t *b);
 
 //======================================================================================
 

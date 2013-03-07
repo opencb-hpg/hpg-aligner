@@ -31,12 +31,14 @@ double avx1_matrix_t = 0.0f, avx1_tracking_t = 0.0f;
 
 char time_on = 0;
 char statistics_on = 0;
-timing_t* timing_p = NULL;
+timing_t* timing = NULL;
 int num_of_chromosomes;
-statistics_t *statistics_p;
-basic_statistics_t basic_st;
-
+basic_statistics_t *basic_st;
+cal_st_t cal_st;
 double kl_time;
+
+pthread_cond_t cond_sp;
+pthread_mutex_t mutex_sp;
 
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
@@ -51,7 +53,11 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 // main parameters support
 //--------------------------------------------------------------------
 int main(int argc, char* argv[]) {
+  pthread_mutex_init(&cal_st.mutex, NULL);
+  pthread_mutex_init(&mutex_sp, NULL);
+
   const char HEADER_FILE[1024] = "Human_NCBI37.hbam\0";
+  basic_st = basic_statistics_new();
 
   //log_level = LOG_DEBUG_LEVEL;
   log_verbose = 1;
@@ -100,7 +106,7 @@ int main(int argc, char* argv[]) {
   LOG_DEBUG("Reading bwt index done !!");
   
   //BWT parameters
-  bwt_optarg_t *bwt_optarg = bwt_optarg_new(1, options->bwt_threads, 100,
+  bwt_optarg_t *bwt_optarg = bwt_optarg_new(1, 0, 100,
 					    options->report_best,
 					    options->report_n_hits, 
 					    options->report_all);
@@ -129,9 +135,6 @@ int main(int argc, char* argv[]) {
   LOG_DEBUG("main done !!");
 
   // Free memory
-  if (time_on) { 
-    timing_start(FREE_MAIN, 0, timing_p); 
-  }
   
   bwt_index_free(bwt_index);
   genome_free(genome);
@@ -139,18 +142,21 @@ int main(int argc, char* argv[]) {
   cal_optarg_free(cal_optarg);
   pair_mng_free(pair_mng);
   
-  if (time_on) { timing_stop(FREE_MAIN, 0, timing_p); }
-
   if (time_on) { 
-    timing_display(timing_p);
+    timing_display(timing);
   }
 
-//  basic_statistics_display(basic_st, !strcmp(command, "rna"));
+  basic_statistics_display(basic_st, !strcmp(command, "rna"));
 
-  if (time_on){ timing_free(timing_p); }
+  if (time_on){ timing_free(timing); }
 
   options_free(options);
-
+  
+  printf("================================================================\n");
+  printf("Reads No mapped For 'Max' CALs : %lu\n", cal_st.max_cals);
+  printf("Reads No mapped For 'NO'  CALs : %lu\n", cal_st.no_cals);
+  printf("================================================================\n");
+  
   return 0;
 }
 

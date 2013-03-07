@@ -27,12 +27,9 @@ void batch_writer2(batch_writer_input_t* input) {
   //  fastq_batch_t *fq_batch = NULL;
 
   FILE* fd;
-
   fastq_read_t *fq_read;
-
   char *id, *sequence, *quality;
   static char aux[8096];
-  
   size_t read_index, read_len, header_len;
 
   //  bam_header = bam_header_new(HUMAN, NCBI37, input_p->header_filename);
@@ -45,6 +42,7 @@ void batch_writer2(batch_writer_input_t* input) {
   size_t total_reads = 0, total_mappings = 0, total_batches = 0;
   size_t reads_mapped = 0;
   size_t limit_print = 1000000;
+
   // main loop
   while ( (item = list_remove_item(write_list)) != NULL ) {
     //    if (array_list == NULL) printf("batch_writer.c...\n");
@@ -75,7 +73,7 @@ void batch_writer2(batch_writer_input_t* input) {
 	get_to_first_blank(fq_read->id, header_len, id);
 	//free(fq_read->id);
 	alignment_init_single_end(id, fq_read->sequence, fq_read->quality, 
-				  0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, alig);
+				  0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, 0, alig);
 
 	bam1 = convert_to_bam(alig, 33);
 	bam_fwrite(bam1, bam_file);
@@ -157,14 +155,13 @@ bam_header_t *create_bam_header_by_genome(genome_t *genome) {
 
 void batch_writer_input_init(char* match_filename, char* splice_exact_filename, 
 			     char* splice_extend_filename, 
-			     list_t* list_p, genome_t* genome, 
+			     linked_list_t* list_p, genome_t* genome, 
 			     batch_writer_input_t* input_p) {
 
   input_p->match_filename = match_filename;
   input_p->splice_exact_filename = splice_exact_filename;
   input_p->splice_extend_filename = splice_extend_filename;
   input_p->list_p = list_p;
-
   input_p->genome = genome;
 
   // internal
@@ -173,7 +170,7 @@ void batch_writer_input_init(char* match_filename, char* splice_exact_filename,
   input_p->total_reads = 0;
   input_p->total_mappings = 0;
   input_p->num_mapped_reads = 0;
-  input_p->limit_print = 0;
+  input_p->limit_print = 1000000;
 }
 
 //------------------------------------------------------------------------------------

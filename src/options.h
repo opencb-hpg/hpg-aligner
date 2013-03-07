@@ -21,7 +21,8 @@
 #define DEFAULT_GPU_THREADS		32
 #define DEFAULT_CPU_THREADS		1
 #define DEFAULT_CAL_SEEKER_ERRORS	0
-#define DEFAULT_BWT_THREADS		1
+#define DEFAULT_MIN_SEED_PADDING_LEFT	5
+#define DEFAULT_MIN_SEED_PADDING_RIGHT	5
 #define DEFAULT_WRITE_BATCH_SIZE	500000
 #define DEFAULT_NUM_CAL_SEEKERS		1
 #define DEFAULT_REGION_THREADS		1
@@ -55,12 +56,11 @@ typedef struct options {
   int min_num_seeds; 
   int max_num_seeds; 
   int seeds_max_distance;
-  int bwt_threads;
+  int min_seed_padding_right;
+  int min_seed_padding_left;
   int batch_size;
   int write_size;
   int num_cal_seekers;
-  int region_threads;
-  int num_sw_servers;
   int min_seed_size;
   int seed_size;
   int max_intron_length;
@@ -91,6 +91,7 @@ typedef struct options {
   char* genome_filename;
   char* output_name;
   char* header_filename;
+  char* intron_filename;
 } options_t;
 
 

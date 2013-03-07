@@ -29,10 +29,8 @@ options_t *options_new(void) {
   options->max_num_seeds = DEFAULT_MAX_NUM_SEEDS;
   options->cal_seeker_errors = DEFAULT_CAL_SEEKER_ERRORS;
   options->write_size = DEFAULT_WRITE_BATCH_SIZE;
-  options->bwt_threads = DEFAULT_BWT_THREADS;
-  options->region_threads = DEFAULT_REGION_THREADS;
-  options->num_cal_seekers = DEFAULT_NUM_CAL_SEEKERS;
-  options->num_sw_servers = DEFAULT_NUM_SW_THREADS;
+  options->min_seed_padding_left = DEFAULT_MIN_SEED_PADDING_LEFT;
+  options->min_seed_padding_right = DEFAULT_MIN_SEED_PADDING_RIGHT;
   options->min_score = DEFAULT_SW_MIN_SCORE;
   options->match = DEFAULT_SW_MATCH;
   options->mismatch = DEFAULT_SW_MISMATCH;
@@ -138,7 +136,7 @@ void validate_options(options_t *options, char *mode) {
     DEFAULT_SEEDS_MAX_DISTANCE = 100;
   }else if (strcmp("rna", mode) == 0) {
     DEFAULT_READ_BATCH_SIZE = 200000;
-    DEFAULT_SEED_SIZE = 15;
+    DEFAULT_SEED_SIZE = 0;
     DEFAULT_FLANK_LENGTH = 30;
     DEFAULT_MIN_SEED_SIZE = 15;
     DEFAULT_MIN_CAL_SIZE = 20;
@@ -191,14 +189,14 @@ void validate_options(options_t *options, char *mode) {
 
 void options_free(options_t *options) {
      if(options == NULL) { return; }
-     //if (options->splice_exact_filename != NULL)	{ free(options->splice_exact_filename); }
-     //if (options->splice_extend_filename  != NULL)	{ free(options->splice_extend_filename); }
+
      if (options->in_filename  != NULL)	{ free(options->in_filename); }
      if (options->in_filename2  != NULL) { free(options->in_filename2); }
      if (options->bwt_dirname  != NULL)	{ free(options->bwt_dirname); }     
      if (options->genome_filename  != NULL) { free(options->genome_filename); }
      if (options->output_name  != NULL)	{ free(options->output_name); }
-     if (options->extend_name != NULL) {free(options->extend_name); }
+     if (options->extend_name != NULL) { free(options->extend_name); }
+     if (options->intron_filename != NULL) { free(options->intron_filename); }
 
      free(options);
 }
@@ -229,12 +227,8 @@ void options_display(options_t *options) {
      unsigned int cal_seeker_errors =  (unsigned int)options->cal_seeker_errors; 
      unsigned int min_cal_size =  (unsigned int)options->min_cal_size; 
      unsigned int seeds_max_distance =  (unsigned int)options->seeds_max_distance; 
-     unsigned int bwt_threads =  (unsigned int)options->bwt_threads; 
      unsigned int batch_size =  (unsigned int)options->batch_size; 
      unsigned int write_size =  (unsigned int)options->write_size;  
-     unsigned int num_cal_seekers =  (unsigned int)options->num_cal_seekers;
-     unsigned int region_threads =  (unsigned int)options->region_threads;
-     unsigned int num_sw_servers =  (unsigned int)options->num_sw_servers;
      unsigned int min_seed_size =  (unsigned int)options->min_seed_size;
      unsigned int seed_size =  (unsigned int)options->seed_size;
      unsigned int min_num_seeds =  (unsigned int)options->min_num_seeds;
@@ -263,15 +257,16 @@ void options_display(options_t *options) {
      printf("CAL seeker errors: %d\n",  cal_seeker_errors);
      printf("Batch size: %dBytes\n",  batch_size);
      printf("Write size: %dBytes\n",  write_size);
-     printf("BWT Threads: %d\n",  bwt_threads);
-     printf("Region Threads: %d\n",  region_threads);
-     printf("Num CAL seekers: %d\n", num_cal_seekers);
-     printf("Num SW servers: %d\n",  num_sw_servers);
      printf("SEEDING and CAL PARAMETERS\n");
      printf("\tMin. number of seeds: %d\n",  min_num_seeds);
      printf("\tMax. number of seeds: %d\n",  max_num_seeds);
-     printf("\tSeed size: %d\n",  seed_size);
-     printf("\tMin seed size: %d\n",  min_seed_size);
+     if (seed_size) {
+       printf("\tSeed size: %d\n",  seed_size);
+       printf("\tMin seed size: %d\n",  min_seed_size);
+     }
+     else {
+       printf("\tSeeds optimus autoconf\n");
+     }
      printf("\tMin CAL size: %d\n",  min_cal_size);
      printf("\tSeeds max distance: %d\n",  seeds_max_distance);
      printf("\tFlank length: %d\n", flank_length);
@@ -316,9 +311,9 @@ void** argtable_options_new(void) {
      argtable[11] = arg_int0(NULL, "read-batch-size", NULL, "Batch Size");
      argtable[12] = arg_int0(NULL, "write-batch-size", NULL, "Write Size");
      argtable[13] = arg_int0(NULL, "num-cal-seekers", NULL, "Number of CAL Seekers");
-     argtable[14] = arg_int0(NULL, "num-sw-servers", NULL, "Number of Smith-Waterman servers");
-     argtable[15] = arg_int0(NULL, "num-bwt-threads", NULL, "Number of BWT threads");
-     argtable[16] = arg_int0(NULL, "num-region-threads", NULL, "Number of region threads");
+     argtable[14] = arg_int0(NULL, "extra-seed-left-padding", NULL, "Nucleotides padding of left min seed");
+     argtable[15] = arg_int0(NULL, "extra-seed-right-padding", NULL, "Nucleotides padding of right min seed");
+     argtable[16] = arg_file0(NULL, "if,intron-file", NULL, "Intron file to help search splice junctions");
      argtable[17] = arg_int0(NULL, "seed-size", NULL, "Number of nucleotides in a seed");
      argtable[18] = arg_int0(NULL, "min-seed-size", NULL, "Minimum number of nucleotides in a seed");
      argtable[19] = arg_int0(NULL, "cal-flank-size", NULL, "Flank length for CALs");
@@ -405,9 +400,9 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[11])->count) { options->batch_size = *(((struct arg_int*)argtable[11])->ival); }
   if (((struct arg_int*)argtable[12])->count) { options->write_size = *(((struct arg_int*)argtable[12])->ival); }
   if (((struct arg_int*)argtable[13])->count) { options->cal_set = 1; options->num_cal_seekers = *(((struct arg_int*)argtable[13])->ival); }
-  if (((struct arg_int*)argtable[14])->count) { options->sw_set = 1; options->num_sw_servers = *(((struct arg_int*)argtable[14])->ival); }
-  if (((struct arg_int*)argtable[15])->count) { options->bwt_set = 1; options->bwt_threads = *(((struct arg_int*)argtable[15])->ival); }
-  if (((struct arg_int*)argtable[16])->count) { options->reg_set = 1; options->region_threads = *(((struct arg_int*)argtable[16])->ival); }
+  if (((struct arg_int*)argtable[14])->count) { options->min_seed_padding_left = *(((struct arg_int*)argtable[14])->ival); }
+  if (((struct arg_int*)argtable[15])->count) { options->min_seed_padding_right = *(((struct arg_int*)argtable[15])->ival); }
+  if (((struct arg_file*)argtable[16])->count) { options->intron_filename = strdup(*(((struct arg_file*)argtable[16])->filename)); }
   if (((struct arg_int*)argtable[17])->count) { options->seed_size = *(((struct arg_int*)argtable[17])->ival); }
   if (((struct arg_int*)argtable[18])->count) { options->min_seed_size = *(((struct arg_int*)argtable[18])->ival); }
   if (((struct arg_int*)argtable[19])->count) { options->flank_length = *((struct arg_int*)argtable[19])->ival; }

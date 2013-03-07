@@ -9,6 +9,36 @@
 
 //#define MAXLINE 2048
 
+//===================================================================================
+batch_t *batch_new(bwt_server_input_t *bwt_input,
+                   region_seeker_input_t *region_input,
+                   cal_seeker_input_t *cal_input,
+                   pair_server_input_t *pair_input,
+		   preprocess_rna_input_t *preprocess_rna,
+                   sw_server_input_t *sw_input,
+                   batch_writer_input_t *writer_input,
+		   int mapping_mode,
+                   mapping_batch_t *mapping_batch) {
+
+  batch_t *b = (batch_t *) calloc(1, sizeof(batch_t));
+  b->bwt_input = bwt_input;
+  b->region_input = region_input;
+  b->cal_input = cal_input;
+  b->pair_input = pair_input;
+  b->sw_input = sw_input;
+  b->writer_input = writer_input;
+  b->mapping_batch = mapping_batch;
+  b->mapping_mode = mapping_mode;
+  b->preprocess_rna = preprocess_rna;
+
+  return b;
+}
+
+void batch_free(batch_t *b) {
+  if (b) free(b);
+}
+
+
 //====================================================================================
 
 void region_batch_init(array_list_t **allocate_mapping_p, fastq_batch_t *unmapped_batch_p, region_batch_t *region_batch_p){
@@ -189,13 +219,14 @@ unsigned int pack_junction(unsigned int chromosome, unsigned int strand, size_t 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng) {
 
   mapping_batch_t *p = (mapping_batch_t *) calloc(1, sizeof(mapping_batch_t));
-
   size_t num_reads = array_list_size(fq_batch);
 
   p->action = BWT_ACTION;
   p->num_targets = 0;
+  p->num_extra_targets = 0;
   p->num_allocated_targets = num_reads;
-  
+  p->extra_stage_do = 0;
+
   if (!pair_mng) { 
     p->pair_mng = pair_mng_new(SINGLE_END_MODE, 0, 0); 
   } else {
@@ -203,12 +234,12 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
   }
 
   p->num_to_do = 0;
-
   p->fq_batch = fq_batch;
   p->targets = (size_t *) calloc(num_reads, sizeof(size_t));
-
+  p->extra_targets = (size_t *) calloc(num_reads, sizeof(size_t));
+  p->extra_stage_id = (unsigned char *) calloc(num_reads, sizeof(unsigned char));
   p->mapping_lists = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
-  
+
   for (size_t i = 0; i < num_reads; i++) {
     p->mapping_lists[i] = array_list_new(500, 
 					 1.25f, 
@@ -220,6 +251,41 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 
 //------------------------------------------------------------------------------------
 
+mapping_batch_t *mapping_batch_new_by_num(size_t num_reads, pair_mng_t *pair_mng) {
+
+  mapping_batch_t *p = (mapping_batch_t *) calloc(1, sizeof(mapping_batch_t));
+
+  p->action = BWT_ACTION;
+  p->num_targets = 0;
+  p->num_extra_targets = 0;
+  p->num_allocated_targets = num_reads;
+  p->extra_stage_do = 0;
+
+  if (!pair_mng) { 
+    p->pair_mng = pair_mng_new(SINGLE_END_MODE, 0, 0); 
+  } else {
+    p->pair_mng = pair_mng_new(pair_mng->pair_mode, pair_mng->min_distance, pair_mng->max_distance); 
+  }
+
+  p->num_to_do = 0;
+  p->targets = (size_t *) calloc(num_reads, sizeof(size_t));
+  p->extra_targets = (size_t *) calloc(num_reads, sizeof(size_t));
+  p->extra_stage_id = (unsigned char *) calloc(num_reads, sizeof(unsigned char));
+  p->mapping_lists = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+  p->old_mapping_lists = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+
+  for (size_t i = 0; i < num_reads; i++) {
+    p->mapping_lists[i] = array_list_new(10, 
+					 1.25f, 
+					 COLLECTION_MODE_ASYNCHRONIZED);
+  }
+    
+  return p;
+}
+
+
+//------------------------------------------------------------------------------------
+
 void mapping_batch_free(mapping_batch_t *p) {
   if (p == NULL) return;
   
@@ -227,6 +293,11 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p->targets) { free(p->targets); }
   if (p->mapping_lists) { free(p->mapping_lists); }
   if (p->pair_mng) { free(p->pair_mng); }
+  if (p->extra_stage_id) { free(p->extra_stage_id); }
+  if (p->extra_targets) { free(p->extra_targets); }
+  if (p->old_mapping_lists) {
+    free(p->old_mapping_lists);
+  }
 
   free(p);
 }

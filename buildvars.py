@@ -15,4 +15,6 @@ SAMTOOLS_LIBRARY_PATH = my_home + '/ext/samtools-0.1.18/'
 #EXTRAE_INCLUDE_PATH = my_home + '/ext/extrae/include'
 #EXTRAE_LIBRARY_PATH = my_home + '/ext/extrae/lib'
 
+EXTRAE_INCLUDE_PATH = '/home/jtarraga/ext/extrae/include'
+EXTRAE_LIBRARY_PATH = '/home/jtarraga/ext/extrae/lib'
  

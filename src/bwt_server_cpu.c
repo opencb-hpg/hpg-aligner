@@ -1,5 +1,63 @@
 #include "bwt_server.h"
 
+//====================================================================================
+// bwt_server_input functions: init
+//====================================================================================
+
+void bwt_server_input_init(list_t* read_list_p, unsigned int batch_size, bwt_optarg_t *bwt_optarg_p, 
+			   bwt_index_t *bwt_index_p, list_t* write_list_p, unsigned int write_size, 
+			   list_t* unmapped_read_list_p, bwt_server_input_t* input_p) {
+  input_p->read_list_p = read_list_p;
+  input_p->batch_size = batch_size;
+  input_p->bwt_optarg_p = bwt_optarg_p;
+  input_p->write_list_p = write_list_p;
+  input_p->write_size = write_size;
+  input_p->bwt_index_p = bwt_index_p;
+  input_p->unmapped_read_list_p = unmapped_read_list_p;
+}
+
+//====================================================================================
+// apply_bwt
+//====================================================================================
+
+int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
+  // run bwt _by_filter
+  //printf("APPLY BWT SERVER...\n");
+  struct timeval start, end;
+  double time;
+
+  if (time_on) { start_timer(start); }
+
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
+
+  bwt_map_inexact_array_list_by_filter(mapping_batch->fq_batch, input->bwt_optarg_p,
+				       input->bwt_index_p, 
+				       mapping_batch->mapping_lists,
+				       &mapping_batch->num_targets, mapping_batch->targets);
+  
+  size_t num_mapped_reads = array_list_size(mapping_batch->fq_batch) - mapping_batch->num_targets;
+  mapping_batch->num_to_do = num_mapped_reads;
+
+  if (time_on) { stop_timer(start, end, time); timing_add(time, BWT_SERVER, timing); }
+  
+  //printf("APPLY BWT SERVER DONE!\n");
+
+  if (batch->mapping_batch->num_targets > 0) {
+    return SEEDING_STAGE;
+  } else if (batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE && 
+	     batch->mapping_mode == DNA_MODE) {      
+    return PRE_PAIR_STAGE;
+  } else if (batch->mapping_mode == RNA_MODE && 
+	     batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
+    return POST_PAIR_STAGE;
+  } 
+  
+  return CONSUMER_STAGE;
+}
+
+//------------------------------------------------------------------------------------
+
+/*
 void bwt_server_cpu(bwt_server_input_t* input, pair_mng_t *pair_mng) {    
     LOG_DEBUG_F("bwt_server_cpu(%d): START\n", omp_get_thread_num());
     list_item_t *item = NULL;
@@ -47,29 +105,8 @@ void bwt_server_cpu(bwt_server_input_t* input, pair_mng_t *pair_mng) {
     LOG_DEBUG_F("bwt_server_cpu (Total reads process %lu, Reads unmapped %lu): END\n", 
 	   total_reads, reads_no_mapped); 
 }
-
-//====================================================================================
-// bwt_server_input functions: init
-//====================================================================================
-
-void bwt_server_input_init(list_t* read_list_p, unsigned int batch_size, bwt_optarg_t *bwt_optarg_p, 
-			   bwt_index_t *bwt_index_p, list_t* write_list_p, unsigned int write_size, 
-			   list_t* unmapped_read_list_p, bwt_server_input_t* input_p) {
-  input_p->read_list_p = read_list_p;
-  input_p->batch_size = batch_size;
-  input_p->bwt_optarg_p = bwt_optarg_p;
-  input_p->write_list_p = write_list_p;
-  input_p->write_size = write_size;
-  input_p->bwt_index_p = bwt_index_p;
-  input_p->unmapped_read_list_p = unmapped_read_list_p;
-  //extern int num_of_chromosomes;
-
-}
-
-//====================================================================================
-// apply_bwt
-//====================================================================================
-
+*/
+/*
 void bwt_map_inexact_batch_by_filter(fastq_batch_t *batch,
 				     bwt_optarg_t *bwt_optarg, 
 				     bwt_index_t *index,
@@ -77,36 +114,6 @@ void bwt_map_inexact_batch_by_filter(fastq_batch_t *batch,
 				     size_t num_lists, array_list_t **lists,
 				     size_t *num_mapped, size_t* mapped,
 				     size_t *num_unmapped, size_t *unmapped);
-
+*/
 //------------------------------------------------------------------------------------
 //int mapped_by_bwt[100];
-
-void apply_bwt(bwt_server_input_t* input, mapping_batch_t *batch) {
-
-  //    printf("START: apply_bwt\n"); 
-  int tid = omp_get_thread_num();
-
-  // count the number of BWT to run
-  //  batch->num_done = batch->num_mapping_lists;
-  
-  // run bwt _by_filter
-  bwt_map_inexact_array_list_by_filter(batch->fq_batch, input->bwt_optarg_p,
-				       input->bwt_index_p, 
-				       batch->mapping_lists,
-				       &batch->num_targets, batch->targets);
-  
-  size_t num_mapped_reads = array_list_size(batch->fq_batch) - batch->num_targets;
-  batch->num_to_do = num_mapped_reads;
-  
-  // statistics
-  //  mapped_by_bwt[tid] = num_mapped_reads;
-  //  thr_bwt_items[tid] += batch->num_done;
-
-  
-  //    printf("END: apply_bwt, (mapped reads = %d, unmapped reads = %d)\n",
-  //	   num_mapped_reads, batch->num_targets);
-}
-
-//------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------
-
