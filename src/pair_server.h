@@ -19,7 +19,7 @@
 //  structures and prototypes
 //====================================================================================
 
-typedef struct pair_server_input {
+struct pair_server_input {
   int report_all;
   int report_best;
   int report_n_hits;
@@ -29,7 +29,7 @@ typedef struct pair_server_input {
   list_t* pair_list;
   list_t* sw_list;
   list_t* write_list;
-} pair_server_input_t;
+};
 
 //------------------------------------------------------------------------------------
 
@@ -43,8 +43,9 @@ void pair_server(pair_server_input_t* input);
 void prepare_pair_server(pair_server_input_t* input);
 //------------------------------------------------------------------------------------
 
-void apply_pair(pair_server_input_t* input, mapping_batch_t *batch);
-void prepare_alignments(pair_server_input_t* input, mapping_batch_t *batch);
+void apply_pair(pair_server_input_t* input, batch_t *batch);
+
+void prepare_alignments(pair_server_input_t* input, batch_t *batch);
 
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------

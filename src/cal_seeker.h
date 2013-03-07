@@ -3,10 +3,13 @@
 
 #include "buffers.h"
 #include "aligners/bwt/bwt.h"
+#include "pair_server.h"
 
 #define MAX_CALS 200
-#define MAX_RNA_CALS 100
+#define MAX_RNA_CALS 40
 
+extern size_t reads_max_cals;
+extern size_t reads_no_cals;
 //====================================================================================
 //  structures and prototypes
 //====================================================================================
@@ -17,14 +20,15 @@
  * Structure for store some configuration values and data structures like lists 
  * to insert and read data batches.
  */
-typedef struct cal_seeker_input {
+struct cal_seeker_input {
   unsigned batch_size;             /**< size of data batches*/
   list_t *write_list;            /**< list for store write batches*/
   list_t *regions_list;          /**< list for read batches with all regions found for each read */
   list_t *sw_list;               /**< list to store batches with all CALs found for each read */
   list_t *pair_list;
   cal_optarg_t *cal_optarg;      /**< cal seeker configuration values */
-} cal_seeker_input_t;
+  genome_t *genome;
+};
 
 /**
  * @brief  Initializer for the @a cal_seeker_input_t structure.
@@ -41,7 +45,7 @@ typedef struct cal_seeker_input {
 void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg, 
 			   list_t* write_list, unsigned int write_size, 
 			   list_t *sw_list, list_t *pair_list,
-			   cal_seeker_input_t *input);
+			   genome_t *genome, cal_seeker_input_t *input);
 
 //--------------------------------------------------------------------------------------
 
@@ -54,13 +58,15 @@ void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg,
  * CALs are stored in @a write_list_p because those reads aren't mapped and will be store in bam file,
  * the rest of reads are stored with their CALs in @a sw_list_p.      
  */
-void cal_seeker_server(cal_seeker_input_t* input);
+//void cal_seeker_server(cal_seeker_input_t* input);
 
 //====================================================================================
 // apply_caling
 //====================================================================================
 
-void apply_caling(cal_seeker_input_t* input, mapping_batch_t *batch);
+int apply_caling(cal_seeker_input_t* input, batch_t *batch);
+
+int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

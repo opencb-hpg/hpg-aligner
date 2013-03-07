@@ -3,9 +3,94 @@
 size_t junction_id = 0;
 size_t total_splice = 0;
 
+int search_end_splice(node_element_splice_t *node, size_t end, unsigned char strand) {
+  for (int i = 0; i < node->number_allocate_ends; i++) {
+    //printf("%i == %i, %i == %i\n", node->allocate_ends[i]->end, end, node->allocate_ends[i]->strand, strand);
+    if ((node->allocate_ends[i]->end == end) && 
+	(node->allocate_ends[i]->strand == strand)) { 
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+void load_intron_file(genome_t *genome, char* intron_filename, allocate_splice_elements_t *avls) {
+  FILE *fd_intron = fopen(intron_filename, "r");
+  size_t max_size = 2048;
+  size_t line_size;
+  char line[max_size];
+  char value[max_size];
+  int pos, value_pos;
+  size_t chr, start, end;
+  unsigned char strand;
+  int found;
+  node_element_splice_t *node;
+
+  if (fd_intron == NULL) {
+    return;
+    //LOG_FATAL_F("Error opening file: %s, mode (%s)\n", intron_filename, "r");
+  }
+  
+  while (!feof(fd_intron)) {
+    fgets(line, max_size, fd_intron);
+    line_size = strlen(line);
+    pos = 0;
+    value_pos = 0;
+    
+    while (line[pos] != '\t' && pos < line_size) {
+      value[value_pos++] = line[pos++];
+    }
+    value[value_pos] = '\0';
+
+    found = 0;
+    for (chr = 0; chr < genome->num_chromosomes; chr++) {
+      //printf("%s == %s\n", value, genome->chr_name[chr]);
+      if (strcmp(value, genome->chr_name[chr]) == 0) { found = 1; break; }
+    }
+
+    if (!found) { continue; }
+    
+    pos++;
+    value_pos = 0;
+    while (line[pos] != '\t' && pos < line_size) {
+      value[value_pos++] = line[pos++];
+    }
+    value[value_pos] = '\0';
+    start = atoi(value);
+
+    pos++;
+    value_pos = 0;
+    while (line[pos] != '\t' && pos < line_size) {
+      value[value_pos++] = line[pos++];
+    }
+    value[value_pos] = '\0';
+    end = atoi(value);
+
+    pos++;
+    value_pos = 0;
+    while (line[pos] != '\t' && pos < line_size) {
+      value[value_pos++] = line[pos++];
+    }
+    value[value_pos] = '\0';
+    if (strcmp(value, "-1") == 0 || strcmp(value, "-")) {
+      strand = 1;
+    } else { strand = 0; }
+
+    node = cp_avltree_get(avls[chr].avl_splice, (void *)start);
+    found = 0;
+    if (node) {
+      found = search_end_splice(node, end, strand);
+    } 
+
+    if (!found) {    
+      allocate_new_splice(chr, strand, end, start, start, end, FROM_FILE, avls);
+    }
+  }
+
+}
 
 int node_compare(node_element_splice_t* a, size_t b) {
- 
   if(a->splice_start == b){ 
     return 0;
   }else if(a->splice_start < b){
@@ -53,9 +138,10 @@ node_element_splice_t* insert_end_splice(splice_end_t *splice_end_p, node_elemen
   return element_p;
 }
 
+
 node_element_splice_t* search_and_insert_end_splice(unsigned int chromosome, unsigned char strand, 
 						    size_t end, size_t splice_start, 
-						    size_t splice_end, 
+						    size_t splice_end, int type_orig, 
 						    node_element_splice_t *element_p){
   unsigned int i;
 
@@ -76,15 +162,15 @@ node_element_splice_t* search_and_insert_end_splice(unsigned int chromosome, uns
     }
   }
   
-  splice_end_t *splice_end_p = new_splice_end(strand, end, splice_end);
+  splice_end_t *splice_end_p = new_splice_end(strand, end, type_orig, splice_end);
   
   return insert_end_splice(splice_end_p, element_p);
 }
 
 
-allocate_splice_elements_t* init_allocate_splice_elements(allocate_splice_elements_t* chromosomes_avls_p){
+allocate_splice_elements_t* init_allocate_splice_elements(allocate_splice_elements_t* chromosomes_avls_p, size_t nchromosomes){
    int i;
-   for(i = 0; i < CHROMOSOME_NUMBER; i++){
+   for(i = 0; i < nchromosomes; i++){
      chromosomes_avls_p[i].avl_splice = cp_avltree_create_by_option(COLLECTION_MODE_NOSYNC | 
 								    COLLECTION_MODE_COPY   |
 								    COLLECTION_MODE_DEEP, 
@@ -103,7 +189,7 @@ allocate_splice_elements_t* init_allocate_splice_elements(allocate_splice_elemen
 
 allocate_splice_elements_t* allocate_new_splice(unsigned int chromosome, unsigned char strand, 
 						size_t end, size_t start, 
-						size_t splice_start, size_t splice_end, 
+						size_t splice_start, size_t splice_end, int type_orig,
 						allocate_splice_elements_t* chromosome_avls_p){
   node_element_splice_t *node;
 
@@ -114,23 +200,28 @@ allocate_splice_elements_t* allocate_new_splice(unsigned int chromosome, unsigne
     node->splice_start_extend = splice_start;
   }
   
-  node = search_and_insert_end_splice(chromosome, strand, end, splice_start, splice_end, node);
+  node = search_and_insert_end_splice(chromosome, strand, end, splice_start, splice_end, type_orig, node);
 
   return chromosome_avls_p;
 }
 
 splice_end_t* new_splice_end(unsigned char strand, size_t end, 
-			     size_t splice_end) {
+			     int type_orig, size_t splice_end) {
 
   splice_end_t* splice_end_p = (splice_end_t *)malloc(sizeof(splice_end_t));
 
-  if(splice_end_p == NULL){exit(-1);}
+  if(splice_end_p == NULL) {exit(-1);}
 
   splice_end_p->strand = strand;
   splice_end_p->end = end;
   splice_end_p->splice_end_extend = splice_end;
-  splice_end_p->reads_number = 1;
   
+  if (type_orig == FROM_READ) {
+    splice_end_p->reads_number = 1;
+  } else {
+    splice_end_p->reads_number = 0;
+  }
+
   return splice_end_p;
 }
 
@@ -141,9 +232,7 @@ void free_splice_end(splice_end_t *splice_end_p){
 
 
 allocate_buffers_t * process_avlnode_in_order(cp_avlnode *node, unsigned int chromosome, 
-					      list_t* write_list_p, unsigned int write_size,   allocate_buffers_t *allocate_batches){
-  
-  
+					      list_t* write_list_p, unsigned int write_size,   allocate_buffers_t *allocate_batches){  
   if (node->left) { 
     allocate_batches = process_avlnode_in_order(node->left, chromosome, write_list_p, write_size, allocate_batches);
   }
@@ -170,6 +259,7 @@ allocate_buffers_t* process_avlnode_ends_in_order(node_element_splice_t *node, u
   allocate_batches->write_exact_sp;
   //  write_batch_t* extend_splice_write_p = write_batch_new(write_size, SPLICE_EXTEND_FLAG);
 
+  //printf("----------------->%i\n", chromosome);
   for(i = 0; i < node->number_allocate_ends; i++){
     if(( allocate_batches->write_exact_sp->size + 100) > write_size) {
       //item_p = list_item_new(0, WRITE_ITEM,  allocate_batches->write_exact_sp);
@@ -186,123 +276,33 @@ allocate_buffers_t* process_avlnode_ends_in_order(node_element_splice_t *node, u
       //list_insert_item(item_p, write_list_p);
       //allocate_batches->write_extend_sp = write_batch_new(write_size, SPLICE_EXTEND_FLAG);
       } */
-
-    bytes_exact = pack_junction(chromosome, node->allocate_ends[i]->strand, 
-				node->splice_start, node->allocate_ends[i]->end, 
-				junction_id, node->allocate_ends[i]->reads_number, 
-				&(((char *)allocate_batches->write_exact_sp->buffer_p)[allocate_batches->write_exact_sp->size]));
     
-    bytes_extend = pack_junction(chromosome, node->allocate_ends[i]->strand, node->splice_start_extend, 
-				 node->allocate_ends[i]->splice_end_extend, junction_id, node->allocate_ends[i]->reads_number, 
-				 &(((char *)allocate_batches->write_extend_sp->buffer_p)[allocate_batches->write_extend_sp->size])); 
-    
-    allocate_batches->write_exact_sp->size += bytes_exact;
-    allocate_batches->write_extend_sp->size += bytes_extend;
-    
-    total_splice += node->allocate_ends[i]->reads_number;
-    junction_id++;
+    if (node->allocate_ends[i]->reads_number) {
+      bytes_exact = pack_junction(chromosome, node->allocate_ends[i]->strand, 
+				  node->splice_start, node->allocate_ends[i]->end, 
+				  junction_id, node->allocate_ends[i]->reads_number, 
+				  &(((char *)allocate_batches->write_exact_sp->buffer_p)[allocate_batches->write_exact_sp->size]));
+      
+      bytes_extend = pack_junction(chromosome, node->allocate_ends[i]->strand, node->splice_start_extend, 
+				   node->allocate_ends[i]->splice_end_extend, junction_id, node->allocate_ends[i]->reads_number, 
+				   &(((char *)allocate_batches->write_extend_sp->buffer_p)[allocate_batches->write_extend_sp->size])); 
+      
+      allocate_batches->write_exact_sp->size += bytes_exact;
+      allocate_batches->write_extend_sp->size += bytes_extend;
+      
+      total_splice += node->allocate_ends[i]->reads_number;
+      junction_id++;
+    }
   }
   return allocate_batches;
   //return exact_splice_write_p;
 }
 
-/*
-void process_avlnode_in_order(cp_avlnode *node, unsigned int chromosome, 
-			      list_t* write_list_p, unsigned int write_size){
-  if (node->left) { 
-    process_avlnode_in_order(node->left, chromosome, write_list_p, write_size);
-  }
-
-  process_avlnode_ends_in_order((node_element_splice_t *)node->value, chromosome, write_list_p, write_size);
-  
-  if (node->right) { 
-    process_avlnode_in_order(node->right, chromosome,  write_list_p, write_size);
-  }
-}
-
-void process_avlnode_ends_in_order(node_element_splice_t *node, unsigned int chromosome,
-				   list_t* write_list_p, unsigned int write_size) {
-  int i;
-  char strand[2] = {'+', '-'};
-  list_item_t* item_p = NULL;
-  unsigned int bytes_exact, bytes_extend;
-  write_batch_t* exact_splice_write_p  = write_batch_new(write_size, SPLICE_EXACT_FLAG);
-  write_batch_t* extend_splice_write_p = write_batch_new(write_size, SPLICE_EXTEND_FLAG);
-
-  
-  //Order Ends
-  /* splice_end_t *aux;
-  for(unsigned int j = 0; j < node->number_allocate_ends; j++){
-      for(unsigned int z = j; z < node->number_allocate_ends; z++){
-	if (node->allocate_ends[j]->strand > node->allocate_ends[z]->strand) {
-	  aux = node->allocate_ends[j];
-	  node->allocate_ends[j] =  node->allocate_ends[z];
-	  node->allocate_ends[z] = aux;
-	}else if (node->allocate_ends[j]->end > node->allocate_ends[z]->end) {
-	    aux = node->allocate_ends[j];
-	    node->allocate_ends[j] =  node->allocate_ends[z];
-	    node->allocate_ends[z] = aux;
-	}
-      }
-      }
-  
-
-  for(i = 0; i < node->number_allocate_ends; i++){
-    // More than one read
-    if((exact_splice_write_p->size + 100) > write_size) {
-      item_p = list_item_new(0, WRITE_ITEM, exact_splice_write_p);
-      //list_insert_item(item_p, write_list_p);
-      exact_splice_write_p = write_batch_new(write_size, SPLICE_EXACT_FLAG);
-    } 
-    
-    if((extend_splice_write_p->size + 100) > write_size) {
-      item_p = list_item_new(0, WRITE_ITEM, extend_splice_write_p);
-      //list_insert_item(item_p, write_list_p);
-      exact_splice_write_p = write_batch_new(write_size, SPLICE_EXTEND_FLAG);
-    } 
-    
-
-    bytes_exact = pack_junction(chromosome, node->allocate_ends[i]->strand, node->splice_start, node->allocate_ends[i]->end, junction_id, node->allocate_ends[i]->reads_number, &(exact_splice_write_p->buffer_p[exact_splice_write_p->size])); 
-    
-    bytes_extend = pack_junction(chromosome, node->allocate_ends[i]->strand, node->splice_start_extend, node->allocate_ends[i]->splice_end_extend, junction_id, node->allocate_ends[i]->reads_number, &(extend_splice_write_p->buffer_p[extend_splice_write_p->size])); 
-    
-    exact_splice_write_p->size += bytes_exact;
-    extend_splice_write_p->size += bytes_extend;
-    
-    total_splice += node->allocate_ends[i]->reads_number;
-    junction_id++;
-  }
-  
-  if(exact_splice_write_p != NULL) {
-    list_item_t* item_p = NULL;
-    if(exact_splice_write_p->size > 0) {
-      item_p = list_item_new(0, WRITE_ITEM, exact_splice_write_p);
-      //list_insert_item(item_p, write_list_p);
-      printf("Insert 1\n");
-    } else {
-      write_batch_free(exact_splice_write_p);
-    }
-  }
-  
-  if(extend_splice_write_p != NULL) {
-    list_item_t* item_p = NULL;
-    if(extend_splice_write_p->size > 0) {
-      item_p = list_item_new(0, WRITE_ITEM, extend_splice_write_p);
-      //list_insert_item(item_p, write_list_p);
-      printf("Insert 2\n");
-    } else {
-      write_batch_free(extend_splice_write_p);
-    }
-  }
-  
-}
-*/
-
 
 void write_chromosome_avls(allocate_splice_elements_t *chromosome_avls, 
 			   list_t* write_list_p, char *extend_sp, char *exact_sp, 
-			   unsigned int write_size) {
-  int c;
+			   unsigned int write_size, size_t nchromosomes) {
+  int c, chr;
   allocate_buffers_t *allocate_batches = (allocate_buffers_t *)malloc(sizeof(allocate_buffers_t));
   //write_batch_t *exact_splice_write_p;
   //write_batch_t *extend_splice_write_p;
@@ -317,11 +317,14 @@ void write_chromosome_avls(allocate_splice_elements_t *chromosome_avls,
   allocate_batches->write_exact_sp  = write_batch_new(write_size, SPLICE_EXACT_FLAG);
   allocate_batches->write_extend_sp  = write_batch_new(write_size, SPLICE_EXTEND_FLAG);
       
-  for(c = 0; c < CHROMOSOME_NUMBER; c++){
+  for(c = 0; c < nchromosomes; c++){
+    //printf("Chromosome %i:\n", c);
     if(chromosome_avls[c].avl_splice->root != NULL) {
+      chr = c + 1;
+      //printf("\tYes\n");
       //allocate_batches->write_extend_sp  = write_batch_new(1000, SPLICE_EXTEND_FLAG);
 
-      allocate_batches = process_avlnode_in_order(chromosome_avls[c].avl_splice->root, c, write_list_p, write_size, allocate_batches);
+      allocate_batches = process_avlnode_in_order(chromosome_avls[c].avl_splice->root, chr, write_list_p, write_size, allocate_batches);
       
       //exact_splice_write_p = allocate_batches->write_exact_sp;
       //extend_splice_write_p = allocate_batches->write_extend_sp;
@@ -350,7 +353,7 @@ void write_chromosome_avls(allocate_splice_elements_t *chromosome_avls,
 	}
 	}*/
       
-    }//end IF chromosome splice not NULL
+    } //end IF chromosome splice not NULL
     cp_avltree_destroy(chromosome_avls[c].avl_splice);
   }
 
@@ -360,7 +363,7 @@ void write_chromosome_avls(allocate_splice_elements_t *chromosome_avls,
   fclose(allocate_batches->fd_exact);
 
   free(allocate_batches);
-  basic_statistics_sp_init(total_splice, junction_id, &basic_st);
+  basic_statistics_sp_init(total_splice, junction_id, basic_st);
   /*
   if (statistics_on) { 
     statistics_set(TOTAL_ST, 3, total_splice, statistics_p);

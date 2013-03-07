@@ -3,11 +3,12 @@
 #define RNA_SERVER_H
 
 #include "sw_server.h"
-#include "rna_splice.h"
+//#include "rna_splice.h"
 #include "buffers.h"
-#include "timing.h"
+//#include "timing.h"
 #include "sw.h"
 #include "cal_seeker.h"
+#include  "preprocess_rna.h"
 
 #include "containers/list.h"
 #include "commons/commons.h"
@@ -152,5 +153,7 @@ void search_splice_junctions_sw_output(sw_simd_input_t* sw_input_p,
 				       float min_score, 
 				       genome_t *genome_p, 
 				       int min_intron_length);
+
+int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch);
 
 #endif

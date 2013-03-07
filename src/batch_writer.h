@@ -18,13 +18,13 @@
 
 #include "buffers.h"
 #include "timing.h"
-#include "sw_server.h"
+
 
 //====================================================================================
 //  structures and prototypes
 //====================================================================================
 
-typedef struct batch_writer_input {
+struct batch_writer_input {
   char* match_filename;
   char* mismatch_filename;
 
@@ -34,7 +34,7 @@ typedef struct batch_writer_input {
   //  char* header_filename;
   genome_t* genome;
 
-  list_t* list_p;
+  linked_list_t* list_p;
 
   // internal
   bam_file_t *bam_file;
@@ -43,13 +43,13 @@ typedef struct batch_writer_input {
   size_t total_mappings;
   size_t num_mapped_reads;
   size_t limit_print;
-} batch_writer_input_t;
+};
 
 //------------------------------------------------------------------------------------
 
 void batch_writer_input_init(char* match_filename, char* splice_exact_filename, 
-			     char* splice_extend_filename, list_t* list_p, 
-			      genome_t* genome, batch_writer_input_t* input);
+			     char* splice_extend_filename, linked_list_t* list_p, 
+			     genome_t* genome, batch_writer_input_t* input);
 
 //====================================================================================
 

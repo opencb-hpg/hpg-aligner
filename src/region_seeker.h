@@ -21,7 +21,7 @@
  * Structure for store some configuration values and data structures like lists 
  * to insert and read data batches.
  */
-typedef struct region_seeker_input{
+struct region_seeker_input{
   unsigned int region_threads;    /**< number of threads for run region seeker */ 
   unsigned int gpu_enable;
   list_t *unmapped_read_list_p;   /**< list for store batches with the reads no mapped */
@@ -29,10 +29,12 @@ typedef struct region_seeker_input{
   cal_optarg_t *cal_optarg_p;     /**< cal seeker configuration values */
   bwt_optarg_t *bwt_optarg_p;     /**< burrows wheeler transform configuration values */
   bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
+  int padding_left;
+  int padding_right;
   #ifdef HPG_GPU
     gpu_context_t *gpu_context;
   #endif
-}region_seeker_input_t;
+};
 
 /**
  * @brief  Initializer for the @a region_seeker_input_t structure.
@@ -49,7 +51,8 @@ typedef struct region_seeker_input{
 void region_seeker_input_init(list_t *unmapped_read_list_p, cal_optarg_t *cal_optarg_p, 
 			      bwt_optarg_t *bwt_optarg_p, bwt_index_t *bwt_index_p, 
 			      list_t* region_list_p, unsigned int region_threads, 
-			      unsigned int gpu_enable, region_seeker_input_t *input_p);
+			      unsigned int gpu_enable, int padding_left, int padding_right, 
+			      region_seeker_input_t *input_p);
 //--------------------------------------------------------------------------------------
 
 /**
@@ -61,11 +64,10 @@ void region_seeker_input_init(list_t *unmapped_read_list_p, cal_optarg_t *cal_op
  * of these. Finally all reads with their mappings are stored in @a region_list_p 
  * for continue process these in next phases of pipeline.      
  */
-void region_seeker_server(region_seeker_input_t *input);
-
+int region_seeker_server(region_seeker_input_t *input);
 //====================================================================================
 
-void apply_seeding(region_seeker_input_t* input, mapping_batch_t *batch);
+int apply_seeding(region_seeker_input_t* input, batch_t *batch);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

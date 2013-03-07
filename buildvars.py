@@ -15,4 +15,6 @@ SAMTOOLS_LIBRARY_PATH = my_home + '/ext/samtools-0.1.18/'
 CONFIG_INCLUDE_PATH = my_home + '/ext/libconfig-1.4.8/lib'
 CONFIG_LIBRARY_PATH = my_home + '/ext/libconfig-1.4.8/lib'
 
+EXTRAE_INCLUDE_PATH = '/home/jtarraga/ext/extrae/include'
+EXTRAE_LIBRARY_PATH = '/home/jtarraga/ext/extrae/lib'
  

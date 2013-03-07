@@ -21,11 +21,10 @@
 #include "cal_seeker.h"
 #include "sw_server.h"
 #include "pair_server.h"
-#include "batch_aligner.h"
 #include "options.h"
 #include "statistics.h"
-
 #include "workflow_scheduler.h"
+#include "workflow_functions.h"
 
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
