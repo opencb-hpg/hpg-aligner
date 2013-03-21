@@ -73,8 +73,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
   } else {
     for (size_t i = 0; i < num_targets; i++) {
       read = array_list_get(targets[i], mapping_batch->fq_batch);
-      //printf("Seq (i=%i)(target=%i): %s\n", i, targets[i], read->sequence);
-      //printf("region_seeker.c: apply_seeding: list #%i size = %i\n", i, array_list_size(list));
+      //      printf("region_seeker: seeds for %s\n", read->id);
       num_mappings = bwt_map_exact_seeds_seq_by_num(read->sequence,
 						    min_num_seeds, max_num_seeds, 
 						    seed_size, min_seed_size,
@@ -101,56 +100,3 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 
 //------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------
-/*
-void region_seeker_server(region_seeker_input_t *input_p){  
-  LOG_DEBUG_F("region_seeker_server(%d): START\n", omp_get_thread_num());  
-  list_item_t *item = NULL;
-  mapping_batch_t *mapping_batch;
-  size_t num_reads;
-  array_list_t **allocate_mapping_p;
-  cal_batch_t *cal_batch_p;
-  size_t num_mappings, total_mappings = 0, num_batches = 0;
-  size_t num_threads = input_p->region_threads;
-  size_t chunk;
-  size_t total_reads = 0;
-  size_t targets = 0, num_targets;
- 
-  omp_set_num_threads(num_threads);
-  
-  while ( (item = list_remove_item(input_p->unmapped_read_list_p)) != NULL ) {
-
-    //printf("Region Seeker Processing batch...\n");
-    num_batches++;
-    if (time_on) { timing_start(REGION_SEEKER, 0, timing_p); }
-    
-    mapping_batch = (mapping_batch_t *)item->data_p;
-    num_targets = mapping_batch->num_targets;
-    total_reads += num_targets;
-
-    chunk = MAX(1, num_targets/(num_threads*10));
-    
-    #pragma omp parallel for private(num_mappings) reduction(+:total_mappings) schedule(dynamic, chunk)
-    for (size_t i = 0; i < num_targets; i++) {
-      //printf("Threads region zone: %d\n", omp_get_num_threads());
-      fastq_read_t *read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch);
-      num_mappings = bwt_map_exact_seeds_seq(read->sequence, 
-					     input_p->cal_optarg_p->seed_size,
-					     input_p->cal_optarg_p->min_seed_size,
-					     input_p->bwt_optarg_p, 
-					     input_p->bwt_index_p, 
-					     mapping_batch->mapping_lists[mapping_batch->targets[i]]);
-      
-      total_mappings += num_mappings;
-    } 
-    
-    if (time_on) { timing_stop(REGION_SEEKER, 0, timing_p); }
-    list_insert_item(item, input_p->region_list_p);
-    //printf("Region Seeker Processing batch finish!\n");
-
-  } //End of while
-  
-  list_decr_writers(input_p->region_list_p);
-  LOG_DEBUG("region_seeker_server: END\n");  
-}
-*/
-//------------------------------------------------------------------------------------

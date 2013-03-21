@@ -259,7 +259,12 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
   //free(fq_read->id);
   alignment_init_single_end(id, fq_read->sequence, fq_read->quality, 
 			    0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, 0, alig);
-	       
+
+  //  for debugging
+  //  if (strstr(fq_read->id, "rand") == NULL) {
+  //    printf("@%s\n%s\n+\n%s\n", fq_read->id, fq_read->sequence, fq_read->quality);
+  //  }
+
   bam1 = convert_to_bam(alig, 33);
   bam_fwrite(bam1, bam_file);
   bam_destroy1(bam1);

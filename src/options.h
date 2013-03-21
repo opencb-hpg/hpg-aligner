@@ -84,7 +84,7 @@ typedef struct options {
   double mismatch;
   double gap_open;
   double gap_extend;
-  char* extend_name;
+  char* prefix_name;
   char* in_filename;
   char* in_filename2;
   char* bwt_dirname;

@@ -6,11 +6,12 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "cprops/hashtable.h"
 
 #include "commons/commons.h"
 #include "commons/system_utils.h"
+
 #include "containers/list.h"
+#include "containers/cprops/hashtable.h"
 
 #include "bioformats/fastq/fastq_file.h"
 #include "bioformats/fastq/fastq_batch.h"

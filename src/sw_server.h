@@ -13,9 +13,10 @@
 #include "aligners/sw/smith_waterman.h"
 #include "aligners/bwt/genome.h"
 
+#include "rna/rna_splice.h"
+
 #include "timing.h"
 #include "buffers.h"
-#include "rna_splice.h"
 #include "pair_server.h"
 
 //====================================================================================

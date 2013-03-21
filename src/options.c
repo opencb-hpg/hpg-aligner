@@ -195,7 +195,7 @@ void options_free(options_t *options) {
      if (options->bwt_dirname  != NULL)	{ free(options->bwt_dirname); }     
      if (options->genome_filename  != NULL) { free(options->genome_filename); }
      if (options->output_name  != NULL)	{ free(options->output_name); }
-     if (options->extend_name != NULL) { free(options->extend_name); }
+     if (options->prefix_name != NULL) { free(options->prefix_name); }
      if (options->intron_filename != NULL) { free(options->intron_filename); }
 
      free(options);
@@ -327,7 +327,7 @@ void** argtable_options_new(void) {
      argtable[27] = arg_lit0("t", "time", "Timming mode active");
      argtable[28] = arg_lit0("s", "stats", "Statistics mode active");
      argtable[29] = arg_lit0("h", "help", "Help option");
-     argtable[30] = arg_file0("e", "ext", NULL, "File extend name");
+     argtable[30] = arg_str0(NULL, "prefix", NULL, "File prefix name");
      argtable[31] = arg_file0("g", "ref-genome", NULL, "Reference genome");
      argtable[32] = arg_file0("j", "fq2,fastq2", NULL, "Reads file input #2 (for paired mode)");
      argtable[33] = arg_int0(NULL, "paired-mode", NULL, "Pair mode: 0 = single-end, 1 = paired-end, 2 = mate-pair [Default 0]");
@@ -416,7 +416,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[27])->count) { options->timming = ((struct arg_int*)argtable[27])->count; }
   if (((struct arg_int*)argtable[28])->count) { options->statistics = ((struct arg_int*)argtable[28])->count; }
   if (((struct arg_int*)argtable[29])->count) { options->help = ((struct arg_int*)argtable[29])->count; }
-  if (((struct arg_file*)argtable[30])->count) { options->extend_name = strdup(*(((struct arg_file*)argtable[30])->filename)); }
+  if (((struct arg_str*)argtable[30])->count) { options->prefix_name = strdup(*(((struct arg_str*)argtable[30])->sval)); }
   if (((struct arg_file*)argtable[31])->count) { options->genome_filename = strdup(*(((struct arg_file*)argtable[31])->filename)); }
   if (((struct arg_file*)argtable[32])->count) { options->in_filename2 = strdup(*(((struct arg_file*)argtable[32])->filename)); }
   if (((struct arg_int*)argtable[33])->count) { options->pair_mode = *(((struct arg_int*)argtable[33])->ival); }

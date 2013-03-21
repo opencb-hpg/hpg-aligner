@@ -109,31 +109,31 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     options_t *options) {
   int path_length = strlen(options->output_name);
-  int extend_length = 0;
+  int prefix_length = 0;
 
-  if (options->extend_name) {
-    extend_length = strlen(options->extend_name);
+  if (options->prefix_name) {
+    prefix_length = strlen(options->prefix_name);
   }
 
-  char *reads_results = (char *)calloc((60 + extend_length), sizeof(char));
-  char *extend_junctions = (char *)calloc((60 + extend_length), sizeof(char));
-  char *exact_junctions = (char *)calloc((60 + extend_length), sizeof(char));
+  char *reads_results = (char *)calloc((60 + prefix_length), sizeof(char));
+  char *extend_junctions = (char *)calloc((60 + prefix_length), sizeof(char));
+  char *exact_junctions = (char *)calloc((60 + prefix_length), sizeof(char));
 
-  char *output_filename = (char *)calloc((path_length + extend_length + 60), sizeof(char));
-  char *extend_filename = (char *)calloc((path_length + extend_length + 60), sizeof(char));
-  char *exact_filename = (char *)calloc((path_length + extend_length + 60), sizeof(char));
+  char *output_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
+  char *extend_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
+  char *exact_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
 
-  if (options->extend_name) {
+  if (options->prefix_name) {
     strcat(reads_results, "/");
-    strcat(reads_results, options->extend_name);
+    strcat(reads_results, options->prefix_name);
     strcat(reads_results, "_alignments.bam");  
 
     strcat(extend_junctions, "/");
-    strcat(extend_junctions, options->extend_name);
+    strcat(extend_junctions, options->prefix_name);
     strcat(extend_junctions, "_extend_junctions.bed");
 
     strcat(exact_junctions, "/");
-    strcat(exact_junctions, options->extend_name);
+    strcat(exact_junctions, options->prefix_name);
     strcat(exact_junctions, "_exact_junctions.bed");
  
   } else {

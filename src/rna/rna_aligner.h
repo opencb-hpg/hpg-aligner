@@ -12,10 +12,14 @@
 
 #include "commons/log.h"
 #include "commons/file_utils.h"
+
+#include "containers/workflow_scheduler.h"
+
+#include "bioformats/fastq/fastq_batch_reader.h"
+
 #include "error.h"
 #include "timing.h"
 #include "buffers.h"
-#include "bioformats/fastq/fastq_batch_reader.h"
 #include "bwt_server.h"
 #include "batch_writer.h"
 #include "region_seeker.h"
@@ -25,7 +29,6 @@
 #include "preprocess_rna.h"
 #include "options.h"
 #include "statistics.h"
-#include "workflow_scheduler.h"
 #include "workflow_functions.h"
 
 

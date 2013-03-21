@@ -1,5 +1,6 @@
-#include "dna_aligner.h"
-#include "rna_aligner.h"
+#include "dna/dna_aligner.h"
+#include "rna/rna_aligner.h"
+#include "build-index/index_builder.h"
 
 double emboss_matrix_t = 0.0f, emboss_tracking_t = 0.0f;
 double sse_matrix_t = 0.0f, sse_tracking_t = 0.0f;
@@ -150,11 +151,6 @@ int main(int argc, char* argv[]) {
   if (time_on){ timing_free(timing); }
 
   options_free(options);
-  
-  printf("================================================================\n");
-  printf("Reads No mapped For 'Max' CALs : %lu\n", cal_st.max_cals);
-  printf("Reads No mapped For 'NO'  CALs : %lu\n", cal_st.no_cals);
-  printf("================================================================\n");
   
   return 0;
 }

@@ -7,8 +7,9 @@
 #include <omp.h>
 #include <string.h>
 
-#include "cprops/avl.h"
 #include "containers/list.h"
+#include "containers/cprops/avl.h"
+
 #include "buffers.h"
 #include "timing.h"
 
