@@ -262,7 +262,7 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
 
   //  for debugging
   //  if (strstr(fq_read->id, "rand") == NULL) {
-  //    printf("@%s\n%s\n+\n%s\n", fq_read->id, fq_read->sequence, fq_read->quality);
+  //    printf("%s\n%s\n+\n%s\n", fq_read->id, fq_read->sequence, fq_read->quality);
   //  }
 
   bam1 = convert_to_bam(alig, 33);

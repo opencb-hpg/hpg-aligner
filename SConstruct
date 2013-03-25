@@ -14,7 +14,7 @@ env = Environment(tools = ['default', 'packaging'],
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp ',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path ],
                   LIBPATH = ['#libs/common-libs/', commons_path],
-                  LIBS = ['argtable2', 'common', 'config', 'm', 'z'],
+                  LIBS = ['m', 'z'],
                   LINKFLAGS = ['-fopenmp'])
                   
 

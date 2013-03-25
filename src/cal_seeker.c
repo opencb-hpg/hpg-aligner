@@ -153,7 +153,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     read_index = targets[i];
 
     // for debugging
-    //    printf("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
+    printf("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
     
     if (!list) {
       list = array_list_new(1000, 
@@ -168,7 +168,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 						list);
 
     // for debugging
-    //    printf("min. seeds = %i, max. seeds = %i\n", min_seeds, max_seeds);
+    LOG_DEBUG_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
 
     // filter CALs by the number of seeds
     if (min_seeds == max_seeds) {
