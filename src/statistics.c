@@ -125,7 +125,6 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode){
   size_t total_sp = statistics->total_sp;
   size_t uniq_sp = statistics->uniq_sp;
 
-  printf("END: batch_writer\n");
   printf("-------------------------------------------------\n");
   printf("-                MAPPING STATISTICS             -\n");
   printf("-------------------------------------------------\n");

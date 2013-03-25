@@ -153,7 +153,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     read_index = targets[i];
 
     // for debugging
-    printf("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
+    LOG_DEBUG_F("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
     
     if (!list) {
       list = array_list_new(1000, 

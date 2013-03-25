@@ -248,15 +248,17 @@ void options_display(options_t *options) {
   
      printf("PARAMETERS CONFIGURATION\n");
      printf("=================================================\n");
-     printf("Num gpu threads %d\n", num_gpu_threads);
-     printf("GPU Process: %s\n",  gpu_process == 0 ? "Disable":"Enable");
-     printf("Num cpu threads %d\n",  num_cpu_threads);
-     printf("Report all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
-     printf("Report best hits: %d\n",  report_best);
-     printf("Report n hits: %d\n",  report_n_hits);
-     printf("CAL seeker errors: %d\n",  cal_seeker_errors);
-     printf("Batch size: %dBytes\n",  batch_size);
-     printf("Write size: %dBytes\n",  write_size);
+     //     printf("Num gpu threads %d\n", num_gpu_threads);
+     //     printf("GPU Process: %s\n",  gpu_process == 0 ? "Disable":"Enable");
+     printf("ARCHITECTURE PARAMETERS\n");
+     printf("\tNumber of cpu threads %d\n",  num_cpu_threads);
+     //printf("CAL seeker errors: %d\n",  cal_seeker_errors);
+     printf("\tBatch size: %d bytes\n",  batch_size);
+     //     printf("\tWrite size: %d bytes\n",  write_size);
+     printf("REPORT PARAMETERS\n");
+     printf("\tReport all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
+     printf("\tReport best hits: %d\n",  report_best);
+     printf("\tReport n hits: %d\n",  report_n_hits);
      printf("SEEDING and CAL PARAMETERS\n");
      printf("\tMin. number of seeds: %d\n",  min_num_seeds);
      printf("\tMax. number of seeds: %d\n",  max_num_seeds);

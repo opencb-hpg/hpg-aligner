@@ -59,8 +59,11 @@ int main(int argc, char* argv[]) {
   const char HEADER_FILE[1024] = "Human_NCBI37.hbam\0";
   basic_st = basic_statistics_new();
 
-  //log_level = LOG_DEBUG_LEVEL;
-  log_verbose = 1;
+  // init logs, after parsing the command-line
+  // logs will be re-set according to the command-line
+  log_level = LOG_FATAL_LEVEL;
+  log_verbose = 0;
+  log_file = NULL;
 
   if (argc <= 1) {
     usage_cli();
@@ -80,7 +83,10 @@ int main(int argc, char* argv[]) {
 
   // parsing options
   options_t *options = parse_options(argc, argv);
-  log_level = options->log_level;
+
+  // now, we can set logs according to the command-line
+  init_log_custom(options->log_level, 1, "hpg-aligner.log", "w");
+
   validate_options(options, command);
   LOG_DEBUG_F("Command Mode: %s\n", command);
 
