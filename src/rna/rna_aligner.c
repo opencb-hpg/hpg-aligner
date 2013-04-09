@@ -180,7 +180,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //============================= INPUT INITIALIZATIONS =========================
   allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
   init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
-  load_intron_file(genome, options->intron_filename, chromosome_avls);
+  //load_intron_file(genome, options->intron_filename, chromosome_avls);
 
 
   fastq_batch_reader_input_t reader_input;
