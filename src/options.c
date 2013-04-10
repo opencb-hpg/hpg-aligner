@@ -141,6 +141,7 @@ void validate_options(options_t *options, char *mode) {
     DEFAULT_MIN_SEED_SIZE = 15;
     DEFAULT_MIN_CAL_SIZE = 20;
     DEFAULT_SEEDS_MAX_DISTANCE = 60;
+    options->pair_max_distance = DEFAULT_PAIR_MAX_DISTANCE + options->max_intron_length;
   }
 
   if (strcmp("dna", mode) == 0 || strcmp("rna", mode) == 0) {

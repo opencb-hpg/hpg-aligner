@@ -106,7 +106,7 @@ int bam_writer(void *data) {
 
      writer_input->total_batches++;
 
-     if (batch->mapping_mode == DNA_MODE) {
+     if (batch->mapping_mode == DNA_MODE || batch->mapping_mode == RNA_MODE) {
        //
        // DNA mode
        //
@@ -118,12 +118,16 @@ int bam_writer(void *data) {
 	 if (num_items == 0) {
 	   total_mappings++;
 	   write_unmapped_read(fq_read, bam_file);
+	   if (mapping_batch->mapping_lists[i]) {
+	     array_list_free(mapping_batch->mapping_lists[i], NULL);
+	   }
 	 } else {
 	   num_mapped_reads++;
 	   write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
 	 }
        }
-     } else if (batch->mapping_mode == RNA_MODE) {
+     } else {
+       //TODO: This section needs supracals implementatation, that it is not implemented yet.
        //
        // RNA mode
        //

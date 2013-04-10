@@ -593,14 +593,14 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 	      }
 	      cigar_p[cigar_pos - 1].value += mark_dpl;	    
 	      error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, CIGAR_SKIPPED, &cigar_value, &distance);
-	      if (error_cigar) { end_exceded = 1; break;}
+	      if (error_cigar) { end_exceded = 1; break; }
 	      //printf("::: %d || %d :::\n", cigar_value, mark_dpl);	      
 	      cigar_value -= mark_dpl;
 	      //printf("::: %d || %d :::\n", cigar_value, mark_dpl);
 	    } else {
 	      //distance += cigar_value;
 	      error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, CIGAR_BIG_DELETION, &cigar_value, &distance);
-	       if (error_cigar) { end_exceded = 1; break;}
+	       if (error_cigar) { end_exceded = 1; break; }
 	    }
 	    
 	    found = NOT_SPLICE;
@@ -621,15 +621,15 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 		cigar_value = (depth_cal_fusion_p[i].allocate_data[actual_cal].genome_start + relative_gap_start) -  
 		  (depth_cal_fusion_p[i].allocate_data[actual_cal - 1].genome_end - ((gap_end - gap_start) - relative_gap_start));
 	      }
-	      //printf("%s: %d in [j=%d - jstar=%d]\n", cigar_automata_status(CIGAR_BIG_DELETION), cigar_value, j, j_start);
-	      //distance += cigar_value;
-	      error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos,  CIGAR_BIG_DELETION, &cigar_value, &distance);
+	      //error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos,  CIGAR_BIG_DELETION, &cigar_value, &distance);
+	      //printf("No splice found %i\n", cigar_value);
+	      error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos,  CIGAR_SKIPPED, &cigar_value, &distance);
 	      if (error_cigar) { end_exceded = 1; break;}
 	    } else {
 	     cigar_value = gap_end - gap_start + 1;
-	     //printf("%s: %d in [j=%d - jstar=%d]\n", cigar_automata_status(CIGAR_BIG_DELETION), cigar_value, j, j_start);
-	     //distance += cigar_value;
-	     error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, CIGAR_BIG_DELETION, &cigar_value, &distance);
+	     //error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, CIGAR_BIG_DELETION, &cigar_value, &distance);
+	     //printf("No splice found %i\n", cigar_value);
+	     error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, CIGAR_SKIPPED, &cigar_value, &distance);
 	     if (error_cigar) { end_exceded = 1; break;}
 	    }
 	    deletion_number = 0;
