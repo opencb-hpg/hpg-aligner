@@ -1135,10 +1135,12 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
     //PROCESS OUTPUT ALIGNMENTS
     for (i = 0; i < num_targets; i++) {
       //num_mappings = array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
-      num_mappings = alignments_filter(input_p->bwt_optarg_p->report_all, 
+      /*num_mappings = alignments_filter(input_p->bwt_optarg_p->report_all, 
 				       input_p->bwt_optarg_p->report_best, 
 				       input_p->bwt_optarg_p->report_n_hits, 
 				       mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]); 
+      */
+      num_mappings = array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]); 
 
       if ( num_mappings > 0 ) {
 	array_list_set_flag(1, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);

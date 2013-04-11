@@ -173,13 +173,27 @@ void sw_batch_free(sw_batch_t *sw_data_p);
 */
 //====================================================================================
 
+typedef struct report_optarg {
+  int all;
+  int n_best;
+  int n_hits;
+  int unpaired;
+} report_optarg_t;
+
+report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int unpaired);
+void report_optarg_free(report_optarg_t *p);
+
+//====================================================================================
+
 typedef struct pair_mng {
   int pair_mode;
   size_t min_distance;
   size_t max_distance;
+  int report_unpaired;
 } pair_mng_t;
 
-pair_mng_t *pair_mng_new(int pair_mode, size_t min_distance, size_t max_distance);
+pair_mng_t *pair_mng_new(int pair_mode, size_t min_distance, 
+			 size_t max_distance, int report_upaired);
 void pair_mng_free(pair_mng_t *p);
 
 //=====================================================================================

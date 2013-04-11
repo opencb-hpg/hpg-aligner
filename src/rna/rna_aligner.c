@@ -107,7 +107,7 @@ void thread_function(extra_stage_t *extra_stage_input) {
 */
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
-		     options_t *options) {
+		     report_optarg_t *report_optarg, options_t *options) {
   int path_length = strlen(options->output_name);
   int prefix_length = 0;
 
@@ -227,8 +227,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   
 
   pair_server_input_t pair_input;
-  pair_server_input_init(pair_mng, bwt_optarg->report_best, bwt_optarg->report_n_hits, 
-			 bwt_optarg->report_all, NULL, NULL, NULL, &pair_input);
+  pair_server_input_init(pair_mng, report_optarg, NULL, NULL, NULL, &pair_input);
 
   batch_writer_input_t writer_input;
   batch_writer_input_init( output_filename,

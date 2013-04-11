@@ -37,12 +37,12 @@
 #define DEFAULT_SW_GAP_OPEN		10
 #define DEFAULT_SW_GAP_EXTEND		0.5
 #define DEFAULT_PAIR_MODE	        0
-#define DEFAULT_PAIR_MIN_DISTANCE	50
+#define DEFAULT_PAIR_MIN_DISTANCE	0
 #define DEFAULT_PAIR_MAX_DISTANCE	800
 #define MINIMUM_BATCH_SIZE              10000
 //=====================================================================
 
-#define NUM_OPTIONS			41
+#define NUM_OPTIONS			42
 
 typedef struct options {
   unsigned char bwt_set;
@@ -76,6 +76,7 @@ typedef struct options {
   int report_all;
   int report_best;
   int report_n_hits;
+  int report_unpaired;
   int gpu_process;
   int log_level;
   int index_ratio;
