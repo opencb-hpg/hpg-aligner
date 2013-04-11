@@ -6,7 +6,8 @@
 
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
-		     pair_mng_t *pair_mng, options_t *options) {
+		     pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
+		     options_t *options) {
 
      int path_length = strlen(options->output_name);
      int prefix_length = 0;
@@ -71,8 +72,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 			   NULL, NULL, genome, &cal_input);
      
      pair_server_input_t pair_input;
-     pair_server_input_init(pair_mng, bwt_optarg->report_best, bwt_optarg->report_n_hits, 
-			    bwt_optarg->report_all, NULL, NULL, NULL, &pair_input);
+     pair_server_input_init(pair_mng, report_optarg, NULL, NULL, NULL, &pair_input);
      
      sw_server_input_t sw_input;
      sw_server_input_init(NULL, NULL, 0, options->match, options->mismatch, 
@@ -134,6 +134,8 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      }
      bam_fclose(writer_input.bam_file);
      
+     free(output_filename);
+
      if (statistics_on) {
 	  size_t total_item = 0;
 	  double max_time = 0, total_throughput = 0;

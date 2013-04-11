@@ -182,12 +182,12 @@ int bam_writer(void *data) {
 	 } //else num_items
 	 i++;
        } //end of while
-       
+
        if (global_status == WORKFLOW_STATUS_FINISHED) {
 	 pthread_cond_signal(&cond_sp);
        }
      }
-
+     
      if (basic_st->total_reads >= writer_input->limit_print) {
        LOG_DEBUG_F("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
        LOG_DEBUG_F("\tTotal Reads Mapped: %lu(%.2f%)\n", 

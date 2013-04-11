@@ -44,6 +44,7 @@ options_t *options_new(void) {
   options->statistics = 0;
   options->report_best = 0;
   options->report_n_hits = 0;
+  options->report_unpaired = 0;
   options->gpu_process = 0;
   options->bwt_set = 0;
   options->reg_set = 0;
@@ -185,6 +186,20 @@ void validate_options(options_t *options, char *mode) {
     options->flank_length = DEFAULT_FLANK_LENGTH;
   }
 
+  if (options->report_best) {
+    options->report_all = 0;
+    options->report_n_hits = 0;    
+  } else if (options->report_n_hits) {
+    options->report_all = 0;
+    options->report_best = 0;
+  } else if (options->report_all) {
+    options->report_best = 0;
+    options->report_n_hits = 0;
+  } else {
+    options->report_best = 1;
+    options->report_n_hits = 0;    
+    options->report_all = 0;
+  }
 }
 
 
@@ -217,11 +232,8 @@ void options_display(options_t *options) {
      unsigned int  report_all = (unsigned int)options->report_all;
      unsigned int  report_best = (unsigned int)options->report_best;
      unsigned int  report_n_hits = (unsigned int)options->report_n_hits;
-     
-     if ((report_best == 0) && (report_n_hits == 0)) {
-	  report_all = 1;
-     }
-     
+     unsigned int  report_unpaired = (unsigned int)options->report_unpaired;
+          
      char* output_name =  strdup(options->output_name);
      unsigned int num_gpu_threads =  (unsigned int)options->num_gpu_threads;
      unsigned int num_cpu_threads =  (unsigned int)options->num_cpu_threads;
@@ -260,6 +272,7 @@ void options_display(options_t *options) {
      printf("\tReport all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
      printf("\tReport best hits: %d\n",  report_best);
      printf("\tReport n hits: %d\n",  report_n_hits);
+     printf("\tReport unpaired reads: %s\n",  report_unpaired == 0 ? "Disable":"Enable");
      printf("SEEDING and CAL PARAMETERS\n");
      printf("\tMin. number of seeds: %d\n",  min_num_seeds);
      printf("\tMax. number of seeds: %d\n",  max_num_seeds);
@@ -341,7 +354,8 @@ void** argtable_options_new(void) {
      argtable[38] = arg_int0(NULL, "min-num-seeds", NULL, "Minimum number of seeds per read");
      argtable[39] = arg_int0(NULL, "max-num-seeds", NULL, "Maximum number of seeds per read");
      argtable[40] = arg_lit0(NULL, "gpu-enable", "Enable GPU Process");
-     argtable[41] = arg_end(20);
+     argtable[41] = arg_lit0(NULL, "report-unpaired", "Report the unpaired reads");
+     argtable[NUM_OPTIONS] = arg_end(20);
      
      return argtable;
 }
@@ -436,6 +450,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
        options->gpu_process = 0; 
     #endif
   }
+  if (((struct arg_int*)argtable[41])->count) { options->report_unpaired = (((struct arg_int*)argtable[41])->count); }
 
   return options;
 }
