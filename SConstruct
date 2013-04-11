@@ -12,7 +12,7 @@ env = Environment(tools = ['default', 'packaging'],
       		  CC = compiler,
                   variables = vars,
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp ',
-                  CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path ],
+                  CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, "%s/commons/argtable" % commons_path, "%s/commons/config" % commons_path ],
                   LIBPATH = ['#libs/common-libs/', commons_path],
                   LIBS = ['m', 'z'],
                   LINKFLAGS = ['-fopenmp'])
