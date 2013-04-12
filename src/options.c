@@ -129,6 +129,7 @@ void validate_options(options_t *options, char *mode) {
   int DEFAULT_SEEDS_MAX_DISTANCE;
 
   if (strcmp("dna", mode) == 0) {
+    strcpy(options->mode, "DNA");
     DEFAULT_READ_BATCH_SIZE = 20000;
     DEFAULT_SEED_SIZE	= 20;
     DEFAULT_FLANK_LENGTH = 5;
@@ -136,6 +137,7 @@ void validate_options(options_t *options, char *mode) {
     DEFAULT_MIN_CAL_SIZE = 30;
     DEFAULT_SEEDS_MAX_DISTANCE = 100;
   }else if (strcmp("rna", mode) == 0) {
+    strcpy(options->mode, "RNA");
     DEFAULT_READ_BATCH_SIZE = 200000;
     DEFAULT_SEED_SIZE = 0;
     DEFAULT_FLANK_LENGTH = 30;
@@ -259,21 +261,35 @@ void options_display(options_t *options) {
      float gap_open =   (float)options->gap_open;
      float gap_extend =   (float)options->gap_extend;
   
-     printf("PARAMETERS CONFIGURATION\n");
-     printf("=================================================\n");
+     printf("-------------------------------------------------\n");
+     printf("-           PARAMETERS CONFIGURATION            -\n");
+     printf("-------------------------------------------------\n");
      //     printf("Num gpu threads %d\n", num_gpu_threads);
      //     printf("GPU Process: %s\n",  gpu_process == 0 ? "Disable":"Enable");
-     printf("ARCHITECTURE PARAMETERS\n");
+     printf("General parameters\n");
+     printf("\tMode: %s\n", options->mode);
+     if (in_filename2) {
+       printf("\tInput FastQ filename, pair #1: %s\n", in_filename);
+       printf("\tInput FastQ filename, pair #2: %s\n", in_filename);
+     } else {
+       printf("\tInput FastQ filename: %s\n", in_filename);
+     }
+     printf("\tBWT index directory name: %s\n", bwt_dirname);
+     printf("\tOutput directory name: %s\n", output_name);
+     printf("\n");
+     printf("Architecture parameters\n");
      printf("\tNumber of cpu threads %d\n",  num_cpu_threads);
      //printf("CAL seeker errors: %d\n",  cal_seeker_errors);
      printf("\tBatch size: %d bytes\n",  batch_size);
      //     printf("\tWrite size: %d bytes\n",  write_size);
-     printf("REPORT PARAMETERS\n");
+     printf("\n");
+     printf("Report parameters\n");
      printf("\tReport all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
      printf("\tReport best hits: %d\n",  report_best);
      printf("\tReport n hits: %d\n",  report_n_hits);
      printf("\tReport unpaired reads: %s\n",  report_unpaired == 0 ? "Disable":"Enable");
-     printf("SEEDING and CAL PARAMETERS\n");
+     printf("\n");
+     printf("Seeding and CAL parameters\n");
      printf("\tMin. number of seeds: %d\n",  min_num_seeds);
      printf("\tMax. number of seeds: %d\n",  max_num_seeds);
      if (seed_size) {
@@ -286,20 +302,23 @@ void options_display(options_t *options) {
      printf("\tMin CAL size: %d\n",  min_cal_size);
      printf("\tSeeds max distance: %d\n",  seeds_max_distance);
      printf("\tFlank length: %d\n", flank_length);
-     printf("RNA PARAMETERS\n");
-     printf("\tMax intron length: %d\n", max_intron_length);
-     printf("\tMin intron length: %d\n", min_intron_length);
-     printf("PAIR-MODE PARAMETERS\n");
+     printf("\n");
+     printf("Pair-mode parameters\n");
      printf("\tPair mode: %d\n", pair_mode);
      printf("\tMin. distance: %d\n", pair_min_distance);
      printf("\tMax. distance: %d\n", pair_max_distance);
-     printf("SMITH-WATERMAN PARAMETERS\n");
+     printf("\n");
+     printf("Smith-Waterman parameters\n");
      printf("\tMin score  : %0.4f\n", min_score);
      printf("\tMatch      : %0.4f\n", match);
      printf("\tMismatch   : %0.4f\n", mismatch);
      printf("\tGap open   : %0.4f\n", gap_open);
      printf("\tGap extend : %0.4f\n", gap_extend);
-     printf("=================================================\n");
+     printf("\n");
+     printf("RNA parameters\n");
+     printf("\tMax intron length: %d\n", max_intron_length);
+     printf("\tMin intron length: %d\n", min_intron_length);
+     printf("-------------------------------------------------\n");
      
      free(in_filename);
      if (in_filename2 != NULL) free(in_filename2);

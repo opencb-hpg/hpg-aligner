@@ -45,6 +45,7 @@
 #define NUM_OPTIONS			42
 
 typedef struct options {
+  char mode[64];
   unsigned char bwt_set;
   unsigned char reg_set;
   unsigned char cal_set;
