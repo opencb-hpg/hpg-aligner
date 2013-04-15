@@ -370,11 +370,14 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
   int num_hits, counter_hits;
   linked_list_t *pair_list = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
   linked_list_iterator_t *pair_list_itr = linked_list_iterator_new(pair_list);
-  
-  if (input->report_optarg->n_best) {
-    num_hits = input->report_optarg->n_best;
-  } else  if (input->report_optarg->n_hits) {
-    num_hits = input->report_optarg->n_hits;
+  int n_best = input->report_optarg->n_best;
+  int n_hits = input->report_optarg->n_hits;
+  int all = input->report_optarg->all;
+
+  if (n_best) {
+    num_hits = n_best;
+  } else  if (n_hits) {
+    num_hits = n_hits;
   } else {
     num_hits = 10000;
   }
@@ -508,7 +511,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 
       // check if there are unproperly aligned pairs
       if (counter_hits) {
-	if (report_unpaired) {
+	/*if (report_unpaired) {
 	  // report all alignments
 	  for (size_t j = 0; j < num_items1; j++) {
 	    if (!mapped1[j]) {
@@ -523,21 +526,51 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	      update_mispaired_alignment(2, alig2);
 	    }  
 	  }
-	} else {
-	  // remove unpaired alignments and
-	  // report only pair alignments found
-	  if (mapped1_counter != num_items1) {
-	    batch->mapping_lists[i] = create_new_list(mapped1, mapped1_counter, list1);
-	  }
-	  if (mapped2_counter != num_items2) {
-	    batch->mapping_lists[i + 1] = create_new_list(mapped2, mapped2_counter, list2);
-	  }
+	*/
+	//} else {
+	// remove unpaired alignments and
+	// report only pair alignments found
+	if (mapped1_counter != num_items1) {
+	  batch->mapping_lists[i] = create_new_list(mapped1, mapped1_counter, list1);
+	}
+	if (mapped2_counter != num_items2) {
+	  batch->mapping_lists[i + 1] = create_new_list(mapped2, mapped2_counter, list2);
 	}
       } else {
 	// all aligments are unpaired
 	//printf("Aalignments are unpaired\n");
-	if (report_unpaired) {
-	  update_mispaired_pairs(num_items1, num_items2, list1, list2);
+	if (report_unpaired && (all || n_best || n_hits)) {
+	  size_t num_items = num_items1 + num_items2;
+	  if (all || num_items <= n_best || num_items <= n_hits) {
+	    // report all mappings 
+	    update_mispaired_pairs(num_items1, num_items2, list1, list2);
+	  } else if (n_hits) {
+	    //select n hits from first pair
+	    filter_alignments(0, 0, n_hits, batch->mapping_lists[i]);
+	    update_mispaired_pair(1, array_list_size(batch->mapping_lists[i]), batch->mapping_lists[i]);
+	    if (num_items1 < n_hits) {
+	      size_t new_n_hits = n_hits - num_items1;
+	      filter_alignments(0, 0, new_n_hits, batch->mapping_lists[i + 1]);
+	      update_mispaired_pair(2, array_list_size(batch->mapping_lists[i + 1]), batch->mapping_lists[i + 1]);
+	    } else {
+	      array_list_clear(batch->mapping_lists[i + 1], (void *) alignment_free);
+	    }
+	  } else if (n_best) {
+	    update_mispaired_pairs(num_items1, num_items2, list1, list2);
+	    for (int n = num_items2 - 1; n >= 0; n--) {
+	      alig2 = array_list_remove_at(n, batch->mapping_lists[i + 1]);
+	      array_list_insert(alig2, batch->mapping_lists[i]);
+	    }
+	    filter_alignments(0, n_best, 0, batch->mapping_lists[i]);
+	    size_t num_items = array_list_size(batch->mapping_lists[i]);
+	    for (int n = num_items - 1; n >= 0; n--) {
+	      alig1 = array_list_get(n, batch->mapping_lists[i]);
+	      if (alig1->pair_num == 2) {
+		alig1 = array_list_remove_at(n, batch->mapping_lists[i]);
+		array_list_insert(alig1, batch->mapping_lists[i + 1]);
+	      }
+	    }
+	  }
 	} else {
 	  array_list_clear(batch->mapping_lists[i], (void *) alignment_free);
 	  array_list_clear(batch->mapping_lists[i + 1], (void *) alignment_free);
@@ -546,9 +579,23 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
     } else {
       // pairs are not properly aligned, only one is mapped
       if (report_unpaired) {
-	update_mispaired_pair(1, num_items1, list1);
-	update_mispaired_pair(2, num_items2, list2);
+	// report all, n-best or n-hits
+	array_list_t *list;
+	size_t num_items;
+	int num_pair;
+	if (num_items1) {
+	  list = batch->mapping_lists[i];
+	  num_items = num_items1;
+	  num_pair = 1;
+	} else {
+	  list = batch->mapping_lists[i + 1];
+	  num_items = num_items2;
+	  num_pair = 2;
+	} 
+	filter_alignments(all, n_best, n_hits, list);
+	update_mispaired_pair(num_pair, num_items, list);   
       } else {
+	// no report_unpaired option set, delete all mappings found
 	array_list_clear(batch->mapping_lists[i], (void *) alignment_free);
 	array_list_clear(batch->mapping_lists[i + 1], (void *) alignment_free);
       }
@@ -596,7 +643,8 @@ inline size_t select_best_hits(array_list_t *mapping_list,
   alignment_t *best_alignment, *aux_alignment;
   array_list_t *mapping_list_filter;
   size_t num_mappings = array_list_size(mapping_list);
-  
+  int primary_delete = 0;
+
   mapping_list_filter = array_list_new(num_mappings + 1, 
 				       1.25f, 
 				       COLLECTION_MODE_ASYNCHRONIZED);
@@ -623,6 +671,7 @@ inline size_t select_best_hits(array_list_t *mapping_list,
   //  printf("Array Size %i\n", array_size);
   for (j = array_size - 1; j >= 0; j--) {
     aux_alignment = array_list_remove_at(j, mapping_list);
+    if (aux_alignment->primary_alignment) { primary_delete = 1; } 
     alignment_free(aux_alignment);
   }
 
@@ -632,42 +681,62 @@ inline size_t select_best_hits(array_list_t *mapping_list,
     aux_alignment = array_list_remove_at(j, mapping_list_filter);
     array_list_insert(aux_alignment, mapping_list);
   }
-    
+  
   array_list_free(mapping_list_filter, NULL);
+
+  if (primary_delete) {
+    aux_alignment = array_list_get(0, mapping_list);
+    if (aux_alignment) {
+      aux_alignment->primary_alignment = 1;
+    }
+  }
 
   return array_list_size(mapping_list);
 }
 
 //-----------------------------------------------------------------------------
 
-void filter_alignments(char report_all, 
-		       size_t report_best, 
-		       size_t report_n_hits,
-		       size_t num_lists,
-		       array_list_t **mapping_lists) {
+inline void filter_alignments(char report_all, 
+			      size_t report_best, 
+			      size_t report_n_hits,		      
+			      array_list_t *mapping_list) {
   
-  size_t num_mappings;
-  array_list_t *mapping_list;
-  
-  for (int i = 0; i < num_lists; i++) {
-    mapping_list = mapping_lists[i];
-    num_mappings = array_list_size(mapping_list);
+  size_t num_mappings = array_list_size(mapping_list);
     
-    if (!report_all && num_mappings) {
-      if (report_best > 0) {
-	// n-best
-	if (num_mappings > report_best) { 
-	  select_best_hits(mapping_list, report_best);
-	}
-      } else if (report_n_hits > 0) {
-	// n-hits
-	if (num_mappings > report_n_hits) { 	
-	  select_n_hits(mapping_list, report_n_hits);        
-	}
+  if (!report_all && num_mappings) {
+    if (report_best > 0) {
+      // n-best
+      if (num_mappings > report_best) { 
+	select_best_hits(mapping_list, report_best);
+      }
+    } else if (report_n_hits > 0) {
+      // n-hits
+      if (num_mappings > report_n_hits) { 	
+	select_n_hits(mapping_list, report_n_hits);        
       }
     }
   }
 }
+
+//-----------------------------------------------------------------------------
+
+
+void filter_alignments_lists(char report_all, 
+		       size_t report_best, 
+		       size_t report_n_hits,
+		       size_t num_lists,
+		       array_list_t **mapping_lists) {
+  array_list_t *mapping_list;
+  for (int i = 0; i < num_lists; i++) {
+    mapping_list = mapping_lists[i];
+    filter_alignments(report_all, 
+		      report_best, 
+		      report_n_hits,		      
+		      mapping_list);
+    
+  }
+}
+
 
 //====================================================================================
 // main functions: apply pair and prperare alignments
@@ -831,11 +900,11 @@ int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
 
   if (input->pair_mng->pair_mode == SINGLE_END_MODE) {
     // filter alignments by best-alignments, n-hits, all and unpaired reads
-    filter_alignments(input->report_optarg->all, 
-		      input->report_optarg->n_best, 
-		      input->report_optarg->n_hits,
-		      array_list_size(batch->mapping_batch->fq_batch),
-		      batch->mapping_batch->mapping_lists);
+    filter_alignments_lists(input->report_optarg->all, 
+			    input->report_optarg->n_best, 
+			    input->report_optarg->n_hits,
+			    array_list_size(batch->mapping_batch->fq_batch),
+			    batch->mapping_batch->mapping_lists);
   } else {
     // first, search for proper pairs and
     // then filter paired alignments by best-alignments, n-hits, all and unpaired reads

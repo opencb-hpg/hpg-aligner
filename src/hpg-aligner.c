@@ -113,7 +113,9 @@ int main(int argc, char* argv[]) {
   LOG_DEBUG("Reading bwt index done !!");
   
   //BWT parameters
-  bwt_optarg_t *bwt_optarg = bwt_optarg_new(1, 0, 100);
+  bwt_optarg_t *bwt_optarg = bwt_optarg_new(1, 0,
+					    options->filter_read_mappings, 
+					    options->filter_seed_mappings);
   
   // CAL parameters
   cal_optarg_t *cal_optarg = cal_optarg_new(options->min_cal_size, options->seeds_max_distance, 

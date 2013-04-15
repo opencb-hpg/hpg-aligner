@@ -50,6 +50,8 @@ options_t *options_new(void) {
   options->reg_set = 0;
   options->cal_set = 0;
   options->sw_set = 0;
+  options->filter_read_mappings = DEFAULT_FILTER_READ_MAPPINGS;
+  options->filter_seed_mappings = DEFAULT_FILTER_SEED_MAPPINGS;
   //=========================================================
   options->min_cal_size = 0; 
   options->seeds_max_distance = 0;
@@ -355,6 +357,8 @@ void** argtable_options_new(void) {
      argtable[39] = arg_int0(NULL, "max-num-seeds", NULL, "Maximum number of seeds per read");
      argtable[40] = arg_lit0(NULL, "gpu-enable", "Enable GPU Process");
      argtable[41] = arg_lit0(NULL, "report-unpaired", "Report the unpaired reads");
+     argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "The reads with most mappings than <n> are unpaired");
+     argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "The seeds with most mappings than <n> are delete");
      argtable[NUM_OPTIONS] = arg_end(20);
      
      return argtable;
@@ -451,6 +455,8 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
     #endif
   }
   if (((struct arg_int*)argtable[41])->count) { options->report_unpaired = (((struct arg_int*)argtable[41])->count); }
+  if (((struct arg_int*)argtable[42])->count) { options->filter_read_mappings = *(((struct arg_int*)argtable[42])->ival); }
+  if (((struct arg_int*)argtable[43])->count) { options->filter_seed_mappings = *(((struct arg_int*)argtable[43])->ival); }
 
   return options;
 }
