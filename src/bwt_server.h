@@ -25,6 +25,7 @@ struct bwt_server_input {
   list_t* read_list_p;            /**< list for read batches of reads */
   list_t* unmapped_read_list_p;   /**< list for store batches with the reads no mapped */
   bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
+  report_optarg_t *report_optarg;
 };
 
 //------------------------------------------------------------------------------------
@@ -42,8 +43,8 @@ struct bwt_server_input {
  * Initialize all @a bwt_server_input_t fields with the input parameters.
  */
 void bwt_server_input_init(list_t* read_list_p, unsigned int batch_size, bwt_optarg_t *bwt_optarg_p, 
-			  bwt_index_t *bwt_index_p, list_t* write_list_p, unsigned int write_size, 
-			  list_t* unmapped_read_list_p, bwt_server_input_t* input_p);
+			   bwt_index_t *bwt_index_p, list_t* write_list_p, unsigned int write_size, 
+			   list_t* unmapped_read_list_p, bwt_server_input_t* input_p);
 
 //------------------------------------------------------------------------------------
 // main function

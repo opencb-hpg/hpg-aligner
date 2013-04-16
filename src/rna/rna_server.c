@@ -197,8 +197,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
   canonical_CT_AC[3] = 'C';
   //================================================//
 
-
-  /*  printf("======================== Process Output SW %d=========================\n", depth);
+  /*
+  printf("======================== Process Output SW %d=========================\n", depth);
   sw_simd_input_display(depth, input_p);
   sw_simd_output_display(depth, output_p);
   printf("======================================================================\n");
@@ -1006,7 +1006,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
       cal_fusion_data_init(j, cal_p->start, cal_p->end, cal_p->strand, cal_p->chromosome_id, 
 			   0, reference_fusion_len - 1, 
 			   &cals_fusion_p->allocate_data[num_cals_fusion]);
-      
+
       no_store = 0;
       while (j < c_target) {
 	j++;
@@ -1048,7 +1048,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
 	
 	genome_read_sequence_by_chr_index(reference, 0, 
 					  cal_p->chromosome_id - 1, &cal_p->start, &cal_p->end, genome_p);
-	
+
 	cal_fusion_data_init(j, cal_p->start, cal_p->end, cal_p->strand, cal_p->chromosome_id, 
 			     reference_fusion_len, reference_fusion_len + len - 1, 
 			     &cals_fusion_p->allocate_data[num_cals_fusion]);

@@ -181,6 +181,7 @@ typedef struct report_optarg {
 } report_optarg_t;
 
 report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int unpaired);
+
 void report_optarg_free(report_optarg_t *p);
 
 //====================================================================================

@@ -40,9 +40,11 @@
 #define DEFAULT_PAIR_MIN_DISTANCE	0
 #define DEFAULT_PAIR_MAX_DISTANCE	800
 #define MINIMUM_BATCH_SIZE              10000
+#define DEFAULT_FILTER_READ_MAPPINGS    50
+#define DEFAULT_FILTER_SEED_MAPPINGS    500
 //=====================================================================
 
-#define NUM_OPTIONS			42
+#define NUM_OPTIONS			44
 
 typedef struct options {
   char mode[64];
@@ -81,6 +83,8 @@ typedef struct options {
   int gpu_process;
   int log_level;
   int index_ratio;
+  int filter_read_mappings;
+  int filter_seed_mappings;
   double min_score;
   double match;
   double mismatch;
