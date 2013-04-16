@@ -272,7 +272,7 @@ void options_display(options_t *options) {
      printf("\tMode: %s\n", options->mode);
      if (in_filename2) {
        printf("\tInput FastQ filename, pair #1: %s\n", in_filename);
-       printf("\tInput FastQ filename, pair #2: %s\n", in_filename);
+       printf("\tInput FastQ filename, pair #2: %s\n", in_filename2);
      } else {
        printf("\tInput FastQ filename: %s\n", in_filename);
      }
