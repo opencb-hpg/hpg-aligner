@@ -702,7 +702,7 @@ inline void filter_alignments(char report_all,
 			      array_list_t *mapping_list) {
   
   size_t num_mappings = array_list_size(mapping_list);
-    
+
   if (!report_all && num_mappings) {
     if (report_best > 0) {
       // n-best
@@ -893,6 +893,7 @@ int apply_pair(pair_server_input_t* input, batch_t *batch) {
 //------------------------------------------------------------------------------------
 
 int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
+
   if (batch->mapping_mode == DNA_MODE) {
     // convert Smith-Waterman output objects to alignments
     prepare_single_alignments(input, batch->mapping_batch);

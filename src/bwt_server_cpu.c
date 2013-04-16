@@ -45,15 +45,9 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
 
   if (batch->mapping_batch->num_targets > 0) {
     return SEEDING_STAGE;
-  } else if (batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE && 
-	     batch->mapping_mode == DNA_MODE) {      
-    return PRE_PAIR_STAGE;
-  } else if (batch->mapping_mode == RNA_MODE && 
-	     batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
-    return POST_PAIR_STAGE;
-  } 
+  }
   
-  return CONSUMER_STAGE;
+  return POST_PAIR_STAGE;
 }
 
 //------------------------------------------------------------------------------------

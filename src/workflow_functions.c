@@ -96,14 +96,6 @@ int bam_writer(void *data) {
      unsigned char found_p2 = 0;
      int i = 0;
 
-     /*     mapping_batch_t *mb_new = mapping_batch_new_by_num(MAX_READS_SP, mapping_batch->pair_mng);     
-     array_list_t *reads_new = array_list_new(MAX_READS_SP, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-
-     batch_t *batch_new = batch_new(batch->bwt_input, batch->region_input, batch->cal_input, 
-				    batch->pair_input, batch->preprocess_rna, batch->sw_input, batch->writer_input, 
-				    batch->mapping_mode, mb_new);
-     */
-
      writer_input->total_batches++;
 
      if (batch->mapping_mode == DNA_MODE || batch->mapping_mode == RNA_MODE) {
@@ -345,6 +337,7 @@ int sw_stage(void *data) {
 
 int post_pair_stage(void *data) {
      batch_t *batch = (batch_t *) data;
+
      return prepare_alignments(batch->pair_input, batch);
 }
 

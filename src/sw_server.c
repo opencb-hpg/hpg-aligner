@@ -660,12 +660,8 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   sw_multi_output_free(output);
 
   // go to the next stage
-  if (batch->mapping_batch->num_targets > 0 || 
-      batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
-    return POST_PAIR_STAGE;
-  }
-  
-  return CONSUMER_STAGE;
+
+  return POST_PAIR_STAGE;
 
   //  printf("END: apply_sw, (%d Smith-Waterman, %d valids)\n", total, valids);
 }
