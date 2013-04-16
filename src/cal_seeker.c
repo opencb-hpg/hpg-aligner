@@ -169,16 +169,25 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 
     // for debugging
     LOG_DEBUG_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
+    for (size_t j = 0; j < num_cals; j++) {
+      cal = array_list_get(j, list);
+      LOG_DEBUG_F("\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu, flank: (start, end) = (%lu, %lu)\n", 
+		  cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, cal->flank_start, cal->flank_end);
+    }
 
     // filter CALs by the number of seeds
     if (min_seeds == max_seeds) {
       cal_list = list;
       list = NULL;
     } else {
+      int seed_filter = ceil(0.3f * max_seeds);
       cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
       for (size_t j = 0; j < num_cals; j++) {
 	cal = array_list_get(j, list);
-	if (cal->num_seeds == max_seeds) {
+	if (cal->num_seeds >= seed_filter) {
+	  LOG_DEBUG_F("\t\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu (filter %i), flank: (start, end) = (%lu, %lu)\n", 
+		      cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, seed_filter, cal->flank_start, cal->flank_end);
+	  
 	  array_list_insert(cal, cal_list);
 	  array_list_set(j, NULL, list);
 	}
@@ -194,8 +203,6 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       }
       num_cals = array_list_size(cal_list);
     }
-
-    //    printf("\tcal_seeker.c: after filter: num_cals = %d\n", num_cals);
 
     if (num_cals > 0 && num_cals <= MAX_CALS) {
       array_list_set_flag(2, cal_list);
