@@ -27,8 +27,8 @@
 #define DEFAULT_NUM_CAL_SEEKERS		1
 #define DEFAULT_REGION_THREADS		1
 #define DEFAULT_NUM_SW_THREADS		1
-#define DEFAULT_MIN_NUM_SEEDS		10
-#define DEFAULT_MAX_NUM_SEEDS		20
+#define DEFAULT_NUM_SEEDS		10
+#define DEFAULT_MIN_NUM_SEEDS_IN_CAL	-1
 #define DEFAULT_MAX_INTRON_LENGTH	800000
 #define DEFAULT_MIN_INTRON_LENGTH	40
 #define DEFAULT_SW_MIN_SCORE		0.6
@@ -56,8 +56,8 @@ typedef struct options {
   int num_gpu_threads;
   int num_cpu_threads;
   int min_cal_size; 
-  int min_num_seeds; 
-  int max_num_seeds; 
+  int num_seeds; 
+  int min_num_seeds_in_cal; 
   int seeds_max_distance;
   int min_seed_padding_right;
   int min_seed_padding_left;
@@ -158,51 +158,3 @@ options_t *parse_options(int argc, char **argv);
 void usage(void **argtable);
 
 #endif
-
-//typedef struct argtable_options {
-//	/*	IO options	*/
-//	struct arg_file *fastq_file; /**< VCF file used as input. */
-//	struct arg_file *fastq1_file; /**< PED file used as input. */
-//	struct arg_file *fastq2_file; /**< PED file used as input. */
-//	struct arg_file *config_file; /**< Path to the configuration file */
-//	struct arg_file *genomic_signature_input; /**< Filename template for the main output file. */
-//	struct arg_str *output_directory; /**< Directory where the output files will be stored. */
-//
-//	//    struct arg_int qc_flag;
-//	//    struct arg_int *filter_flag;
-//	//    struct arg_int *prepro_flag;
-//	struct arg_int *min_read_length;	// 50
-//	struct arg_int *max_read_length;	// 200
-//	struct arg_int *min_quality;  	// 20
-//	struct arg_int *max_quality;  	// 60
-//	struct arg_int *max_nts_out_quality;
-//	struct arg_int *max_n_per_read;
-//	struct arg_int *start_quality_nt;
-//	struct arg_int *end_quality_nt;
-//	struct arg_int *phred_quality;
-//	struct arg_int *rtrim_nts;
-//	struct arg_int *ltrim_nts;
-//	struct arg_int *rfilter_nts;
-//	struct arg_int *lfilter_nts;
-//	struct arg_lit *kmers_flag;
-//
-//	struct arg_lit *cg_flag; //Chaos Game flag
-//	struct arg_int *k_cg;    //7
-//
-//	// variables to store the value options
-//	//    struct arg_int *gpu_num_blocks =  DEFAULT_GPU_NUM_BLOCKS;   // 16
-//	//    struct arg_int *gpu_num_threads =  DEFAULT_GPU_NUM_THREADS;  // 512
-//	//    struct arg_int *gpu_num_devices =  DEFAULT_GPU_NUM_DEVICES;  // -1
-//	struct arg_int *cpu_num_threads;  			// 2
-//	//    struct arg_int *cpu_qc_calc_num_threads; 	//0
-//	struct arg_int *batch_size; 				// 64MB
-//	struct arg_int *batch_list_size;  			// 4
-//
-//	struct arg_int *log_level; /**< desc */
-//	struct arg_file *log_file; /**< desc */
-//	struct arg_lit *verbose; /**< desc */
-//	struct arg_lit *help; /**< desc */
-//	struct arg_lit *time; /**< desc */
-//
-//	int num_options;
-//} argtable_options_t;

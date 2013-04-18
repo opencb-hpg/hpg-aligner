@@ -604,11 +604,13 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
     read_len = fq_read->length;
     norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
 
+    /*
     LOG_DEBUG_F("ref. map : %s (start: %i)\n", 
 		output->ref_map_p[i], output->ref_start_p[i]);
     LOG_DEBUG_F("query map: %s (start: %i)\n", 
 		output->query_map_p[i], output->query_start_p[i]);
     LOG_DEBUG("\n");
+    */
 
     if (norm_score >= min_score) {
       // valid mappings, 

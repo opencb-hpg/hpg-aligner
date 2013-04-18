@@ -32,8 +32,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
   array_list_t *list = NULL;
   size_t read_index, num_mappings;
 
-  size_t min_num_seeds = input->cal_optarg_p->min_num_seeds;
-  size_t max_num_seeds = input->cal_optarg_p->max_num_seeds;
+  size_t num_seeds = input->cal_optarg_p->num_seeds;
   size_t seed_size = input->cal_optarg_p->seed_size;
   size_t min_seed_size = input->cal_optarg_p->min_seed_size;
   int padding_left = input->padding_left;
@@ -74,8 +73,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
     for (size_t i = 0; i < num_targets; i++) {
       read = array_list_get(targets[i], mapping_batch->fq_batch);
       //      printf("region_seeker: seeds for %s\n", read->id);
-      num_mappings = bwt_map_exact_seeds_seq_by_num(read->sequence,
-						    min_num_seeds, max_num_seeds, 
+      num_mappings = bwt_map_exact_seeds_seq_by_num(read->sequence, num_seeds,
 						    seed_size, min_seed_size,
 						    input->bwt_optarg_p, input->bwt_index_p, 
 						    mapping_batch->mapping_lists[targets[i]]);

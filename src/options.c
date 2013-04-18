@@ -25,8 +25,8 @@ options_t *options_new(void) {
   }
   //----------------------------------------------
   options->max_intron_length = DEFAULT_MAX_INTRON_LENGTH;
-  options->min_num_seeds = DEFAULT_MIN_NUM_SEEDS;
-  options->max_num_seeds = DEFAULT_MAX_NUM_SEEDS;
+  options->num_seeds = DEFAULT_NUM_SEEDS;
+  options->min_num_seeds_in_cal = DEFAULT_MIN_NUM_SEEDS_IN_CAL;
   options->cal_seeker_errors = DEFAULT_CAL_SEEKER_ERRORS;
   options->write_size = DEFAULT_WRITE_BATCH_SIZE;
   options->min_seed_padding_left = DEFAULT_MIN_SEED_PADDING_LEFT;
@@ -62,65 +62,7 @@ options_t *options_new(void) {
   
   return options;
 }
-/*
-options_t *options_new(void) {
-	options_t *options = (options_t*) calloc (1, sizeof(options_t));
-	size_t num_cores = 0;
 
-	options->in_filename = NULL;
-	options->in_filename2 = NULL;
-	options->report_all =  0;
-	options->output_filename = strdup(DEFAULT_OUTPUT_FILENAME);
-	options->splice_exact_filename = strdup(SPLICE_EXACT_FILENAME);
-	options->splice_extend_filename = strdup(SPLICE_EXTEND_FILENAME);
-	options->num_gpu_threads = DEFAULT_GPU_THREADS;
-	//GET Number System Cores
-	//----------------------------------------------
-	if (num_cores = get_optimal_cpu_num_threads()) {
-	  options->num_cpu_threads = num_cores;
-	}else {
-	  options->num_cpu_threads = DEFAULT_CPU_THREADS;
-	}
-	//----------------------------------------------
-	options->rna_seq = 0; 
-	options->min_cal_size = DEFAULT_MIN_CAL_SIZE; 
-	options->cal_seeker_errors = DEFAULT_CAL_SEEKER_ERRORS;
-	options->seeds_max_distance = DEFAULT_SEEDS_MAX_DISTANCE;
-	options->bwt_threads = DEFAULT_BWT_THREADS;
-	options->batch_size = DEFAULT_READ_BATCH_SIZE;
-	options->write_size = DEFAULT_WRITE_BATCH_SIZE;
-	options->num_cal_seekers = DEFAULT_NUM_CAL_SEEKERS;
-	options->region_threads = DEFAULT_REGION_THREADS;
-	options->num_sw_servers = DEFAULT_NUM_SW_THREADS;
-	options->min_seed_size = DEFAULT_MIN_SEED_SIZE;
-	options->seed_size = DEFAULT_SEED_SIZE;
-	options->min_num_seeds = DEFAULT_MIN_NUM_SEEDS;
-	options->max_num_seeds = DEFAULT_MAX_NUM_SEEDS;
-	options->max_intron_length = DEFAULT_MAX_INTRON_LENGTH;
-	options->flank_length = DEFAULT_FLANK_LENGTH;
-	options->min_score = DEFAULT_SW_MIN_SCORE;
-	options->match = DEFAULT_SW_MATCH;
-	options->mismatch = DEFAULT_SW_MISMATCH;
-	options->gap_open = DEFAULT_SW_GAP_OPEN;
-	options->gap_extend = DEFAULT_SW_GAP_EXTEND;
-	options->min_intron_length = DEFAULT_MIN_INTRON_LENGTH;
-	options->pair_mode = DEFAULT_PAIR_MODE;
-	options->pair_min_distance = DEFAULT_PAIR_MIN_DISTANCE;
-	options->pair_max_distance = DEFAULT_PAIR_MAX_DISTANCE;
-	options->timming = 0;
-	options->statistics = 0;
-	options->report_best = 0;
-	options->report_n_hits = 0;
-	options->gpu_process = 0;
-	options->bwt_set = 0;
-	options->reg_set = 0;
-	options->cal_set = 0;
-	options->sw_set = 0;
-	options->index_ratio = 10;
-
-	return options;
-}
-*/
 void validate_options(options_t *options, char *mode) {
   int value_dir = exists(options->output_name);
   int DEFAULT_READ_BATCH_SIZE;
@@ -248,8 +190,8 @@ void options_display(options_t *options) {
      unsigned int write_size =  (unsigned int)options->write_size;  
      unsigned int min_seed_size =  (unsigned int)options->min_seed_size;
      unsigned int seed_size =  (unsigned int)options->seed_size;
-     unsigned int min_num_seeds =  (unsigned int)options->min_num_seeds;
-     unsigned int max_num_seeds =  (unsigned int)options->max_num_seeds;
+     unsigned int num_seeds =  (unsigned int)options->num_seeds;
+     int min_num_seeds_in_cal =  (int)options->min_num_seeds_in_cal;
      unsigned int max_intron_length =  (unsigned int)options->max_intron_length;
      unsigned int flank_length =  (unsigned int)options->flank_length;
      unsigned int pair_mode =  (unsigned int)options->pair_mode;
@@ -292,8 +234,7 @@ void options_display(options_t *options) {
      printf("\tReport unpaired reads: %s\n",  report_unpaired == 0 ? "Disable":"Enable");
      printf("\n");
      printf("Seeding and CAL parameters\n");
-     printf("\tMin. number of seeds: %d\n",  min_num_seeds);
-     printf("\tMax. number of seeds: %d\n",  max_num_seeds);
+     printf("\tNumber of seeds: %d\n",  num_seeds);
      if (seed_size) {
        printf("\tSeed size: %d\n",  seed_size);
        printf("\tMin seed size: %d\n",  min_seed_size);
@@ -302,8 +243,17 @@ void options_display(options_t *options) {
        printf("\tSeeds optimus autoconf\n");
      }
      printf("\tMin CAL size: %d\n",  min_cal_size);
+     if (min_num_seeds_in_cal < 0) {
+       printf("\tMin. number of seeds in a CAL: the maximun\n");
+     } else {
+       printf("\tMin. number of seeds in a CAL: %d\n",  min_num_seeds_in_cal);
+     }
      printf("\tSeeds max distance: %d\n",  seeds_max_distance);
      printf("\tFlank length: %d\n", flank_length);
+     printf("\n");
+     printf("Mapping filters\n");
+     printf("\tFor reads: %d mappings maximum, otherwise discarded\n", options->filter_read_mappings);
+     printf("\tFor seeds: %d mappings maximum, otherwise discarded\n", options->filter_seed_mappings);
      printf("\n");
      printf("Pair-mode parameters\n");
      printf("\tPair mode: %d\n", pair_mode);
@@ -317,9 +267,11 @@ void options_display(options_t *options) {
      printf("\tGap open   : %0.4f\n", gap_open);
      printf("\tGap extend : %0.4f\n", gap_extend);
      printf("\n");
-     printf("RNA parameters\n");
-     printf("\tMax intron length: %d\n", max_intron_length);
-     printf("\tMin intron length: %d\n", min_intron_length);
+     if (strcmp(options->mode, "rna") == 0) {
+       printf("RNA parameters\n");
+       printf("\tMax intron length: %d\n", max_intron_length);
+       printf("\tMin intron length: %d\n", min_intron_length);
+     }
      printf("-------------------------------------------------\n");
      
      free(in_filename);
@@ -372,12 +324,12 @@ void** argtable_options_new(void) {
      argtable[35] = arg_int0(NULL, "paired-max-distance", NULL, "Maximum distance between pairs");
      argtable[36] = arg_int0(NULL, "report-n-best", NULL, "Report the <n> best alignments");
      argtable[37] = arg_int0(NULL, "report-n-hits", NULL, "Report <n> hits");
-     argtable[38] = arg_int0(NULL, "min-num-seeds", NULL, "Minimum number of seeds per read");
-     argtable[39] = arg_int0(NULL, "max-num-seeds", NULL, "Maximum number of seeds per read");
+     argtable[38] = arg_int0(NULL, "num-seeds", NULL, "Number of seeds per read");
+     argtable[39] = arg_int0(NULL, "min-num-seeds", NULL, "Minimum number of seeds to create a CAL (if -1, the maxixum will be taken)");
      argtable[40] = arg_lit0(NULL, "gpu-enable", "Enable GPU Process");
      argtable[41] = arg_lit0(NULL, "report-unpaired", "Report the unpaired reads");
-     argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "The reads with most mappings than <n> are unpaired");
-     argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "The seeds with most mappings than <n> are delete");
+     argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
+     argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
      argtable[NUM_OPTIONS] = arg_end(20);
      
      return argtable;
@@ -464,8 +416,8 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[35])->count) { options->pair_max_distance = *(((struct arg_int*)argtable[35])->ival); }
   if (((struct arg_int*)argtable[36])->count) { options->report_best = *(((struct arg_int*)argtable[36])->ival); }
   if (((struct arg_int*)argtable[37])->count) { options->report_n_hits = *(((struct arg_int*)argtable[37])->ival); }
-  if (((struct arg_int*)argtable[38])->count) { options->min_num_seeds = *(((struct arg_int*)argtable[38])->ival); }
-  if (((struct arg_int*)argtable[39])->count) { options->max_num_seeds = *(((struct arg_int*)argtable[39])->ival); }
+  if (((struct arg_int*)argtable[38])->count) { options->num_seeds = *(((struct arg_int*)argtable[38])->ival); }
+  if (((struct arg_int*)argtable[39])->count) { options->min_num_seeds_in_cal = *(((struct arg_int*)argtable[39])->ival); }
   if (((struct arg_int*)argtable[40])->count) { 
     #ifdef HPG_GPU
        options->gpu_process = (((struct arg_int *)argtable[40])->count); 
