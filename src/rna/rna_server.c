@@ -101,7 +101,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 				       unsigned int depth, allocate_fusion_data_t *depth_cal_fusion_p, 
 				       allocate_splice_elements_t *chromosome_avls_p,  
 				       sw_channel_t *sw_channels_p, mapping_batch_t *mapping_batch_p,  unsigned int sw_id,
-				       size_t *sw_no_valids, float min_score, genome_t *genome_p, int min_intron_length){
+				       size_t *sw_no_valids, float min_score, genome_t *genome_p, int min_intron_length, 
+				       float gap_open, float gap_extend, float match) {
 
 
   //printf("Process Splice Junctions\n");
@@ -177,6 +178,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
   int optional_fields_length;
   int distance;
   int AS;
+  float insertions_penalty;
+
   if (cigar_p == NULL) { exit(-1); }
   //============================//
   
@@ -374,6 +377,7 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 	  if (output_p->mapped_seq_p[i][j] != output_p->mapped_ref_p[i][j]) { distance++; /*printf("Dist\n");*/ } 
 	  if (automata_status == CIGAR_MATCH_MISMATCH) {
 	    cigar_value++;
+	    //printf("Study %c nt %d\n", output_p->mapped_ref_p[i][j], cigar_value);
 	  } else {
 	    //printf("%s: %d in [j=%d - jstar=%d]\n", cigar_automata_status(automata_status), cigar_value, j, j_start);
 	    error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, automata_status, &cigar_value, &distance);
@@ -591,11 +595,27 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 		maximum_splice_number *= 1.25;
 		allocate_splice = (sp_data_t *)realloc(allocate_splice, sizeof(sp_data_t)*maximum_splice_number);
 	      }
-	      cigar_p[cigar_pos - 1].value += mark_dpl;	    
+	      cigar_p[cigar_pos - 1].value += mark_dpl;
+	      //cigar_p[cigar_pos + 1].value = -mark_dpl;
+	      //printf("Report splice displacement %i, %i, %i\n", mark_dpl, cigar_pos, cigar_p[cigar_pos + 1].value);
+	      //printf("%i - %i\n", cigar_p[cigar_pos - 1].value, mark_dpl);
 	      error_cigar = cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, CIGAR_SKIPPED, &cigar_value, &distance);
+	      //cigar_value += mark_dpl;
+	      //printf("j=%i\n", j);
+	      cigar_value -= mark_dpl;
+	      //printf("start cigar value %d\n", cigar_value);
+	      //j += mark_dpl;
 	      if (error_cigar) { end_exceded = 1; break; }
 	      //printf("::: %d || %d :::\n", cigar_value, mark_dpl);	      
+
+	      //Add to the mapping the score of extend gap in splice junction search
+	      /*printf("Before %f ", output_p->norm_score_p[i]);
 	      cigar_value -= mark_dpl;
+	      insertions_penalty = (float)(gap_end - gap_start) * gap_extend + gap_open;
+	      insertions_penalty = NORM_SCORE(insertions_penalty, input_p->seq_len_p[i], match);
+	      output_p->norm_score_p[i] += insertions_penalty;
+	      printf("After %f \n", output_p->norm_score_p[i]);
+	      */
 	      //printf("::: %d || %d :::\n", cigar_value, mark_dpl);
 	    } else {
 	      //distance += cigar_value;
@@ -652,6 +672,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
     //printf("\tStart Search\n");
     if (end_exceded) { free(optional_fields); free(read_match); free(quality_match); end_exceded = 0; continue; }
     //printf("\tEnd Search Splice\n");
+
+    //printf("last cigar value %i\n", cigar_value);
     //=============================== MAKE CIGAR & SAM/BAM =====================================
     cigar_generator(cigar_p, &cigar_max_len, &cigar_pos, automata_status, &cigar_value, &distance);
 
@@ -1091,7 +1113,8 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
 	search_splice_junctions_sw_output(sw_input_p, sw_output_p, curr_depth, 
 					  allocate_cals_fusion_p, chromosome_avls_p, sw_channels_p, 
 					  mapping_batch_p, 0, &sw_no_valids,
-					  min_score, genome_p, min_intron_length);
+					  min_score, genome_p, min_intron_length, input_p->gap_open, 
+					  input_p->gap_extend, input_p->match);
 	num_sw_process += curr_depth;
 	curr_depth = 0;
       }
@@ -1125,7 +1148,8 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
 				      allocate_cals_fusion_p, chromosome_avls_p,  
 				      sw_channels_p, mapping_batch_p,
 				      0, &sw_no_valids, min_score, genome_p, 
-				      min_intron_length);
+				      min_intron_length, input_p->gap_open, 
+				      input_p->gap_extend, input_p->match);
     
     //found_write_p = process_sw_output(sw_output_p, sw_input_p, min_score, curr_depth, sw_channels_p, sw_batch_p, write_list_p, found_write_p, write_size, sw_id, &total_valids, mapping_reads_p, genome_p);
     curr_depth = 0;
@@ -1146,6 +1170,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
 	array_list_set_flag(1, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
 	for (int m = 0; m < num_mappings; m++) {
 	  alignment_p = array_list_get(m, mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]);
+	  //alignment_print(alignment_p);
 	  optional_fields = (char *)alignment_p->optional_fields;
 	  optional_fields += alignment_p->optional_fields_length;
 	  sprintf(optional_fields, "NHi");

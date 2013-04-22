@@ -44,9 +44,14 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
   //printf("APPLY BWT SERVER DONE!\n");
 
   if (batch->mapping_batch->num_targets > 0) {
+    //TODO: DELETE
+    //printf("Web have targets\n");
+    for (int i = 0; i < batch->mapping_batch->num_targets; i++) {
+      batch->mapping_batch->bwt_mappings[batch->mapping_batch->targets[i]] = 1;
+    }
     return SEEDING_STAGE;
   }
-  
+  //printf("Reads are mapped\n");
   return POST_PAIR_STAGE;
 }
 

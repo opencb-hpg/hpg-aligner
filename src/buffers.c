@@ -263,6 +263,9 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
   p->extra_stage_id = (unsigned char *) calloc(num_reads, sizeof(unsigned char));
   p->mapping_lists = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
 
+  //for debug. TODO:delete
+  p->bwt_mappings = (unsigned char *)calloc(num_reads, sizeof(unsigned char));
+
   for (size_t i = 0; i < num_reads; i++) {
     p->mapping_lists[i] = array_list_new(500, 
 					 1.25f, 

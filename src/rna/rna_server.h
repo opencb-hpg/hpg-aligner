@@ -16,6 +16,7 @@
 #include "bioformats/bam/alignment.h"
 #include "aligners/bwt/bwt.h"
 #include "aligners/bwt/genome.h"
+#include "aligners/sw/macros.h"
 
 //#include "list.h"
 //#include "genome.h"
@@ -94,7 +95,7 @@ void rna_server_omp_smith_waterman(sw_server_input_t* input_p, allocate_splice_e
   */
 typedef struct cigar_data{
   unsigned char type;  /**< type of cigar operation */
-  unsigned int value;  /**< value of cigar operation */
+  int value;  /**< value of cigar operation */
 }cigar_data_t;
 
 /**
@@ -152,7 +153,10 @@ void search_splice_junctions_sw_output(sw_simd_input_t* sw_input_p,
 				       size_t *sw_no_valids, 
 				       float min_score, 
 				       genome_t *genome_p, 
-				       int min_intron_length);
+				       int min_intron_length, 
+				       float gap_open, 
+				       float gap_extend,
+				       float match);
 
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch);
 

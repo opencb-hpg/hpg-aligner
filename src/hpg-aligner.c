@@ -40,6 +40,10 @@ double kl_time;
 pthread_cond_t cond_sp;
 pthread_mutex_t mutex_sp;
 
+size_t bwt_correct = 0;
+size_t bwt_error = 0;
+pthread_mutex_t bwt_mutex;
+
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     pair_mng_t *pair_mng, report_optarg_t *report_optarg,
@@ -56,6 +60,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 int main(int argc, char* argv[]) {
   pthread_mutex_init(&cal_st.mutex, NULL);
   pthread_mutex_init(&mutex_sp, NULL);
+  pthread_mutex_init(&bwt_mutex, NULL);
 
   const char HEADER_FILE[1024] = "Human_NCBI37.hbam\0";
   basic_st = basic_statistics_new();
@@ -163,6 +168,8 @@ int main(int argc, char* argv[]) {
   if (time_on){ timing_free(timing); }
 
   options_free(options);
+
+  //printf("Reads mapped in BWT Section %lu (%lu correct(%f) and %lu misses(%f))\n", bwt_correct + bwt_error, bwt_correct, (float)(bwt_correct * 100)/(float)(bwt_correct + bwt_error), bwt_error, (float)(bwt_error * 100)/(float)(bwt_correct + bwt_error));
   
   return 0;
 }
