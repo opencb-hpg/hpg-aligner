@@ -68,10 +68,14 @@ int main(int argc, char* argv[]) {
   // init logs, after parsing the command-line
   // logs will be re-set according to the command-line
   log_level = LOG_FATAL_LEVEL;
-  log_verbose = 0;
+  log_verbose = 1;
   log_file = NULL;
 
   if (argc <= 1) {
+    LOG_FATAL("Missing command.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
+  }
+
+  if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
     usage_cli();
   }
 
@@ -82,9 +86,9 @@ int main(int argc, char* argv[]) {
 
   if(strcmp(command, "dna") != 0 && 
      strcmp(command, "rna") != 0 &&
-     strcmp(command, "bs" ) != 0 && 
+     //     strcmp(command, "bs" ) != 0 && 
      strcmp(command, "build-index") != 0) {
-    LOG_FATAL("Command Mode Unknown.");
+    LOG_FATAL("Command unknown.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
   }
 
   // parsing options
@@ -124,7 +128,7 @@ int main(int argc, char* argv[]) {
   
   // CAL parameters
   cal_optarg_t *cal_optarg = cal_optarg_new(options->min_cal_size, options->seeds_max_distance, 
-					    options->min_num_seeds, options->max_num_seeds,
+					    options->num_seeds, options->min_num_seeds_in_cal,
 					    options->seed_size, options->min_seed_size, 
 					    options->cal_seeker_errors);
   
