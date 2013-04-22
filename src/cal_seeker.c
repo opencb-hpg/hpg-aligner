@@ -178,7 +178,11 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     */
 
     // filter CALs by the number of seeds
-    int min_limit = 0; //input->cal_optarg->min_num_seeds_in_cal;
+    //<<<<<<< HEAD
+    //int min_limit = 0; //input->cal_optarg->min_num_seeds_in_cal;
+    //=======
+    int min_limit = input->cal_optarg->min_num_seeds_in_cal;
+    //>>>>>>> 07dc5ce639a25beb4a40613781a5a65b27c5bec3
     if (min_limit < 0) min_limit = max_seeds;
 
     if (min_seeds == max_seeds || min_limit <= min_seeds) {
