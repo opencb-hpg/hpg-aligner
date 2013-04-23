@@ -63,6 +63,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 					     mapping_batch->mapping_lists[targets[i]],
 					     mapping_batch->extra_stage_id[targets[i]]);
       
+      //printf("Num mappings %i\n", num_mappings);
       if (num_mappings > 0) {
 	array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
 	targets[new_num_targets++] = targets[i];

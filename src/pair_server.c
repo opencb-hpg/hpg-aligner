@@ -225,7 +225,7 @@ static void prepare_single_alignments(pair_server_input_t *input, mapping_batch_
 }
 
 //------------------------------------------------------------------------------------
-inline void update_mispaired_pair(int pair_num, size_t num_items, array_list_t *list) {
+void update_mispaired_pair(int pair_num, size_t num_items, array_list_t *list) {
   alignment_t *alig;
 
   for (size_t i = 0; i < num_items; i++) {
@@ -383,6 +383,8 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
   }
 
   for (int i = 0; i < num_reads; i += 2) {
+    //fastq_read_t *read = array_list_get(i, batch->fq_batch);
+    //printf("%s\n", read->sequence);
     list1 = batch->mapping_lists[i];
     list2 = batch->mapping_lists[i+1];
 
@@ -579,23 +581,22 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	}
       }
     } else {
+      //printf("This section\n");
       // pairs are not properly aligned, only one is mapped
       if (report_unpaired) {
 	// report all, n-best or n-hits
 	array_list_t *list;
-	size_t num_items;
 	int num_pair;
+	//printf("num items1 = %i, num_items2 = %i\n", num_items1, num_items2);
 	if (num_items1) {
 	  list = batch->mapping_lists[i];
-	  num_items = num_items1;
 	  num_pair = 1;
 	} else {
 	  list = batch->mapping_lists[i + 1];
-	  num_items = num_items2;
 	  num_pair = 2;
 	} 
 	filter_alignments(all, n_best, n_hits, list);
-	update_mispaired_pair(num_pair, num_items, list);   
+	update_mispaired_pair(num_pair, array_list_size(list), list);   
       } else {
 	// no report_unpaired option set, delete all mappings found
 	array_list_clear(batch->mapping_lists[i], (void *) alignment_free);
