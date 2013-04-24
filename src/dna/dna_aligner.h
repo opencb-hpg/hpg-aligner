@@ -12,7 +12,7 @@
 #include "commons/log.h"
 #include "commons/file_utils.h"
 
-#include "containers/workflow_scheduler.h"
+#include "commons/workflow_scheduler.h"
 
 #include "bioformats/fastq/fastq_batch_reader.h"
 
