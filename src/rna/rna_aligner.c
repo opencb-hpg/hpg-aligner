@@ -116,10 +116,12 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   }
 
   char *reads_results = (char *)calloc((60 + prefix_length), sizeof(char));
+  char *log_results = (char *)calloc((60 + prefix_length), sizeof(char));
   char *extend_junctions = (char *)calloc((60 + prefix_length), sizeof(char));
   char *exact_junctions = (char *)calloc((60 + prefix_length), sizeof(char));
 
   char *output_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
+  char *log_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
   char *extend_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
   char *exact_filename = (char *)calloc((path_length + prefix_length + 60), sizeof(char));
 
@@ -127,6 +129,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     strcat(reads_results, "/");
     strcat(reads_results, options->prefix_name);
     strcat(reads_results, "_alignments.bam");  
+
+    strcat(log_results, "/");
+    strcat(log_results, options->prefix_name);
+    strcat(log_results, "_hpg-aligner.log");  
 
     strcat(extend_junctions, "/");
     strcat(extend_junctions, options->prefix_name);
@@ -138,6 +144,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
  
   } else {
     strcat(reads_results, "/alignments.bam");
+    strcat(log_results, "/hpg-aligner.log");
     strcat(extend_junctions, "/extend_junctions.bed");
     strcat(exact_junctions, "/exact_junctions.bed");
   } 
@@ -145,6 +152,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   strcat(output_filename, options->output_name);
   strcat(output_filename, reads_results);
   free(reads_results);
+
+  strcat(log_filename, options->output_name);
+  strcat(log_filename, log_results);
+  free(log_results);
 
   strcat(extend_filename, options->output_name);
   strcat(extend_filename, extend_junctions);

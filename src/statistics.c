@@ -117,7 +117,7 @@ void timing_and_statistics_display(statistics_t* statistics_p, timing_t *t_p) {
 
 //---------------------------------------------------------------------------------------
 
-void basic_statistics_display(basic_statistics_t *statistics, int rna_mode){
+void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, float total_time) {
   size_t total_reads = statistics->total_reads;
   size_t num_mapped_reads = statistics->num_mapped_reads;
   size_t total_mappings = statistics->total_mappings;
@@ -125,7 +125,7 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode){
   size_t total_sp = statistics->total_sp;
   size_t uniq_sp = statistics->uniq_sp;
 
-  printf("-------------------------------------------------\n");
+  /*  printf("-------------------------------------------------\n");
   printf("-                MAPPING STATISTICS             -\n");
   printf("-------------------------------------------------\n");
   printf("Num. total reads   : %lu\n", total_reads);
@@ -136,7 +136,36 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode){
     printf("Total Splice Junctions: %lu\n", total_sp);
     printf("    Differents Splice Junctions: %lu\n", uniq_sp);
   }
-  printf("-------------------------------------------------\n");
+  printf("-------------------------------------------------\n");*/
+  printf("+--------------------------------------------------------------------------------------+\n");
+  printf("|                                     GLOBAL STATISTICS                                |\n");
+  printf("+--------------------------------------------------------------------------------------+\n");
+  printf("| Total Time (s): %-69.2f", total_time);
+  printf("|\n");
+  printf("========================================================================================\n");
+  printf("| Total Reads Processed: %-62llu", total_reads);
+  printf("|\n");
+  printf("+-------------------------------------------+------------------------------------------+\n");
+  printf("| Reads Mapped: %-18llu  %6.2f", num_mapped_reads, num_mapped_reads * 100.0 / total_reads);
+  printf("% | ");
+  printf(" Reads Unmapped: %-14llu  %6.2f", total_reads - num_mapped_reads, (total_reads - num_mapped_reads) * 100.0 / total_reads);
+  printf("%  |\n");
+  if (rna_mode) {
+    printf("========================================================================================\n");
+    printf("| Total Splice Junctions: %-61llu", total_sp);
+    printf("|\n");
+    printf("+--------------------------------------------------------------------------------------+\n");
+    printf("| Differents Splice Junctions: %-56llu", uniq_sp);
+    printf("|\n");
+    printf("+-------------------------------------------+------------------------------------------+\n");
+    printf("| Cannonical: %-20llu  %6.2f", 0, 0);
+    printf("%  | Semi-Cannonical: %-14llu  %6.2f", 0, 0);
+    printf("%  |\n");
+    printf("+-------------------------------------------+------------------------------------------+\n");
+  } else {
+    printf("+-------------------------------------------+------------------------------------------+\n");
+  }
+
 }
 
 //---------------------------------------------------------------------------------------

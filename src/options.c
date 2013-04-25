@@ -40,8 +40,8 @@ options_t *options_new(void) {
   options->pair_mode = DEFAULT_PAIR_MODE;
   options->pair_min_distance = DEFAULT_PAIR_MIN_DISTANCE;
   options->pair_max_distance = DEFAULT_PAIR_MAX_DISTANCE;
-  options->timming = 0;
-  options->statistics = 0;
+  options->timming = 1;
+  options->statistics = 1;
   options->report_best = 0;
   options->report_n_hits = 0;
   options->report_unpaired = 0;

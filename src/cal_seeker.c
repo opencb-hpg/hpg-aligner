@@ -43,6 +43,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
 
+    //printf("%i mini-mappings\n", array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]));
+
     num_cals = bwt_generate_cal_list_rna_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
 						     input->cal_optarg, 
 						     allocate_cals, 

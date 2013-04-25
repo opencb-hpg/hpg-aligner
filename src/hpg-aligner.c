@@ -164,10 +164,10 @@ int main(int argc, char* argv[]) {
   report_optarg_free(report_optarg);
 
   if (time_on) { 
-    timing_display(timing);
+    //timing_display(timing);
   }
 
-  basic_statistics_display(basic_st, !strcmp(command, "rna"));
+  basic_statistics_display(basic_st, !strcmp(command, "rna"), timing->section_times[timing->num_sections - 1] / 1000000);
 
   if (time_on){ timing_free(timing); }
 
