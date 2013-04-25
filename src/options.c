@@ -44,7 +44,7 @@ options_t *options_new(void) {
   options->statistics = 0;
   options->report_best = 0;
   options->report_n_hits = 0;
-  options->report_unpaired = 0;
+  options->report_only_paired = 0;
   options->gpu_process = 0;
   options->bwt_set = 0;
   options->reg_set = 0;
@@ -178,7 +178,7 @@ void options_display(options_t *options) {
      unsigned int  report_all = (unsigned int)options->report_all;
      unsigned int  report_best = (unsigned int)options->report_best;
      unsigned int  report_n_hits = (unsigned int)options->report_n_hits;
-     unsigned int  report_unpaired = (unsigned int)options->report_unpaired;
+     unsigned int  report_only_paired = (unsigned int)options->report_only_paired;
           
      char* output_name =  strdup(options->output_name);
      unsigned int num_gpu_threads =  (unsigned int)options->num_gpu_threads;
@@ -232,7 +232,7 @@ void options_display(options_t *options) {
      printf("\tReport all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
      printf("\tReport best hits: %d\n",  report_best);
      printf("\tReport n hits: %d\n",  report_n_hits);
-     printf("\tReport unpaired reads: %s\n",  report_unpaired == 0 ? "Disable":"Enable");
+     printf("\tReport unpaired reads: %s\n",  report_only_paired == 0 ? "Enable":"Disable");
      printf("\n");
      printf("Seeding and CAL parameters\n");
      printf("\tNumber of seeds: %d\n",  num_seeds);
@@ -328,7 +328,7 @@ void** argtable_options_new(void) {
      argtable[38] = arg_int0(NULL, "num-seeds", NULL, "Number of seeds per read");
      argtable[39] = arg_int0(NULL, "min-num-seeds", NULL, "Minimum number of seeds to create a CAL (if -1, the maxixum will be taken)");
      argtable[40] = arg_lit0(NULL, "gpu-enable", "Enable GPU Process");
-     argtable[41] = arg_lit0(NULL, "report-unpaired", "Report the unpaired reads");
+     argtable[41] = arg_lit0(NULL, "report-only-paired", "Report only the paired reads");
      argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
      argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
      argtable[NUM_OPTIONS] = arg_end(20);
@@ -426,7 +426,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
        options->gpu_process = 0; 
     #endif
   }
-  if (((struct arg_int*)argtable[41])->count) { options->report_unpaired = (((struct arg_int*)argtable[41])->count); }
+  if (((struct arg_int*)argtable[41])->count) { options->report_only_paired = (((struct arg_int*)argtable[41])->count); }
   if (((struct arg_int*)argtable[42])->count) { options->filter_read_mappings = *(((struct arg_int*)argtable[42])->ival); }
   if (((struct arg_int*)argtable[43])->count) { options->filter_seed_mappings = *(((struct arg_int*)argtable[43])->ival); }
 

@@ -79,7 +79,7 @@ typedef struct options {
   int report_all;
   int report_best;
   int report_n_hits;
-  int report_unpaired;
+  int report_only_paired;
   int gpu_process;
   int log_level;
   int index_ratio;

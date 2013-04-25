@@ -138,13 +138,13 @@ int main(int argc, char* argv[]) {
   
   // paired mode parameters
   pair_mng_t *pair_mng = pair_mng_new(options->pair_mode, options->pair_min_distance, 
-				      options->pair_max_distance, options->report_unpaired);
+				      options->pair_max_distance, options->report_only_paired);
   
   // report parameters
   report_optarg_t *report_optarg = report_optarg_new(options->report_all,
 						     options->report_best,
 						     options->report_n_hits, 
-						     options->report_unpaired);
+						     options->report_only_paired);
   LOG_DEBUG("init table...");
   initTable();
   LOG_DEBUG("init table done !!");
