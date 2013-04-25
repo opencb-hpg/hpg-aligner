@@ -140,7 +140,7 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, floa
   printf("+--------------------------------------------------------------------------------------+\n");
   printf("|                                     GLOBAL STATISTICS                                |\n");
   printf("+--------------------------------------------------------------------------------------+\n");
-  printf("| Total Time (s): %-69.2f", total_time);
+  printf("| Alignment Time (s): %-69.2f", total_time);
   printf("|\n");
   printf("========================================================================================\n");
   printf("| Total Reads Processed: %-62llu", total_reads);
