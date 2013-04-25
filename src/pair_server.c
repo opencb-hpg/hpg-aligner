@@ -350,7 +350,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
   int min_distance = input->pair_mng->min_distance;
   int max_distance = input->pair_mng->max_distance;
   int pair_mode = input->pair_mng->pair_mode;
-  int report_unpaired = input->pair_mng->report_unpaired;
+  int report_only_unpaired = input->pair_mng->report_only_unpaired;
 
   array_list_t *list1, *list2;
 
@@ -543,7 +543,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
       } else {
 	// all aligments are unpaired
 	//printf("Alignments are unpaired\n");
-	if (report_unpaired && (all || n_best || n_hits)) {
+	if (!report_only_unpaired && (all || n_best || n_hits)) {
 	  size_t num_items = num_items1 + num_items2;
 	  if (all || num_items <= n_best || num_items <= n_hits) {
 	    // report all mappings 
@@ -583,7 +583,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
     } else {
       //printf("This section\n");
       // pairs are not properly aligned, only one is mapped
-      if (report_unpaired) {
+      if (!report_only_unpaired) {
 	// report all, n-best or n-hits
 	array_list_t *list;
 	int num_pair;
