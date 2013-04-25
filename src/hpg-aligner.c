@@ -44,6 +44,10 @@ size_t bwt_correct = 0;
 size_t bwt_error = 0;
 pthread_mutex_t bwt_mutex;
 
+// timing
+double main_time;
+
+
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     pair_mng_t *pair_mng, report_optarg_t *report_optarg,
@@ -167,7 +171,7 @@ int main(int argc, char* argv[]) {
     //timing_display(timing);
   }
 
-  basic_statistics_display(basic_st, !strcmp(command, "rna"), timing->section_times[timing->num_sections - 1] / 1000000);
+  basic_statistics_display(basic_st, !strcmp(command, "rna"), main_time / 1000000);
 
   if (time_on){ timing_free(timing); }
 

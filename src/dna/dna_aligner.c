@@ -79,14 +79,15 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 			  options->gap_open, options->gap_extend, options->min_score, 
 			  options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
 
-     // timing
-     struct timeval start, end;
-     double time;
 
      //--------------------------------------------------------------------------------------
      // workflow management
      //
      //
+     // timing
+     struct timeval start, end;
+     extern double main_time;
+
      batch_t *batch = batch_new(&bwt_input, &region_input, &cal_input, 
 				&pair_input, NULL, &sw_input, &writer_input, DNA_MODE, NULL);
 
@@ -104,16 +105,16 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      workflow_set_producer(fastq_reader, "FastQ reader", wf);
      workflow_set_consumer(bam_writer, "BAM writer", wf);
      
-     if (time_on) {
-       start_timer(start);
-     }
+     //if (time_on) {
+     start_timer(start);
+       //}
 
      workflow_run_with(options->num_cpu_threads, wf_input, wf);
 
-     if (time_on) {
-       stop_timer(start, end, time);
-       printf("Total Time: %4.04f sec\n", time / 1000000);
-     }
+     //if (time_on) {
+     stop_timer(start, end, main_time);
+       //printf("Total Time: %4.04f sec\n", time / 1000000);
+       //}
      
      // free memory
      workflow_free(wf);

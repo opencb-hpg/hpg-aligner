@@ -40,8 +40,8 @@ options_t *options_new(void) {
   options->pair_mode = DEFAULT_PAIR_MODE;
   options->pair_min_distance = DEFAULT_PAIR_MIN_DISTANCE;
   options->pair_max_distance = DEFAULT_PAIR_MAX_DISTANCE;
-  options->timming = 1;
-  options->statistics = 1;
+  options->timming = 0;
+  options->statistics = 0;
   options->report_best = 0;
   options->report_n_hits = 0;
   options->report_unpaired = 0;
@@ -204,10 +204,11 @@ void options_display(options_t *options) {
      float mismatch =   (float)options->mismatch;
      float gap_open =   (float)options->gap_open;
      float gap_extend =   (float)options->gap_extend;
-  
-     printf("-------------------------------------------------\n");
-     printf("-           PARAMETERS CONFIGURATION            -\n");
-     printf("-------------------------------------------------\n");
+
+     printf("\n");
+     printf("+--------------------------------------------------------------------------------------+\n");
+     printf("|                               PARAMETERS CONFIGURATION                               |\n");
+     printf("+--------------------------------------------------------------------------------------+\n");
      //     printf("Num gpu threads %d\n", num_gpu_threads);
      //     printf("GPU Process: %s\n",  gpu_process == 0 ? "Disable":"Enable");
      printf("General parameters\n");
@@ -272,7 +273,7 @@ void options_display(options_t *options) {
        printf("\tMax intron length: %d\n", max_intron_length);
        printf("\tMin intron length: %d\n", min_intron_length);
      }
-     printf("-------------------------------------------------\n");
+     printf("+--------------------------------------------------------------------------------------+\n");
      
      free(in_filename);
      if (in_filename2 != NULL) free(in_filename2);

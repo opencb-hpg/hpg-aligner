@@ -169,9 +169,6 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   LOG_DEBUG("Auto Thread Configuration Done !");
 
   // timing
-  struct timeval start, end;
-  double time;
-
   if (time_on) { 
     char* labels_time[NUM_SECTIONS_TIME] = {"FASTQ Reader               ", 
                                             "BWT Server                 ", 
@@ -256,6 +253,11 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   // workflow management
   //
   //
+  // timing
+  struct timeval start, end;
+  extern double main_time;
+
+
   batch_t *batch = batch_new(&bwt_input, &region_input, &cal_input, 
 			     &pair_input, &preprocess_rna, &sw_input, &writer_input, RNA_MODE, NULL);
 
@@ -285,9 +287,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   extra_stage_input.workflow = wf;
   //extra_stage_input.pair_mng = pair_mng_new(pair_mng->pair_mode, pair_mng->min_distance, pair_mng->max_distance);
   
-  if (time_on) {
-    start_timer(start);
-  }
+  //  if (time_on) {
+    
+    //}
 
   /*pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -298,6 +300,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     exit(-1);
   }
   */
+  start_timer(start);
   //Run workflow
   workflow_run_with(options->num_cpu_threads, wf_input, wf);
   //printf("Finish workflow\n");
@@ -308,17 +311,17 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 			extend_filename, 
 			exact_filename,
 			options->write_size, genome->num_chromosomes);
-
   /*  pthread_attr_destroy(&attr);
   if (ret = pthread_join(thread, &status)) {
     printf("ERROR; return code from pthread_join() is %d\n", ret);
     exit(-1);
   } 
   */
-  if (time_on) { 
+  stop_timer(start, end, main_time);
+  /*if (time_on) { 
     stop_timer(start, end, time);
     timing_add(time, TOTAL_TIME, timing);
-  }
+    }*/
     
   //closing files
   if (options->pair_mode == SINGLE_END_MODE) {

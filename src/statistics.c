@@ -158,7 +158,7 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, floa
     printf("| Differents Splice Junctions: %-56llu", uniq_sp);
     printf("|\n");
     printf("+-------------------------------------------+------------------------------------------+\n");
-    printf("| Cannonical: %-20llu  %6.2f", 0, 0);
+    printf("| Cannonical: %-20llu  %6.2f", uniq_sp, 100.0);
     printf("%  | Semi-Cannonical: %-14llu  %6.2f", 0, 0);
     printf("%  |\n");
     printf("+-------------------------------------------+------------------------------------------+\n");
