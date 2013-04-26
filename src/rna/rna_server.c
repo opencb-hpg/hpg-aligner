@@ -813,7 +813,7 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
     alignment_init_single_end(header_match, read_match, quality_match, 
 			      depth_cal_fusion_p[i].allocate_data->genome_strand, 
 			      depth_cal_fusion_p[i].allocate_data->genome_chromosome - 1, start_mapped - 1, 
-			      cigar_str, num_cigar_op, (int)output_p->norm_score_p[i] * 254, 1, 
+			      cigar_str, num_cigar_op, output_p->norm_score_p[i] * 254, 1, 
 			      primary_alignment, optional_fields_length, optional_fields, large_hard_clipping, 
 			      alignment_p);
 

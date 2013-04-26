@@ -44,6 +44,7 @@ options_t *options_new(void) {
   options->statistics = 0;
   options->report_best = 0;
   options->report_n_hits = 0;
+  options->report_max_score = 0;
   options->report_only_paired = 0;
   options->gpu_process = 0;
   options->bwt_set = 0;
@@ -132,17 +133,26 @@ void validate_options(options_t *options, char *mode) {
     options->flank_length = DEFAULT_FLANK_LENGTH;
   }
 
-  if (options->report_best) {
+
+  if (options->report_max_score) {
     options->report_all = 0;
-    options->report_n_hits = 0;    
+    options->report_n_hits = 0;
+    options->report_best = 0;
+  }else if (options->report_best) {
+    options->report_all = 0;
+    options->report_n_hits = 0;   
+    options->report_max_score = 0; 
   } else if (options->report_n_hits) {
     options->report_all = 0;
     options->report_best = 0;
+    options->report_max_score = 0;
   } else if (options->report_all) {
     options->report_best = 0;
     options->report_n_hits = 0;
+    options->report_max_score = 0;
   } else {
-    options->report_best = 1;
+    options->report_max_score = 1;
+    options->report_best = 0;
     options->report_n_hits = 0;    
     options->report_all = 0;
   }
@@ -179,6 +189,7 @@ void options_display(options_t *options) {
      unsigned int  report_best = (unsigned int)options->report_best;
      unsigned int  report_n_hits = (unsigned int)options->report_n_hits;
      unsigned int  report_only_paired = (unsigned int)options->report_only_paired;
+     unsigned int  report_max_score = (unsigned int)options->report_max_score;
           
      char* output_name =  strdup(options->output_name);
      unsigned int num_gpu_threads =  (unsigned int)options->num_gpu_threads;
@@ -232,6 +243,7 @@ void options_display(options_t *options) {
      printf("\tReport all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
      printf("\tReport best hits: %d\n",  report_best);
      printf("\tReport n hits: %d\n",  report_n_hits);
+     printf("\tReport max score: %s\n",  report_max_score == 0 ? "Disable":"Enable");
      printf("\tReport unpaired reads: %s\n",  report_only_paired == 0 ? "Enable":"Disable");
      printf("\n");
      printf("Seeding and CAL parameters\n");
@@ -331,6 +343,8 @@ void** argtable_options_new(void) {
      argtable[41] = arg_lit0(NULL, "report-only-paired", "Report only the paired reads");
      argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
      argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
+     argtable[44] = arg_lit0(NULL, "report-max-score", "Report all alignments with best score");
+
      argtable[NUM_OPTIONS] = arg_end(20);
      
      return argtable;
@@ -429,6 +443,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[41])->count) { options->report_only_paired = (((struct arg_int*)argtable[41])->count); }
   if (((struct arg_int*)argtable[42])->count) { options->filter_read_mappings = *(((struct arg_int*)argtable[42])->ival); }
   if (((struct arg_int*)argtable[43])->count) { options->filter_seed_mappings = *(((struct arg_int*)argtable[43])->ival); }
+  if (((struct arg_int*)argtable[44])->count) { options->report_max_score = (((struct arg_int*)argtable[44])->count); }
 
   return options;
 }

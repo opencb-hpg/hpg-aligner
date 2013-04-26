@@ -2,6 +2,7 @@
 #include "rna/rna_aligner.h"
 #include "build-index/index_builder.h"
 
+
 double emboss_matrix_t = 0.0f, emboss_tracking_t = 0.0f;
 double sse_matrix_t = 0.0f, sse_tracking_t = 0.0f;
 double sse1_matrix_t = 0.0f, sse1_tracking_t = 0.0f;
@@ -144,7 +145,8 @@ int main(int argc, char* argv[]) {
   report_optarg_t *report_optarg = report_optarg_new(options->report_all,
 						     options->report_best,
 						     options->report_n_hits, 
-						     options->report_only_paired);
+						     options->report_only_paired,
+						     options->report_max_score);
   LOG_DEBUG("init table...");
   initTable();
   LOG_DEBUG("init table done !!");
