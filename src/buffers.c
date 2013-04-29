@@ -119,14 +119,14 @@ void write_batch_free(write_batch_t* write_batch_p) {
 
 //====================================================================================
 
-report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int only_paired, int max_score) {
+report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int only_paired, int best) {
   report_optarg_t *p = (report_optarg_t*) calloc(1, sizeof(report_optarg_t));
 
   p->all = all;
   p->n_best = n_best;
   p->n_hits = n_hits;
   p->only_paired = only_paired;
-  p->max_score = max_score;
+  p->best = best;
 
   return p;
 }

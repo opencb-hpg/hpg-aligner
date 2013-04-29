@@ -178,10 +178,10 @@ typedef struct report_optarg {
   int n_best;
   int n_hits;
   int only_paired;
-  int max_score;
+  int best;
 } report_optarg_t;
 
-report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int only_paired, int max_score);
+report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int only_paired, int best);
 
 void report_optarg_free(report_optarg_t *p);
 

@@ -143,10 +143,10 @@ int main(int argc, char* argv[]) {
   
   // report parameters
   report_optarg_t *report_optarg = report_optarg_new(options->report_all,
-						     options->report_best,
+						     options->report_n_best,
 						     options->report_n_hits, 
 						     options->report_only_paired,
-						     options->report_max_score);
+						     options->report_best);
   LOG_DEBUG("init table...");
   initTable();
   LOG_DEBUG("init table done !!");

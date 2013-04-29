@@ -373,7 +373,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
   int n_best = input->report_optarg->n_best;
   int n_hits = input->report_optarg->n_hits;
   int all = input->report_optarg->all;
-  int max_score = input->report_optarg->max_score;
+  int best = input->report_optarg->best;
 
   if (n_best) {
     num_hits = n_best;
@@ -544,12 +544,12 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
       } else {
 	// all aligments are unpaired
 	//printf("Alignments are unpaired\n");
-	if (!report_only_paired && (all || n_best || n_hits || max_score)) {
+	if (!report_only_paired && (all || n_best || n_hits || best)) {
 	  size_t num_items = num_items1 + num_items2;
 	  if (all || num_items <= n_best || num_items <= n_hits) {
 	    // report all mappings 
 	    update_mispaired_pairs(num_items1, num_items2, list1, list2);
-	  } else if (max_score) {
+	  } else if (best) {
 	    filter_alignments(0, 0, 0, 1, batch->mapping_lists[1]);
 	  } else if (n_hits) {
 	    //select n hits from first pair
@@ -598,7 +598,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  list = batch->mapping_lists[i + 1];
 	  num_pair = 2;
 	} 
-	filter_alignments(all, n_best, n_hits, max_score, list);
+	filter_alignments(all, n_best, n_hits, best, list);
 	update_mispaired_pair(num_pair, array_list_size(list), list);   
       } else {
 	// no report_unpaired option set, delete all mappings found
@@ -643,7 +643,7 @@ inline size_t select_n_hits(array_list_t *mapping_list,
 extern unsigned int alignmentcmp(alignment_t *alignment_1, alignment_t *alignment_2);
 
 inline size_t select_best_hits(array_list_t *mapping_list, 
-			       size_t report_best) {
+			       size_t report_n_best) {
   int j, i, z;
   size_t best_pos, array_size;
   alignment_t *best_alignment, *aux_alignment;
@@ -656,7 +656,7 @@ inline size_t select_best_hits(array_list_t *mapping_list,
 				       COLLECTION_MODE_ASYNCHRONIZED);
     
   //  printf("Initial array size %i\n", array_list_size(mapping_list));
-  for (j = 0; j < report_best; j++) {     
+  for (j = 0; j < report_n_best; j++) {     
     best_pos = 0;
     best_alignment = array_list_get( 0, mapping_list);
     array_size = array_list_size(mapping_list);
@@ -683,7 +683,7 @@ inline size_t select_best_hits(array_list_t *mapping_list,
 
   //  printf("Move %i elements to list with %i elements\n", 
   //	 array_list_size(mapping_list_filter), array_list_size(mapping_list));
-  for (j = report_best - 1; j >= 0; j--) {
+  for (j = report_n_best - 1; j >= 0; j--) {
     aux_alignment = array_list_remove_at(j, mapping_list_filter);
     array_list_insert(aux_alignment, mapping_list);
   }
@@ -702,7 +702,7 @@ inline size_t select_best_hits(array_list_t *mapping_list,
 
 //-----------------------------------------------------------------------------
 
-inline void select_max_score (array_list_t *mapping_list) {
+inline void select_best (array_list_t *mapping_list) {
   size_t num_items = array_list_size(mapping_list);
   int max_quality = 0;
   alignment_t *alig;
@@ -744,21 +744,21 @@ inline void select_max_score (array_list_t *mapping_list) {
 //-----------------------------------------------------------------------------
 
 inline void filter_alignments(char report_all, 
-			      size_t report_best, 
+			      size_t report_n_best, 
 			      size_t report_n_hits,
-			      int report_max_score,
+			      int report_best,
 			      array_list_t *mapping_list) {
 
   size_t num_mappings = array_list_size(mapping_list);
 
   if (!report_all && num_mappings) {
-    if (report_max_score) {
+    if (report_best) {
       // max-score
-      select_max_score(mapping_list);
-    } else if (report_best > 0) {
+      select_best(mapping_list);
+    } else if (report_n_best > 0) {
       // n-best
-      if (num_mappings > report_best) { 
-	select_best_hits(mapping_list, report_best);
+      if (num_mappings > report_n_best) { 
+	select_best_hits(mapping_list, report_n_best);
       }
     } else if (report_n_hits > 0) {
       // n-hits
@@ -773,18 +773,18 @@ inline void filter_alignments(char report_all,
 
 
 void filter_alignments_lists(char report_all, 
-			     size_t report_best, 
+			     size_t report_n_best, 
 			     size_t report_n_hits,
-			     int report_max_score,
+			     int report_best,
 			     size_t num_lists,
 			     array_list_t **mapping_lists) {
   array_list_t *mapping_list;
   for (int i = 0; i < num_lists; i++) {
     mapping_list = mapping_lists[i];
     filter_alignments(report_all, 
-		      report_best, 
+		      report_n_best, 
 		      report_n_hits,
-		      report_max_score,
+		      report_best,
 		      mapping_list);
     
   }
@@ -957,7 +957,7 @@ int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
     filter_alignments_lists(input->report_optarg->all, 
 			    input->report_optarg->n_best, 
 			    input->report_optarg->n_hits,
-			    input->report_optarg->max_score,
+			    input->report_optarg->best,
 			    array_list_size(batch->mapping_batch->fq_batch),
 			    batch->mapping_batch->mapping_lists);
   } else {
