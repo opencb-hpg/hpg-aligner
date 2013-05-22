@@ -42,9 +42,12 @@
 #define MINIMUM_BATCH_SIZE              10000
 #define DEFAULT_FILTER_READ_MAPPINGS    50
 #define DEFAULT_FILTER_SEED_MAPPINGS    500
+//new variable for default uses
+#define DEFAULT_NUCLEOTIDES             "ACGT"
 //=====================================================================
 
-#define NUM_OPTIONS			45
+//#define NUM_OPTIONS			45
+#define NUM_OPTIONS			46
 
 typedef struct options {
   char mode[64];
@@ -99,6 +102,8 @@ typedef struct options {
   char* output_name;
   char* header_filename;
   char* intron_filename;
+  // new variables for bisulphite case
+  int bs_index;
 } options_t;
 
 

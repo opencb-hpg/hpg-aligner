@@ -60,7 +60,9 @@ options_t *options_new(void) {
   options->min_seed_size = 0;
   options->seed_size = 0;
   options->flank_length = 0;
-  
+
+  //new variables for bisulphite case in index generation
+  options->bs_index = 0;
   return options;
 }
 
@@ -344,6 +346,7 @@ void** argtable_options_new(void) {
      argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
      argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
      argtable[44] = arg_lit0(NULL, "report-best", "Report all alignments with best score");
+     argtable[45] = arg_lit0("bs", "bisulphite-index", "Indicate the use of bisulphite generation of the index");
 
      argtable[NUM_OPTIONS] = arg_end(20);
      
@@ -444,6 +447,11 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[42])->count) { options->filter_read_mappings = *(((struct arg_int*)argtable[42])->ival); }
   if (((struct arg_int*)argtable[43])->count) { options->filter_seed_mappings = *(((struct arg_int*)argtable[43])->ival); }
   if (((struct arg_int*)argtable[44])->count) { options->report_best = (((struct arg_int*)argtable[44])->count); }
+
+
+  // new value
+
+  if (((struct arg_int*)argtable[45])->count) { options->bs_index = (((struct arg_int*)argtable[45])->count); }
 
   return options;
 }

@@ -23,10 +23,11 @@ void check_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio
 //------------------------------------------------------------------------------------
 
 void help_index_builder() {
-     printf("./hpg-aligner build-index -[i|--bwt-index=<directory>] [-g|--ref-genome=<file>] [--index-ratio=<int>]\n");
+     printf("./hpg-aligner build-index -[i|--bwt-index=<directory>] [-g|--ref-genome=<file>] [--index-ratio=<int>] [-bs|--bisulphite-index]\n");
      printf("-i, --bwt-index=<directory>\t\tBWT directory name\n");
      printf("-g, --ref-genome=<file>\t\tReference genome\n");
      printf("-r, --index-ratio=<int>\t\tBWT index ratio of compression\n");
+     printf("-bs, --bisulphite-index\t\tIndicates the generation of index for bisulohite case\n");
      exit(0);
 }
 
