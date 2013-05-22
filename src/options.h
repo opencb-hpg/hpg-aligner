@@ -44,7 +44,7 @@
 #define DEFAULT_FILTER_SEED_MAPPINGS    500
 //=====================================================================
 
-#define NUM_OPTIONS			44
+#define NUM_OPTIONS			45
 
 typedef struct options {
   char mode[64];
@@ -77,8 +77,9 @@ typedef struct options {
   int pair_min_distance;
   int pair_max_distance;
   int report_all;
-  int report_best;
+  int report_n_best;
   int report_n_hits;
+  int report_best;
   int report_only_paired;
   int gpu_process;
   int log_level;

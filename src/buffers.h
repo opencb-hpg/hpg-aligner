@@ -177,10 +177,11 @@ typedef struct report_optarg {
   int all;
   int n_best;
   int n_hits;
-  int only_unpaired;
+  int only_paired;
+  int best;
 } report_optarg_t;
 
-report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int only_unpaired);
+report_optarg_t *report_optarg_new(int all, int n_best, int n_hits, int only_paired, int best);
 
 void report_optarg_free(report_optarg_t *p);
 
@@ -190,7 +191,7 @@ typedef struct pair_mng {
   int pair_mode;
   size_t min_distance;
   size_t max_distance;
-  int report_only_unpaired;
+  int report_only_paired;
 } pair_mng_t;
 
 pair_mng_t *pair_mng_new(int pair_mode, size_t min_distance, 

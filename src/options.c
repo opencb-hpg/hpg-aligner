@@ -42,8 +42,9 @@ options_t *options_new(void) {
   options->pair_max_distance = DEFAULT_PAIR_MAX_DISTANCE;
   options->timming = 0;
   options->statistics = 0;
-  options->report_best = 0;
+  options->report_n_best = 0;
   options->report_n_hits = 0;
+  options->report_best = 0;
   options->report_only_paired = 0;
   options->gpu_process = 0;
   options->bwt_set = 0;
@@ -132,17 +133,26 @@ void validate_options(options_t *options, char *mode) {
     options->flank_length = DEFAULT_FLANK_LENGTH;
   }
 
+
   if (options->report_best) {
     options->report_all = 0;
-    options->report_n_hits = 0;    
+    options->report_n_hits = 0;
+    options->report_n_best = 0;
+  }else if (options->report_n_best) {
+    options->report_all = 0;
+    options->report_n_hits = 0;   
+    options->report_best = 0; 
   } else if (options->report_n_hits) {
     options->report_all = 0;
+    options->report_n_best = 0;
     options->report_best = 0;
   } else if (options->report_all) {
-    options->report_best = 0;
+    options->report_n_best = 0;
     options->report_n_hits = 0;
+    options->report_best = 0;
   } else {
     options->report_best = 1;
+    options->report_n_best = 0;
     options->report_n_hits = 0;    
     options->report_all = 0;
   }
@@ -176,9 +186,10 @@ void options_display(options_t *options) {
 	  genome_filename =  strdup(options->genome_filename);
      }
      unsigned int  report_all = (unsigned int)options->report_all;
-     unsigned int  report_best = (unsigned int)options->report_best;
+     unsigned int  report_n_best = (unsigned int)options->report_n_best;
      unsigned int  report_n_hits = (unsigned int)options->report_n_hits;
      unsigned int  report_only_paired = (unsigned int)options->report_only_paired;
+     unsigned int  report_best = (unsigned int)options->report_best;
           
      char* output_name =  strdup(options->output_name);
      unsigned int num_gpu_threads =  (unsigned int)options->num_gpu_threads;
@@ -230,8 +241,9 @@ void options_display(options_t *options) {
      printf("\n");
      printf("Report parameters\n");
      printf("\tReport all hits: %s\n",  report_all == 0 ? "Disable":"Enable");
-     printf("\tReport best hits: %d\n",  report_best);
+     printf("\tReport n best hits: %d\n",  report_n_best);
      printf("\tReport n hits: %d\n",  report_n_hits);
+     printf("\tReport best hits: %s\n",  report_best == 0 ? "Disable":"Enable");
      printf("\tReport unpaired reads: %s\n",  report_only_paired == 0 ? "Enable":"Disable");
      printf("\n");
      printf("Seeding and CAL parameters\n");
@@ -331,6 +343,8 @@ void** argtable_options_new(void) {
      argtable[41] = arg_lit0(NULL, "report-only-paired", "Report only the paired reads");
      argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
      argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
+     argtable[44] = arg_lit0(NULL, "report-best", "Report all alignments with best score");
+
      argtable[NUM_OPTIONS] = arg_end(20);
      
      return argtable;
@@ -415,7 +429,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[33])->count) { options->pair_mode = *(((struct arg_int*)argtable[33])->ival); }
   if (((struct arg_int*)argtable[34])->count) { options->pair_min_distance = *(((struct arg_int*)argtable[34])->ival); }
   if (((struct arg_int*)argtable[35])->count) { options->pair_max_distance = *(((struct arg_int*)argtable[35])->ival); }
-  if (((struct arg_int*)argtable[36])->count) { options->report_best = *(((struct arg_int*)argtable[36])->ival); }
+  if (((struct arg_int*)argtable[36])->count) { options->report_n_best = *(((struct arg_int*)argtable[36])->ival); }
   if (((struct arg_int*)argtable[37])->count) { options->report_n_hits = *(((struct arg_int*)argtable[37])->ival); }
   if (((struct arg_int*)argtable[38])->count) { options->num_seeds = *(((struct arg_int*)argtable[38])->ival); }
   if (((struct arg_int*)argtable[39])->count) { options->min_num_seeds_in_cal = *(((struct arg_int*)argtable[39])->ival); }
@@ -429,6 +443,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[41])->count) { options->report_only_paired = (((struct arg_int*)argtable[41])->count); }
   if (((struct arg_int*)argtable[42])->count) { options->filter_read_mappings = *(((struct arg_int*)argtable[42])->ival); }
   if (((struct arg_int*)argtable[43])->count) { options->filter_seed_mappings = *(((struct arg_int*)argtable[43])->ival); }
+  if (((struct arg_int*)argtable[44])->count) { options->report_best = (((struct arg_int*)argtable[44])->count); }
 
   return options;
 }
