@@ -34,7 +34,7 @@ SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path
             ], exports = ['env', 'debug', 'compiler'])
 
-env.Program('hpg-aligner',
+env.Program('#bin/hpg-aligner',
              source = [Glob('src/*.c'),
 	               Glob('src/build-index/*.c'),
 	               Glob('src/dna/*.c'),
@@ -44,7 +44,13 @@ env.Program('hpg-aligner',
                       ]
            )
 
-env.Install('#bin', 'hpg-aligner')
+# Create a tarball
+tb = env.Package(NAME          = 'hpg-aligner-linux-x86_64',
+                VERSION        = '1.0.1',
+                PACKAGEVERSION = 1,
+                PACKAGETYPE    = 'targz',
+                LICENSE         = 'gpl', 
+                source         = ['#COPYING', '#README', '#bin/hpg-aligner' ] )
 
 '''
 if 'debian' in COMMAND_LINE_TARGETS:

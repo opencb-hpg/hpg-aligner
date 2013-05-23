@@ -7,4 +7,4 @@ bin/*
 *sonar*
 *kdev*
 .sconsign.dblite
-hpg-aligner
+hpg-aligner*
