@@ -1,4 +1,6 @@
 
+import os
+
 # Initialize the environment with path variables, CFLAGS, and so on
 bioinfo_path = '#lib/bioinfo-libs'
 commons_path = '#lib/common-libs'
@@ -45,7 +47,9 @@ env.Program('#bin/hpg-aligner',
            )
 
 # Create a tarball
-tb = env.Package(NAME          = 'hpg-aligner-linux-x86_64',
+# pepe = os.system('lsb_release -sir')
+(distro, release) = os.popen('lsb_release -sir').read().strip().split('\n')
+tb = env.Package(NAME          = 'hpg-aligner-'+distro+'_'+release+'-x86_64',
                 VERSION        = '1.0.1',
                 PACKAGEVERSION = 1,
                 PACKAGETYPE    = 'targz',
