@@ -115,40 +115,43 @@ int main(int argc, char* argv[]) {
     else { // bisulphite index generation
       printf("Bisulphite index generation\n");
       char bs_dir1[256];
-      sprintf(bs_dir1, "%s/index_AGT", options->bwt_dirname);
-      printf("%s\n", bs_dir1);
+      sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
+      //printf("%s\n", bs_dir1);
       //if (is_directory(bs_dir1) == 0) {
       create_directory(bs_dir1);
       //}
       char bs_dir2[256];
-      sprintf(bs_dir2, "%s/index_ACT", options->bwt_dirname);
-      printf("%s\n", bs_dir2);
+      sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
+      //printf("%s\n", bs_dir2);
       //if (is_directory(bs_dir2) == 0) {
       create_directory(bs_dir2);
       //}
 
       char genome1[256];
-      sprintf(genome1, "%s/genome_AGT.fa", options->bwt_dirname);
+      sprintf(genome1, "%s/AGT_genome.fa", options->bwt_dirname);
       char gen1[256];
       sprintf(gen1, "sed 's/C/T/g' %s > %s",options->genome_filename, genome1);
-      printf("texto a ejecutar:\t%s\n", gen1);
+      //printf("texto a ejecutar:\t%s\n", gen1);
       system(gen1);
 
       char genome2[256];
-      sprintf(genome2, "%s/genome_ACT.fa", options->bwt_dirname);
+      sprintf(genome2, "%s/ACT_genome.fa", options->bwt_dirname);
       char gen2[256];
       sprintf(gen2, "sed 's/G/A/g' %s > %s",options->genome_filename, genome2);
-      printf("texto a ejecutar:\t%s\n", gen2);
+      //printf("texto a ejecutar:\t%s\n", gen2);
       system(gen2);
 
       //run_index_builder(options->genome_filename, bs_dir1, options->index_ratio);
-      //run_index_builder(options->genome_filename, bs_dir2, options->index_ratio);
+      run_index_builder_bs(genome1, bs_dir1, options->index_ratio, "AGT");
+      run_index_builder_bs(genome2, bs_dir2, options->index_ratio, "ACT");
       LOG_DEBUG("Done !!\n");
 
       //free(bs_dir1);
       //free(bs_dir2);
       //free(genome1);
       //free(gen1);
+      //free(genome2);
+      //free(gen2);
       exit(0);
     }
   }
