@@ -46,8 +46,7 @@ env.Program('#bin/hpg-aligner',
                       ]
            )
 
-# Create a tarball
-# pepe = os.system('lsb_release -sir')
+# Create a Binary tarball
 (distro, release) = os.popen('lsb_release -sir').read().strip().split('\n')
 tb = env.Package(NAME          = 'hpg-aligner-'+distro+'_'+release+'-x86_64',
                 VERSION        = '1.0.1',
@@ -55,6 +54,18 @@ tb = env.Package(NAME          = 'hpg-aligner-'+distro+'_'+release+'-x86_64',
                 PACKAGETYPE    = 'targz',
                 LICENSE         = 'gpl', 
                 source         = ['#COPYING', '#README', '#bin/hpg-aligner' ] )
+
+# Create a Source tarball
+sourceFiles = [Glob("src/*.[ch]"), Glob("src/dna/*.[ch]"), Glob("src/rna/*.[ch]"), Glob("src/build-index/*.[ch]")]
+sourceFiles = sourceFiles + [Glob("lib/common-libs/SConscript"), Glob("lib/common-libs/README"), Glob("lib/common-libs/COPYING"), Glob("lib/common-libs/*/*.[ch]"), Glob("lib/common-libs/*/*/*.[ch]")]
+sourceFiles = sourceFiles + [Glob("lib/bioinfo-libs/SConscript"), Glob("lib/bioinfo-libs/README"), Glob("lib/bioinfo-libs/COPYING"), Glob("lib/bioinfo-libs/*/*/*.[ch]"), Glob("lib/bioinfo-libs/*/*/*/*.[ch]"), Glob("lib/bioinfo-libs/*/*/*/*/*.[ch]"), Glob("lib/bioinfo-libs/*/SConscript"), Glob("lib/bioinfo-libs/*/*/SConscript")]
+tb = env.Package(NAME          = 'hpg-aligner-x86_64-src',
+                VERSION        = '1.0.1',
+                PACKAGEVERSION = 1,
+                PACKAGETYPE    = 'src_targz',
+                LICENSE         = 'gpl', 
+                source         = ['#COPYING', '#README', '#SConstruct', sourceFiles ] )
+
 
 '''
 if 'debian' in COMMAND_LINE_TARGETS:
