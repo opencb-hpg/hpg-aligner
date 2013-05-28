@@ -8,3 +8,4 @@ bin/*
 *kdev*
 .sconsign.dblite
 hpg-aligner
+hpg-aligner.log
