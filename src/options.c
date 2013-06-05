@@ -346,7 +346,7 @@ void** argtable_options_new(void) {
      argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
      argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
      argtable[44] = arg_lit0(NULL, "report-best", "Report all alignments with best score");
-     argtable[45] = arg_lit0("bs", "bisulphite-index", "Indicate the use of bisulphite generation of the index");
+     argtable[45] = arg_lit0(NULL, "bs-index", "Indicate the use of bisulphite generation of the index");
 
      argtable[NUM_OPTIONS] = arg_end(20);
      

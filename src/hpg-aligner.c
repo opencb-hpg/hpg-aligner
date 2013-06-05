@@ -1,5 +1,6 @@
 #include "dna/dna_aligner.h"
 #include "rna/rna_aligner.h"
+#include "bs/bs_aligner.h"
 #include "build-index/index_builder.h"
 
 
@@ -54,10 +55,17 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 		     pair_mng_t *pair_mng, report_optarg_t *report_optarg,
 		     options_t *options);
 
-
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg,
 		     report_optarg_t *report_optarg, options_t *options);
+
+
+void run_bs_aligner(genome_t *genome1, genome_t *genome2, 
+		    bwt_index_t *bwt_index1, bwt_index_t *bwt_index2, 
+		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
+		    pair_mng_t *pair_mng, report_optarg_t *report_optarg,
+		    options_t *options);
+
 
 //--------------------------------------------------------------------
 // main parameters support
@@ -77,7 +85,7 @@ int main(int argc, char* argv[]) {
   log_file = NULL;
 
   if (argc <= 1) {
-    LOG_FATAL("Missing command.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
+    LOG_FATAL("Missing command.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbs: to map BS sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
   }
 
   if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
@@ -91,9 +99,9 @@ int main(int argc, char* argv[]) {
 
   if(strcmp(command, "dna") != 0 && 
      strcmp(command, "rna") != 0 &&
-     //     strcmp(command, "bs" ) != 0 && 
+     strcmp(command, "bs" ) != 0 && 
      strcmp(command, "build-index") != 0) {
-    LOG_FATAL("Command unknown.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
+    LOG_FATAL("Command unknown.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbs: to map BS sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
   }
 
   // parsing options
@@ -113,45 +121,45 @@ int main(int argc, char* argv[]) {
       exit(0);
     }
     else { // bisulphite index generation
-      printf("Bisulphite index generation\n");
+      printf("\nBisulphite index generation\n");
+      
+      /** **************************************************************************	*
+       * 										*
+       * Generates the genome transform from the input and builds the index		*
+       * 										*
+       * The genome transformed are stored in the directory give by the user,		*
+       * and the index are stored in subfolders				       		*
+       * 										*
+       * ***************************************************************************	*/
+
       char bs_dir1[256];
       sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
-      //printf("%s\n", bs_dir1);
       //if (is_directory(bs_dir1) == 0) {
       create_directory(bs_dir1);
-      //}
-      char bs_dir2[256];
-      sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
-      //printf("%s\n", bs_dir2);
-      //if (is_directory(bs_dir2) == 0) {
-      create_directory(bs_dir2);
       //}
 
       char genome1[256];
       sprintf(genome1, "%s/AGT_genome.fa", options->bwt_dirname);
       char gen1[256];
       sprintf(gen1, "sed 's/C/T/g' %s > %s",options->genome_filename, genome1);
-      //printf("texto a ejecutar:\t%s\n", gen1);
       system(gen1);
+
+      run_index_builder_bs(genome1, bs_dir1, options->index_ratio, "AGT");
+
+      char bs_dir2[256];
+      sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
+      //if (is_directory(bs_dir2) == 0) {
+      create_directory(bs_dir2);
+      //}
 
       char genome2[256];
       sprintf(genome2, "%s/ACT_genome.fa", options->bwt_dirname);
       char gen2[256];
       sprintf(gen2, "sed 's/G/A/g' %s > %s",options->genome_filename, genome2);
-      //printf("texto a ejecutar:\t%s\n", gen2);
       system(gen2);
 
-      //run_index_builder(options->genome_filename, bs_dir1, options->index_ratio);
-      run_index_builder_bs(genome1, bs_dir1, options->index_ratio, "AGT");
       run_index_builder_bs(genome2, bs_dir2, options->index_ratio, "ACT");
       LOG_DEBUG("Done !!\n");
-
-      //free(bs_dir1);
-      //free(bs_dir2);
-      //free(genome1);
-      //free(gen1);
-      //free(genome2);
-      //free(gen2);
       exit(0);
     }
   }
@@ -160,16 +168,44 @@ int main(int argc, char* argv[]) {
   time_on =  (unsigned int) options->timming;
   statistics_on =  (unsigned int) options->statistics;
 
-  // genome parameters
-  LOG_DEBUG("Reading genome...");
-  genome_t* genome = genome_new("dna_compression.bin", options->bwt_dirname);
-  LOG_DEBUG("Done !!");
-  
-  // BWT index
-  LOG_DEBUG("Reading bwt index...");
-  //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
-  bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname);
-  LOG_DEBUG("Reading bwt index done !!");
+  genome_t *genome, *genome1, *genome2;
+  bwt_index_t *bwt_index, *bwt_index1, *bwt_index2;
+  if (strcmp(command, "bs" ) != 0)
+  {
+    // genome parameters
+    LOG_DEBUG("Reading genome...");
+    //genome_t* genome = genome_new("dna_compression.bin", options->bwt_dirname);
+    genome = genome_new("dna_compression.bin", options->bwt_dirname);
+    LOG_DEBUG("Done !!");
+    
+    // BWT index
+    LOG_DEBUG("Reading bwt index...");
+    //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
+    //bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname);
+    bwt_index = bwt_index_new(options->bwt_dirname);
+    LOG_DEBUG("Reading bwt index done !!");
+  }
+  else {
+    char bs_dir1[256];
+    sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
+    char bs_dir2[256];
+    sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
+
+    // genome parameters
+    LOG_DEBUG("Reading genome...");
+    genome1 = genome_new("dna_compression.bin", bs_dir1);
+    genome2 = genome_new("dna_compression.bin", bs_dir2);
+    LOG_DEBUG("Done !!");
+    
+    // BWT index
+    LOG_DEBUG("Reading bwt index...");
+    //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
+
+    bwt_index1 = bwt_index_new(bs_dir1);
+    bwt_index2 = bwt_index_new(bs_dir2);
+    LOG_DEBUG("Reading bwt index done !!");
+  }
+
   
   //BWT parameters
   bwt_optarg_t *bwt_optarg = bwt_optarg_new(1, 0,
@@ -197,18 +233,32 @@ int main(int argc, char* argv[]) {
   LOG_DEBUG("init table done !!");
   
   if (!strcmp(command, "rna")) {
+    // RNA version
     run_rna_aligner(genome, bwt_index, pair_mng, bwt_optarg, cal_optarg, report_optarg, options);
-  } else {
+  } else if (!strcmp(command, "dna")) {
     // DNA version
     run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
+  } else {
+    // BS version
+    run_bs_aligner(genome1, genome2, bwt_index1, bwt_index2,
+		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   }
 
   LOG_DEBUG("main done !!");
 
   // Free memory
   
-  bwt_index_free(bwt_index);
-  genome_free(genome);
+  if (strcmp(command, "bs" ) != 0)
+  {
+    bwt_index_free(bwt_index);
+    genome_free(genome);
+  } else {
+    bwt_index_free(bwt_index1);
+    genome_free(genome1);
+    bwt_index_free(bwt_index2);
+    genome_free(genome2);
+  }
+
   bwt_optarg_free(bwt_optarg);
   cal_optarg_free(cal_optarg);
   pair_mng_free(pair_mng);

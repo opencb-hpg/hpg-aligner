@@ -34,16 +34,16 @@ void help_index_builder() {
 //------------------------------------------------------------------------------------
 
 void run_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio) {
-     
+
      check_index_builder(genome_filename, bwt_dirname, bwt_ratio);
 
      char binary_filename[strlen(bwt_dirname) + 128];
      sprintf(binary_filename, "%s/dna_compression.bin", bwt_dirname);
-     
+
      LOG_DEBUG("Compressing reference genome...\n");
      generate_codes(binary_filename, genome_filename);
      LOG_DEBUG("...done !\n");
-     
+
      LOG_DEBUG("Building BWT index...\n");
      bwt_generate_index_files(genome_filename, bwt_dirname, bwt_ratio);
      LOG_DEBUG("...done !\n");
@@ -52,18 +52,18 @@ void run_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio) 
 //------------------------------------------------------------------------------------
 
 void run_index_builder_bs(char *genome_filename, char *bwt_dirname, int bwt_ratio, char *bases) {
-     
+
+     printf("Index %s\n", bases);
      check_index_builder(genome_filename, bwt_dirname, bwt_ratio);
 
      char binary_filename[strlen(bwt_dirname) + 128];
      sprintf(binary_filename, "%s/dna_compression.bin", bwt_dirname);
-     
+
      LOG_DEBUG("Compressing reference genome...\n");
-     //generate_codes(binary_filename, genome_filename);
+     generate_codes(binary_filename, genome_filename);
      LOG_DEBUG("...done !\n");
-     
+
      LOG_DEBUG("Building BWT index...\n");
-     //bwt_generate_index_files(genome_filename, bwt_dirname, bwt_ratio);
      bwt_generate_index_files_bs(genome_filename, bwt_dirname, bwt_ratio, bases);
      LOG_DEBUG("...done !\n");
 }

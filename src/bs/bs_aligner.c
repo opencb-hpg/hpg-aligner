@@ -1,13 +1,14 @@
-#include "dna_aligner.h"
+#include "bs_aligner.h"
 
 //--------------------------------------------------------------------
 // run dna aligner
 //--------------------------------------------------------------------
 
-void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
-		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
-		     pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
-		     options_t *options) {
+void run_bs_aligner(genome_t *genome1, genome_t *genome2, 
+		    bwt_index_t *bwt_index1, bwt_index_t *bwt_index2, 
+		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
+		    pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
+		    options_t *options) {
 
      int path_length = strlen(options->output_name);
      int prefix_length = 0;
@@ -51,25 +52,25 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      
      // preparing output BAM file
      batch_writer_input_t writer_input;
-     batch_writer_input_init(output_filename, NULL, NULL, NULL, genome, &writer_input);
+     batch_writer_input_init(output_filename, NULL, NULL, NULL, genome1, &writer_input);
 
-     bam_header_t *bam_header = create_bam_header_by_genome(genome);
+     bam_header_t *bam_header = create_bam_header_by_genome(genome1);
      writer_input.bam_file = bam_fopen_mode(output_filename, bam_header, "w");
      bam_fwrite_header(bam_header, writer_input.bam_file);
 
      // preparing workflow stage input
      bwt_server_input_t bwt_input;
-     bwt_server_input_init(NULL, 0, bwt_optarg, bwt_index, 
+     bwt_server_input_init(NULL, 0, bwt_optarg, bwt_index1, 
 			   NULL, 0, NULL, &bwt_input);
      
      region_seeker_input_t region_input;
      region_seeker_input_init(NULL, cal_optarg, bwt_optarg, 
-			      bwt_index, NULL, 0, options->gpu_process, 0, 0, 
+			      bwt_index1, NULL, 0, options->gpu_process, 0, 0, 
 			      &region_input);
      
      cal_seeker_input_t cal_input;
      cal_seeker_input_init(NULL, cal_optarg, NULL, 0, 
-			   NULL, NULL, genome, &cal_input);
+			   NULL, NULL, genome1, &cal_input);
      
      pair_server_input_t pair_input;
      pair_server_input_init(pair_mng, report_optarg, NULL, NULL, NULL, &pair_input);
@@ -77,7 +78,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      sw_server_input_t sw_input;
      sw_server_input_init(NULL, NULL, 0, options->match, options->mismatch, 
 			  options->gap_open, options->gap_extend, options->min_score, 
-			  options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
+			  options->flank_length, genome1, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
 
 
      //--------------------------------------------------------------------------------------
