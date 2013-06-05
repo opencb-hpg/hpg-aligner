@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
        * 										*
        * ***************************************************************************	*/
 
-      char binary_filename[strlen(bwt_dirname) + 128];
+      char binary_filename[strlen(options->bwt_dirname) + 128];
       sprintf(binary_filename, "%s/dna_compression.bin", options->bwt_dirname);
       generate_codes(binary_filename, options->genome_filename);
 
