@@ -132,6 +132,10 @@ int main(int argc, char* argv[]) {
        * 										*
        * ***************************************************************************	*/
 
+      char binary_filename[strlen(bwt_dirname) + 128];
+      sprintf(binary_filename, "%s/dna_compression.bin", options->bwt_dirname);
+      generate_codes(binary_filename, options->genome_filename);
+
       char bs_dir1[256];
       sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
       //if (is_directory(bs_dir1) == 0) {
