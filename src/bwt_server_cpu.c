@@ -55,6 +55,46 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
   return POST_PAIR_STAGE;
 }
 
+//====================================================================================
+// apply_bwt
+//====================================================================================
+
+int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
+  // run bwt _by_filter
+  //printf("APPLY BWT_BS SERVER...\n");
+  struct timeval start, end;
+  double time;
+
+  if (time_on) { start_timer(start); }
+
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
+  
+  printf("******search on index %s\n", input->bwt_index_p->nucleotides);
+  bwt_map_inexact_array_list_by_filter_bs(mapping_batch->fq_batch, input->bwt_optarg_p,
+					  input->bwt_index_p, 
+					  mapping_batch->mapping_lists,
+					  &mapping_batch->num_targets, mapping_batch->targets);
+  printf("******end search on index %s\n", input->bwt_index_p->nucleotides);
+  
+  size_t num_mapped_reads = array_list_size(mapping_batch->fq_batch) - mapping_batch->num_targets;
+  mapping_batch->num_to_do = num_mapped_reads;
+
+  if (time_on) { stop_timer(start, end, time); timing_add(time, BWT_SERVER, timing); }
+  
+  //printf("APPLY BWT SERVER DONE!\n");
+
+  if (batch->mapping_batch->num_targets > 0) {
+    //TODO: DELETE
+    //printf("Web have targets\n");
+    for (int i = 0; i < batch->mapping_batch->num_targets; i++) {
+      batch->mapping_batch->bwt_mappings[batch->mapping_batch->targets[i]] = 1;
+    }
+    return SEEDING_STAGE;
+  }
+  //printf("Reads are mapped\n");
+  return POST_PAIR_STAGE;
+}
+
 //------------------------------------------------------------------------------------
 
 /*

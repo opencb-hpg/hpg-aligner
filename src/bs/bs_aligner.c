@@ -4,11 +4,52 @@
 // run dna aligner
 //--------------------------------------------------------------------
 
-void run_bs_aligner(genome_t *genome1, genome_t *genome2, 
-		    bwt_index_t *bwt_index1, bwt_index_t *bwt_index2, 
+void run_bs_aligner(genome_t *genome2, genome_t *genome1, 
+		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1, 
 		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		    pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
 		    options_t *options) {
+
+  //printf("bwt_index1 -> %s\n", bwt_index1->nucleotides);
+  //printf("bwt_index2 -> %s\n", bwt_index2->nucleotides);
+
+  /*
+  //  char *seq = strdup("AAGGTCTTCAGGTAAGGCCATTGTAGAAGATACTTTGGGAACTTCAGTAAGTTGCTTCAC");
+  char *seq = strdup("AAGGTTTTTAGGTAAGGTTATTGTAGAAGATATTTTGGGAATTTTAGTAAGTTGTTTTAT");
+  printf("searching for %s\n", seq);
+
+  array_list_t *mapping_list = array_list_new(100, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  //  size_t num_mappings = bwt_map_inexact_seq(seq, bwt_optarg, bwt_index1, mapping_list);
+  size_t num_mappings = bwt_map_inexact_seq_bs(seq, bwt_optarg, bwt_index1, mapping_list);
+  
+  printf("number of inexact mappings = %lu (%i)\n", num_mappings, array_list_size(mapping_list));
+  alignment_t *alig;
+  for (int i = 0; i < num_mappings; i++) {
+    alig = array_list_get(i, mapping_list);
+    printf("\tchr. %i, strand %i, start %lu cigar %s\n", 
+	   alig->chromosome, alig->seq_strand, alig->position, alig->cigar);
+  }
+
+  size_t seq_start = 0, seq_end = 21;
+  char *code_seq = malloc(sizeof(char) * strlen(seq));
+  bwt_encode_Bases(code_seq, seq, strlen(seq), &bwt_index1->table);
+  num_mappings = bwt_map_exact_seed_bs(code_seq, strlen(seq),
+				       seq_start, seq_end,
+				       bwt_optarg, bwt_index1, 
+				       mapping_list);
+  printf("number of exact seed %lu-%lu mappings = %lu (%i)\n", 
+	 seq_start, seq_end, num_mappings, array_list_size(mapping_list));
+
+  region_t *region;
+  for (int i = 0; i < num_mappings; i++) {
+    region = array_list_get(i, mapping_list);
+    printf("\tchr. %i, strand %i, start %lu end %lu\n", 
+	   region->chromosome_id, region->strand, region->start, region->end);
+  }
+  
+
+  exit(-1);
+  */
 
      int path_length = strlen(options->output_name);
      int prefix_length = 0;
@@ -97,8 +138,10 @@ void run_bs_aligner(genome_t *genome1, genome_t *genome2,
      // create and initialize workflow
      workflow_t *wf = workflow_new();
      
-     workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
-						    pre_pair_stage, sw_stage, post_pair_stage};
+     //workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
+     //						    pre_pair_stage, sw_stage, post_pair_stage};
+     workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage, 
+     						    pre_pair_stage, sw_stage_bs, post_pair_stage};
      char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
      workflow_set_stages(6, &stage_functions, stage_labels, wf);
      

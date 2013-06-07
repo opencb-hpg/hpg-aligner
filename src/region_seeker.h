@@ -68,6 +68,7 @@ int region_seeker_server(region_seeker_input_t *input);
 //====================================================================================
 
 int apply_seeding(region_seeker_input_t* input, batch_t *batch);
+int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

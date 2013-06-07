@@ -83,6 +83,14 @@ void validate_options(options_t *options, char *mode) {
     DEFAULT_MIN_SEED_SIZE = 16;
     DEFAULT_MIN_CAL_SIZE = 30;
     DEFAULT_SEEDS_MAX_DISTANCE = 100;
+  }else if (strcmp("bs", mode) == 0) {
+    strcpy(options->mode, "BISULFITE");
+    DEFAULT_READ_BATCH_SIZE = 20000;
+    DEFAULT_SEED_SIZE	= 20;
+    DEFAULT_FLANK_LENGTH = 5;
+    DEFAULT_MIN_SEED_SIZE = 16;
+    DEFAULT_MIN_CAL_SIZE = 30;
+    DEFAULT_SEEDS_MAX_DISTANCE = 100;
   }else if (strcmp("rna", mode) == 0) {
     strcpy(options->mode, "RNA");
     DEFAULT_READ_BATCH_SIZE = 200000;

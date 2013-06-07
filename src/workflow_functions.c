@@ -345,12 +345,24 @@ int bwt_stage(void *data) {
      return apply_bwt(batch->bwt_input, batch);     
 }
 
+int bwt_stage_bs(void *data) {
+     batch_t *batch = (batch_t *) data;
+
+     return apply_bwt_bs(batch->bwt_input, batch);     
+}
+
 //--------------------------------------------------------------------
 
 int seeding_stage(void *data) {
      batch_t *batch = (batch_t *) data;
 
      return apply_seeding(batch->region_input, batch);
+}
+
+int seeding_stage_bs(void *data) {
+     batch_t *batch = (batch_t *) data;
+
+     return apply_seeding_bs(batch->region_input, batch);
 }
 
 //--------------------------------------------------------------------
@@ -390,6 +402,12 @@ int sw_stage(void *data) {
      } else {
        return apply_sw(batch->sw_input, batch);
      }
+}
+
+int sw_stage_bs(void *data) {
+     batch_t *batch = (batch_t *) data;
+     
+     return apply_sw_bs(batch->sw_input, batch);
 }
 
 //--------------------------------------------------------------------

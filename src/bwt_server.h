@@ -68,6 +68,8 @@ void bwt_server_cpu(bwt_server_input_t* input, pair_mng_t *pair_mng);
 
 int apply_bwt(bwt_server_input_t* input, batch_t *batch_p);
 
+int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch_p);
+
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 

@@ -132,6 +132,7 @@ int main(int argc, char* argv[]) {
        * 										*
        * ***************************************************************************	*/
 
+      // generate binary code for original genome
       char binary_filename[strlen(options->bwt_dirname) + 128];
       sprintf(binary_filename, "%s/dna_compression.bin", options->bwt_dirname);
       generate_codes(binary_filename, options->genome_filename);
@@ -142,6 +143,7 @@ int main(int argc, char* argv[]) {
       create_directory(bs_dir1);
       //}
 
+      LOG_DEBUG("Generation of AGT index\n");
       char genome1[256];
       sprintf(genome1, "%s/AGT_genome.fa", options->bwt_dirname);
       char gen1[256];
@@ -149,7 +151,9 @@ int main(int argc, char* argv[]) {
       system(gen1);
 
       run_index_builder_bs(genome1, bs_dir1, options->index_ratio, "AGT");
+      LOG_DEBUG("AGT index Done !!\n");
 
+      LOG_DEBUG("Generation of ACT index\n");
       char bs_dir2[256];
       sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
       //if (is_directory(bs_dir2) == 0) {
@@ -163,17 +167,19 @@ int main(int argc, char* argv[]) {
       system(gen2);
 
       run_index_builder_bs(genome2, bs_dir2, options->index_ratio, "ACT");
-      LOG_DEBUG("Done !!\n");
+      LOG_DEBUG("ACT index Done !!\n");
       exit(0);
     }
   }
-
 
   time_on =  (unsigned int) options->timming;
   statistics_on =  (unsigned int) options->statistics;
 
   genome_t *genome, *genome1, *genome2;
   bwt_index_t *bwt_index, *bwt_index1, *bwt_index2;
+
+  // load index for dna/rna or for bisulfite case
+
   if (strcmp(command, "bs" ) != 0)
   {
     // genome parameters
@@ -186,6 +192,7 @@ int main(int argc, char* argv[]) {
     LOG_DEBUG("Reading bwt index...");
     //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
     //bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname);
+    
     bwt_index = bwt_index_new(options->bwt_dirname);
     LOG_DEBUG("Reading bwt index done !!");
   }
@@ -196,18 +203,35 @@ int main(int argc, char* argv[]) {
     sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
 
     // genome parameters
-    LOG_DEBUG("Reading genome...");
+    LOG_DEBUG("Reading genomes...");
     genome1 = genome_new("dna_compression.bin", bs_dir1);
     genome2 = genome_new("dna_compression.bin", bs_dir2);
     LOG_DEBUG("Done !!");
     
     // BWT index
-    LOG_DEBUG("Reading bwt index...");
     //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
 
+    LOG_DEBUG("Loading AGT index...");
     bwt_index1 = bwt_index_new(bs_dir1);
+    /*
+    printf("+++bwt_index1 -> %s\n" ,bwt_index1->nucleotides);
+    bwt_index1->nucleotides = strdup(readNucleotide(bs_dir1, "Nucleotide"));
+    bwt_init_replace_table(bwt_index1->nucleotides, bwt_index1->table, bwt_index1->rev_table);
+    printf("***bwt_index1 -> %s\n" ,bwt_index1->nucleotides);
+    */
+    LOG_DEBUG("Loading AGT index done !!");
+
+    LOG_DEBUG("Loading ACT index...");
     bwt_index2 = bwt_index_new(bs_dir2);
-    LOG_DEBUG("Reading bwt index done !!");
+    /*
+    printf("+++bwt_index2 -> %s\n", bwt_index2->nucleotides);
+    bwt_index2->nucleotides = strdup(readNucleotide(bs_dir2, "Nucleotide"));
+    bwt_init_replace_table(bwt_index2->nucleotides, bwt_index2->table, bwt_index2->rev_table);
+    printf("***bwt_index2 -> %s\n", bwt_index2->nucleotides);
+    */
+    LOG_DEBUG("Loading ACT index done !!");
+
+    //exit(-1);
   }
 
   
@@ -242,7 +266,7 @@ int main(int argc, char* argv[]) {
   } else if (!strcmp(command, "dna")) {
     // DNA version
     run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
-  } else {
+  } else { // if (!strcmp(command, "bs")) {
     // BS version
     run_bs_aligner(genome1, genome2, bwt_index1, bwt_index2,
 		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
