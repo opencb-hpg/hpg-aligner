@@ -9,4 +9,7 @@ bin/*
 .sconsign.dblite
 hpg-aligner
 hpg-aligner.log
+<<<<<<< HEAD
 launch_bs_*
+=======
+>>>>>>> cef42ce04614a2a6838b465955e26ead9572951a
