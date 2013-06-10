@@ -29,6 +29,8 @@
 #include "statistics.h"
 #include "workflow_functions.h"
 
+#include "methylation.h"
+
 void run_bs_aligner(genome_t *genome1, genome_t *genome2,
 		    bwt_index_t *bwt_index1, bwt_index_t *bwt_index2, 
 		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 

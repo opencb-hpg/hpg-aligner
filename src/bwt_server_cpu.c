@@ -70,6 +70,10 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   
   printf("******search on index %s\n", input->bwt_index_p->nucleotides);
+  
+  //transform the batch reads
+  
+  
   bwt_map_inexact_array_list_by_filter_bs(mapping_batch->fq_batch, input->bwt_optarg_p,
 					  input->bwt_index_p, 
 					  mapping_batch->mapping_lists,
