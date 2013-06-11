@@ -69,24 +69,82 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   
-  printf("******search on index %s\n", input->bwt_index_p->nucleotides);
-  
   //transform the batch reads
-  
-  
+  /*
+  cpy_array_bs(mapping_batch->fq_batch, 
+	       mapping_batch->CT_fq_batch, mapping_batch->CT_rev_fq_batch, 
+	       mapping_batch->GA_fq_batch, mapping_batch->GA_rev_fq_batch);
+  replace_array(mapping_batch->GA_fq_batch, ACT);
+  rev_comp_array(mapping_batch->GA_rev_fq_batch, mapping_batch->GA_fq_batch);
+  replace_array(mapping_batch->CT_fq_batch, AGT);
+  rev_comp_array(mapping_batch->CT_rev_fq_batch, mapping_batch->CT_fq_batch);
+  */
+
+  // input->bwt_index_p  = index ACT
+  // input->bwt_index2_p = index AGT
+
+  printf("******search on index %s\n", input->bwt_index_p->nucleotides);
+
   bwt_map_inexact_array_list_by_filter_bs(mapping_batch->fq_batch, input->bwt_optarg_p,
 					  input->bwt_index_p, 
 					  mapping_batch->mapping_lists,
 					  &mapping_batch->num_targets, mapping_batch->targets);
+
   printf("******end search on index %s\n", input->bwt_index_p->nucleotides);
-  
+
+  printf("\n******search 1 on index \t%s\n", input->bwt_index_p->nucleotides);
+  printf("******end search 1 on index \t%s\n", input->bwt_index_p->nucleotides);
+  printf("******search 2 on index \t%s\n", input->bwt_index2_p->nucleotides);
+  printf("******end search 2 on index \t%s\n", input->bwt_index2_p->nucleotides);
+  printf("******search 3 on index \t%s\n", input->bwt_index2_p->nucleotides);
+  printf("******end search 3 on index \t%s\n", input->bwt_index2_p->nucleotides);
+  printf("******search 4 on index \t%s\n", input->bwt_index_p->nucleotides);
+  printf("******end search 4 on index \t%s\n", input->bwt_index_p->nucleotides);
+  /*
+  //make hte four searches
+  printf("******search 1 on index \t%s\n", input->bwt_index_p->nucleotides);
+
+  bwt_map_inexact_array_list_by_filter_bs(mapping_batch->CT_fq_batch, input->bwt_optarg_p,
+					  input->bwt_index_p, 
+					  mapping_batch->mapping_lists,
+					  &mapping_batch->num_targets, mapping_batch->targets);
+
+  printf("******end search 1 on index \t%s\n", input->bwt_index_p->nucleotides);
+  printf("******search 2 on index \t%s\n", input->bwt_index2_p->nucleotides);
+
+  bwt_map_inexact_array_list_by_filter_bs(mapping_batch->CT_rev_fq_batch, input->bwt_optarg_p,
+					  input->bwt_index2_p, 
+					  mapping_batch->mapping_lists,
+					  &mapping_batch->num_targets, mapping_batch->targets);
+
+  printf("******end search 2 on index \t%s\n", input->bwt_index2_p->nucleotides);
+  printf("******search 3 on index \t%s\n", input->bwt_index2_p->nucleotides);
+
+  bwt_map_inexact_array_list_by_filter_bs(mapping_batch->GA_fq_batch, input->bwt_optarg_p,
+					  input->bwt_index2_p, 
+					  mapping_batch->mapping_lists,
+					  &mapping_batch->num_targets, mapping_batch->targets);
+
+  printf("******end search 3 on index \t%s\n", input->bwt_index2_p->nucleotides);
+  printf("******search 4 on index \t%s\n", input->bwt_index_p->nucleotides);
+
+  bwt_map_inexact_array_list_by_filter_bs(mapping_batch->GA_rev_fq_batch, input->bwt_optarg_p,
+					  input->bwt_index_p, 
+					  mapping_batch->mapping_lists,
+					  &mapping_batch->num_targets, mapping_batch->targets);
+
+  printf("******end search 4 on index \t%s\n", input->bwt_index_p->nucleotides);
+  */  
+
   size_t num_mapped_reads = array_list_size(mapping_batch->fq_batch) - mapping_batch->num_targets;
   mapping_batch->num_to_do = num_mapped_reads;
 
   if (time_on) { stop_timer(start, end, time); timing_add(time, BWT_SERVER, timing); }
   
   //printf("APPLY BWT SERVER DONE!\n");
+  return CONSUMER_STAGE;
 
+  /*
   if (batch->mapping_batch->num_targets > 0) {
     //TODO: DELETE
     //printf("Web have targets\n");
@@ -97,6 +155,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   }
   //printf("Reads are mapped\n");
   return POST_PAIR_STAGE;
+  */
 }
 
 //------------------------------------------------------------------------------------

@@ -98,5 +98,30 @@ void rev_comp_array(array_list_t *dest, array_list_t *src) {
 //====================================================================================
 
 void copy_array(array_list_t *dest, array_list_t *src) {
+  size_t num_reads = array_list_size(src);
+  fastq_read_t* fq_read_src;
+  fastq_read_t* fq_read_dest;
   
+  for (size_t i = 0; i < num_reads; i++) {
+    fq_read_src  = (fastq_read_t *) array_list_get(i, src);
+    //fq_read_dest = fastq_read_new(fq_read_src);
+    //insert_in_array(dest, fq_read_dest);
+  }
+}
+
+//====================================================================================
+
+void cpy_array_bs(array_list_t *src, array_list_t *dest1, array_list_t *dest2, array_list_t *dest3, array_list_t *dest4) {
+  size_t num_reads = array_list_size(src);
+  fastq_read_t* fq_read_src;
+  fastq_read_t* fq_read_dest;
+  
+  for (size_t i = 0; i < num_reads; i++) {
+    fq_read_src  = (fastq_read_t *) array_list_get(i, src);
+    //fq_read_dest = fastq_read_new(fq_read_src);
+    //insert_in_array(dest1, fq_read_dest);
+    //insert_in_array(dest2, fq_read_dest);
+    //insert_in_array(dest3, fq_read_dest);
+    //insert_in_array(dest4, fq_read_dest);
+  }
 }

@@ -59,6 +59,27 @@ void comp(char *seq, int len);
 
 /**
  * @brief  
+ * @param  src 
+ * @param  dest 
+ * 
+ * 
+ */
+void cpy_array(array_list_t *src, array_list_t *dest);
+
+/**
+ * @brief  
+ * @param  src 
+ * @param  dest1 
+ * @param  dest2 
+ * @param  dest3 
+ * @param  dest4 
+ * 
+ * 
+ */
+void cpy_array_bs(array_list_t *src, array_list_t *dest1, array_list_t *dest2, array_list_t *dest3, array_list_t *dest4);
+
+/**
+ * @brief  
  * @param  seq 
  * @param  len 
  * 

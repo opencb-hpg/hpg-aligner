@@ -218,6 +218,14 @@ typedef struct mapping_batch {
   pair_mng_t *pair_mng;
   array_list_t **old_mapping_lists;
   unsigned char *bwt_mappings;
+
+  // bs handling
+  array_list_t **mapping_lists2;
+  array_list_t *CT_fq_batch;
+  array_list_t *GA_fq_batch;
+
+  array_list_t *CT_rev_fq_batch;
+  array_list_t *GA_rev_fq_batch;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);

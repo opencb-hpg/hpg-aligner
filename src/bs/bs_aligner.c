@@ -103,6 +103,7 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1,
      bwt_server_input_t bwt_input;
      bwt_server_input_init(NULL, 0, bwt_optarg, bwt_index1, 
 			   NULL, 0, NULL, &bwt_input);
+     bwt_input.bwt_index2_p = bwt_index2;
      
      region_seeker_input_t region_input;
      region_seeker_input_init(NULL, cal_optarg, bwt_optarg, 
@@ -140,10 +141,12 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1,
      
      //workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
      //						    pre_pair_stage, sw_stage, post_pair_stage};
-     workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage, 
-     						    pre_pair_stage, sw_stage_bs, post_pair_stage};
-     char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-     workflow_set_stages(6, &stage_functions, stage_labels, wf);
+     //     workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage, 
+     //     						    pre_pair_stage, sw_stage_bs, post_pair_stage};
+     workflow_stage_function_t stage_functions[] = {bwt_stage_bs};
+     char *stage_labels[] = {"BWT"};
+     //     char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
+     workflow_set_stages(1, &stage_functions, stage_labels, wf);
      
      // optional producer and consumer functions
      workflow_set_producer(fastq_reader, "FastQ reader", wf);
