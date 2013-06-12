@@ -318,6 +318,10 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p == NULL) return;
   
   if (p->fq_batch) { array_list_free(p->fq_batch, (void *) fastq_read_free); }
+  if (p->CT_fq_batch) { array_list_free(p->CT_fq_batch, (void *) fastq_read_free); }
+  if (p->CT_rev_fq_batch) { array_list_free(p->CT_rev_fq_batch, (void *) fastq_read_free); }
+  if (p->GA_fq_batch) { array_list_free(p->GA_fq_batch, (void *) fastq_read_free); }
+  if (p->GA_rev_fq_batch) { array_list_free(p->GA_rev_fq_batch, (void *) fastq_read_free); }
   if (p->targets) { free(p->targets); }
   if (p->mapping_lists) { free(p->mapping_lists); }
   if (p->pair_mng) { free(p->pair_mng); }

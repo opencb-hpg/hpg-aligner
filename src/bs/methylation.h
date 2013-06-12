@@ -105,4 +105,21 @@ void rev_comp_array(array_list_t *dest, array_list_t *src);
  */
 void copy_array(array_list_t *dest, array_list_t *src);
 
+/**
+ * @brief  
+ * @param  dest 
+ * @param  src 
+ * 
+ * 
+ */
+void insert_mappings(array_list_t **dest, array_list_t **src);
+
+/**
+ * @brief  
+ * @param  src 
+ * 
+ * 
+ */
+void transform_mappings(array_list_t **src);
+
 #endif // METHYLATION_H
