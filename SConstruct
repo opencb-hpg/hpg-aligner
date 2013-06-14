@@ -47,7 +47,7 @@ env.Program('#bin/hpg-aligner',
            )
 
 # Create a Binary tarball
-(distro, release) = os.popen('lsb_release -sir').read().strip().split('\n')
+(distro, release) = os.popen('lsb_release -sir').read().split()
 tb = env.Package(NAME          = 'hpg-aligner-'+distro+'_'+release+'-x86_64',
                 VERSION        = '1.0.1',
                 PACKAGEVERSION = 1,
