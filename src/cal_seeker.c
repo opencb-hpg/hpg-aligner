@@ -19,6 +19,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   fastq_read_t *read;
   genome_t *genome = input->genome;
   size_t *targets_aux;
+  size_t min_seeds, max_seeds;
 
   num_targets = mapping_batch->num_targets;
   total_targets = 0;
@@ -44,17 +45,12 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
 
     //printf("%i mini-mappings\n", array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]));
-
-    num_cals = bwt_generate_cal_list_rna_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						     input->cal_optarg, 
-						     allocate_cals, 
-						     read->length, genome->num_chromosomes + 1);  
-						     /*
-    num_cals = bwt_generate_cal_list_rna_linkedlist(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						     input->cal_optarg, 
-						     allocate_cals, 
-						     read->length, genome->num_chromosomes + 1);  
-						     */
+    max_seeds = (read->length / 15)*2 + 10;
+    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
+						 input->cal_optarg,
+						 &min_seeds, &max_seeds,
+						 genome->num_chromosomes + 1,
+						 allocate_cals, read->length);
 
     //printf("\t Target %i: %i\n", mapping_batch->targets[i], num_cals);
     array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
@@ -145,6 +141,9 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   size_t num_targets = mapping_batch->num_targets;
   size_t *targets = mapping_batch->targets;
   size_t new_num_targets = 0;
+  max_seeds = input->cal_optarg->num_seeds;
+  fastq_read_t *read;
+  
   //  size_t *new_targets = (size_t *) calloc(num_targets, sizeof(size_t));
   
   // set to zero
@@ -162,13 +161,15 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 			    1.25f, 
 			    COLLECTION_MODE_ASYNCHRONIZED);
     }
-    // optimized version
-    num_cals = bwt_generate_cal_list_linkedlist(mapping_batch->mapping_lists[read_index], 
-						input->cal_optarg,
-						&min_seeds, &max_seeds,
-						num_chromosomes,
-						list);
 
+    read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
+
+    // optimized version
+    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[read_index], 
+						 input->cal_optarg,
+						 &min_seeds, &max_seeds,
+						 num_chromosomes,
+						 list, read->length);
     /*
     // for debugging
     LOG_DEBUG_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
@@ -251,7 +252,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg, 
 			   list_t* write_list, unsigned int write_size, 
 			   list_t *sw_list, list_t *pair_list, 
-			   genome_t *genome, cal_seeker_input_t *input){
+			   genome_t *genome, cal_seeker_input_t *input) {
   input->regions_list = regions_list;
   input->cal_optarg = cal_optarg;
   input->batch_size = write_size;

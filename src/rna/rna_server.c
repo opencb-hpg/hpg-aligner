@@ -867,28 +867,66 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 
 
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
-  /*  mapping_batch_t *mapping_batch = batch->mapping_batch;
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
   size_t num_targets = mapping_batch->num_targets;
   preprocess_data_t *preprocess_data = (preprocess_data_t *)batch->optional_data;
   size_t num_cals;
   cal_t *cal;
   fastq_read_t *fq_read;
+  array_list_t *cals_list =  array_list_new(MAX_RNA_CALS + 32,
+					    1.25f,
+					    COLLECTION_MODE_ASYNCHRONIZED);
+
+  array_list_t *cigar_ops_list =  array_list_new(MAX_RNA_CALS + 32,
+						 1.25f,
+						 COLLECTION_MODE_ASYNCHRONIZED);
+  cigar_op_t *cigar_op;
+  
+  printf("I am in RNA Server!!\n");
 
   for (size_t t = 0; t < num_targets; t++) {
     num_cals = preprocess_data->num_cal_targets[t];
     fq_read = array_list_get(t, mapping_batch->fq_batch);
     printf("%s\n", fq_read->id);
-    printf("Total CALs %i:\n", num_cals);
-    for (size_t c = 0; c < num_cals; c++) {
-      cal = (cal_t *)array_list_get(c, mapping_batch->mapping_lists[mapping_batch->targets[t]]);
-      printf("\tNum Seeds: %i, Flanks: [%i-%i], chr %i:(%i)[%lu-%lu]\n", cal->num_seeds, cal->flank_start, cal->flank_end, 
-	     cal->chromosome_id, cal->strand, cal->start, cal->end);
-    }
-    printf("\n");
-  }  
 
-  apply_sw_rna_1(input_p, batch);
-  */
+    for (int j = 0; j < num_cals; j++) {    
+      cal = (cal_t *)array_list_get(j, mapping_batch->mapping_lists[mapping_batch->targets[t]]);
+      array_list_insert(cal, cals_list);
+    }                                     
+    mapping_batch->mapping_lists[mapping_batch->targets[t]]->size = 0;
+
+    printf("Total CALs %i:\n", num_cals);   
+    for (int i = 0; i < num_cals; i++) {
+      cal_t *cal = array_list_get(i, cals_list);
+      printf("\tCAL%i:= Num Seeds: %i, chr %i:(%i)[%lu-%lu], Total Seeds Regions %lu: \n",i, cal->num_seeds,
+	     cal->chromosome_id, cal->strand, cal->start, cal->end, linked_list_size(cal->sr_list));
+
+      for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	seed_region_t *s = list_item->item;
+	printf("[%i|%i - %i|%i] -", s->genome_start, s->read_start, s->read_end, s->genome_end);
+	if  ((s->read_end - s->read_start) == (s->genome_end - s->genome_start)) {
+	  printf(" Exact %i - ", (s->read_end - s->read_start));
+	} else {
+	  printf(" Inexact %i/%i - ", (s->read_end - s->read_start), (s->genome_end - s->genome_start));
+	}
+	
+	if (list_item->next) {
+	  seed_region_t *s_next = list_item->next->item;
+	  if  ((s_next->read_start - s->read_end) == (s_next->genome_start - s->genome_end)) {
+	    printf(" Exact %i -\n", (s_next->read_start - s->read_end));
+	  } else {
+	    printf(" Inexact %i/%i -\n", (s_next->read_start - s->read_end), (s_next->genome_start - s->genome_end));
+	  }
+	}
+
+      }
+
+      printf("\n");
+    }
+  }
+
+  return POST_PAIR_STAGE;
+  
 }
 
 /*
