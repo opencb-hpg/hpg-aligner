@@ -42,8 +42,8 @@ void preprocess_data_free(preprocess_data_t *preprocess_data) {
 
 
 void print_cal(cal_t *cal){
-  printf("chr:%i<->strand:(%i)<->genome:[%lu-%lu]<->read:[%i-%i]<->seeds:%i\n", cal->chromosome_id, 
-	 cal->strand, cal->start, cal->end, cal->flank_start, cal->flank_end, cal->num_seeds);
+  printf("chr:%i<->strand:(%i) <-> genome:[%lu-%lu] <-> seeds:%i\n", cal->chromosome_id, 
+	 cal->strand, cal->start, cal->end, cal->num_seeds);
 }
 
 void show_cals_list(array_list_t* cals_list) {

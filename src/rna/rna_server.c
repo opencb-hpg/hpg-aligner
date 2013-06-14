@@ -200,12 +200,10 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
   canonical_CT_AC[3] = 'C';
   //================================================//
 
-  /*
   printf("======================== Process Output SW %d=========================\n", depth);
   sw_simd_input_display(depth, input_p);
   sw_simd_output_display(depth, output_p);
   printf("======================================================================\n");
-  */
 
   for (int i = 0; i < depth; i++) {    
     splice_number = 0;
@@ -868,10 +866,36 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 
 
 
-int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
+int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
+  /*  mapping_batch_t *mapping_batch = batch->mapping_batch;
+  size_t num_targets = mapping_batch->num_targets;
+  preprocess_data_t *preprocess_data = (preprocess_data_t *)batch->optional_data;
+  size_t num_cals;
+  cal_t *cal;
+  fastq_read_t *fq_read;
+
+  for (size_t t = 0; t < num_targets; t++) {
+    num_cals = preprocess_data->num_cal_targets[t];
+    fq_read = array_list_get(t, mapping_batch->fq_batch);
+    printf("%s\n", fq_read->id);
+    printf("Total CALs %i:\n", num_cals);
+    for (size_t c = 0; c < num_cals; c++) {
+      cal = (cal_t *)array_list_get(c, mapping_batch->mapping_lists[mapping_batch->targets[t]]);
+      printf("\tNum Seeds: %i, Flanks: [%i-%i], chr %i:(%i)[%lu-%lu]\n", cal->num_seeds, cal->flank_start, cal->flank_end, 
+	     cal->chromosome_id, cal->strand, cal->start, cal->end);
+    }
+    printf("\n");
+  }  
+
+  apply_sw_rna_1(input_p, batch);
+  */
+}
+
+/*
+int apply_sw_rna_1(sw_server_input_t* input_p, batch_t *batch) {
   /**----------------------------------------------------------------------------------**
    **                                    RNA-SEQ                                       **
-   **----------------------------------------------------------------------------------**/
+   **----------------------------------------------------------------------------------**
   //printf("RNA Server\n");
   struct timeval start, end;
   double time;
@@ -943,7 +967,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
   num_reads = array_list_size(mapping_batch_p->fq_batch);
   total_reads += num_targets;
     
-  /** for each read **/
+  /** for each read **
   for (i = 0; i < num_targets; i++) {      
     num_cal_targets = preprocess_data->num_cal_targets[i];
     cal_targets = preprocess_data->cal_targets[i];
@@ -1163,7 +1187,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
 				       input_p->bwt_optarg_p->report_best, 
 				       input_p->bwt_optarg_p->report_n_hits, 
 				       mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]); 
-      */
+      *
       num_mappings = array_list_size(mapping_batch_p->mapping_lists[mapping_batch_p->targets[i]]); 
 
       if ( num_mappings > 0 ) {
@@ -1200,7 +1224,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
     } else {
       write_batch_free(write_batch_p);
     }
-    }*/
+    }*
 
   for(k=0 ; k<depth ; k++) {
     free(sw_channels_p[k].ref_p);
@@ -1226,3 +1250,5 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch){
   return POST_PAIR_STAGE;
 
 }
+
+*/
