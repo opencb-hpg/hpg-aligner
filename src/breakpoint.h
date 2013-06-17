@@ -14,6 +14,8 @@ typedef struct cigar_op {
   char number_str[16];
   char name;
 } cigar_op_t;
+cigar_op_t *cigar_op_new(int number, char number_str[], char name);
+void cigar_op_free(cigar_op_t *cigar_op);
 
 typedef struct cigar_code {
   int num_ops;

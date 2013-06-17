@@ -8,6 +8,25 @@ array_list_t *breakpoint_list = NULL;
 //
 //--------------------------------------------------------------------------------------
 
+cigar_op_t *cigar_op_new(int number, char number_str[], char name) {
+  cigar_op_t *cigar_op = (cigar_op_t *)malloc(sizeof(cigar_op_t));
+  cigar_op->number = number;
+  if (number_str) {
+    strcpy(cigar_op->number_str, number_str);
+  }
+  cigar_op->name = name;
+
+  return cigar_op;
+}
+
+void cigar_op_free(cigar_op_t *cigar_op) {
+  free(cigar_op);
+}
+
+//--------------------------------------------------------------------------------------
+//
+//--------------------------------------------------------------------------------------
+
 breakpoint_info_t *breakpoint_info_new(int side, int num_M, int index_M,
 				       cigar_code_t *cigar) {
   breakpoint_info_t *p = calloc(1, sizeof(breakpoint_info_t));

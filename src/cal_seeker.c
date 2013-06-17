@@ -46,11 +46,11 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
     //printf("%i mini-mappings\n", array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]));
     max_seeds = (read->length / 15)*2 + 10;
-    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						 input->cal_optarg,
-						 &min_seeds, &max_seeds,
-						 genome->num_chromosomes + 1,
-						 allocate_cals, read->length);
+    num_cals = bwt_generate_cal_rna_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
+						     input->cal_optarg,
+						     &min_seeds, &max_seeds,
+						     genome->num_chromosomes + 1,
+						     allocate_cals, read->length);
 
     //printf("\t Target %i: %i\n", mapping_batch->targets[i], num_cals);
     array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);

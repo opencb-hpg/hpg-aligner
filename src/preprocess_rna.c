@@ -78,7 +78,7 @@ void show_cals_associate(unsigned char *associate_list, size_t n_cals) {
 
 int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
   //printf("APPLY PREPROCESS RNA...\n");
-
+  /*
     struct timeval start, end;
     double time;
 
@@ -141,9 +141,6 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
       }
       associate_cals[i][num_cals - 1] = num_cals - 1;
       
-      /**************************************************************/
-      /****************** SELECT CALS FOR SW ************************/
-      /**************************************************************/
 
       if (len < 90) {
 	seed_size = 15;
@@ -179,7 +176,7 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
 	  j = associate_cals[i][j];
 	}
 	j++;
-      }
+	}
 
       //if (!t) {
       for (int m = 0; m < t_f; m++) {
@@ -187,11 +184,11 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
       }
       for (int m = 0; m < t_s; m++) {
 	cal_targets[t++] = minor_priority_single[m];
-      }
+	}
 	//}
       //printf("%i < %i\n", i, num_targets);
-      preprocess_data->num_cal_targets[i] = t;
-      /**************************************************************/
+      //preprocess_data->num_cal_targets[i] = t;
+      /**************************************************************
     }
 
     batch->optional_data = (void *)preprocess_data;
@@ -199,6 +196,6 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
     free(minor_priority_fusion);
     //printf("END PREPROCESS RNA\n");
     if (time_on) { stop_timer(start, end, time); timing_add(time, RNA_PREPROCESS, timing); }
-    //printf("APPLY PREPROCESS RNA DONE!\n");
+    //printf("APPLY PREPROCESS RNA DONE!\n");*/
     return SW_STAGE;
 }
