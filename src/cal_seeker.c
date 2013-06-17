@@ -141,6 +141,8 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   cal_t *cal;
   array_list_t *cal_list;
 
+  fastq_read_t *read;
+
   size_t num_chromosomes = input->genome->num_chromosomes + 1;
   size_t num_targets = mapping_batch->num_targets;
   size_t *targets = mapping_batch->targets;
@@ -153,6 +155,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   for (size_t i = 0; i < num_targets; i++) {
 
     read_index = targets[i];
+    read = array_list_get(read_index, mapping_batch->fq_batch); 
 
     // for debugging
     //    LOG_DEBUG_F("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
@@ -163,28 +166,60 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 			    COLLECTION_MODE_ASYNCHRONIZED);
     }
     // optimized version
-    num_cals = bwt_generate_cal_list_linkedlist(mapping_batch->mapping_lists[read_index], 
+    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[read_index], 
+						 input->cal_optarg,
+						 &min_seeds, &max_seeds,
+						 num_chromosomes,
+						 list,
+						 read->length);
+    
+      /*
+          num_cals = bwt_generate_cal_list_linkedlist(mapping_batch->mapping_lists[read_index], 
 						input->cal_optarg,
 						&min_seeds, &max_seeds,
 						num_chromosomes,
 						list);
+      */
 
-    /*
+
     // for debugging
     LOG_DEBUG_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
     for (size_t j = 0; j < num_cals; j++) {
       cal = array_list_get(j, list);
-      LOG_DEBUG_F("\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu, flank: (start, end) = (%lu, %lu)\n", 
-		  cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, cal->flank_start, cal->flank_end);
+      LOG_DEBUG_F("\tchr: %i, strand: %i, start: %lu, end: %lu, num. regions = %lu\n", 
+		  cal->chromosome_id, cal->strand, cal->start, cal->end, cal->sr_list->size);
     }
-    */
 
+    for (int j = 0; j < num_cals; j++) {
+      cal_t *cal = array_list_get(j, list);
+      int start = 1;
+      for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	seed_region_t *s = list_item->item;
+	printf("[%i|%i - %i|%i]  ", s->genome_start, s->read_start, s->read_end, s->genome_end);
+	if (s->read_start != start) {
+	  mapping_batch->num_to_do++;
+	}
+	start = s->read_end + 1;
+      }
+      if (start < read->length) { 
+	mapping_batch->num_to_do++;
+      }
+    }
+    printf("\n");
+    
+    cal_list = list;
+    list = NULL;
+    array_list_set_flag(2, cal_list);
+    //    mapping_batch->num_to_do += num_cals;
+    targets[new_num_targets++] = read_index;
+    
+    // we have to free the region list
+    array_list_free(mapping_batch->mapping_lists[read_index], (void *) region_bwt_free);
+    mapping_batch->mapping_lists[read_index] = cal_list;
+    
     // filter CALs by the number of seeds
-    //<<<<<<< HEAD
-    //int min_limit = 0; //input->cal_optarg->min_num_seeds_in_cal;
-    //=======
+    /*
     int min_limit = input->cal_optarg->min_num_seeds_in_cal;
-    //>>>>>>> 07dc5ce639a25beb4a40613781a5a65b27c5bec3
     if (min_limit < 0) min_limit = max_seeds;
 
     if (min_seeds == max_seeds || min_limit <= min_seeds) {
@@ -195,9 +230,6 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       for (size_t j = 0; j < num_cals; j++) {
 	cal = array_list_get(j, list);
 	if (cal->num_seeds >= min_limit) {
-	  //	  LOG_DEBUG_F("\t\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu (min. limit %i seeds), flank: (start, end) = (%lu, %lu)\n", 
-	  //		      cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, min_limit, cal->flank_start, cal->flank_end);
-	  
 	  array_list_insert(cal, cal_list);
 	  array_list_set(j, NULL, list);
 	}
@@ -229,10 +261,15 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       if (cal_list) array_list_free(cal_list, (void *) cal_free);
       if (list) array_list_clear(list, (void *) cal_free);
     }
-  } // end for 0 ... num_seqs
+    */
+
+  } // end for 0 ... num_targets
+
 
   // update batch
   mapping_batch->num_targets = new_num_targets;
+
+  LOG_DEBUG_F("num. SW to do: %i\n", 	mapping_batch->num_to_do);
 
   // free memory
   if (list) array_list_free(list, NULL);

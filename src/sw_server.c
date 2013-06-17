@@ -421,8 +421,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   size_t flank_length = input->flank_length;
 
   // SIMD support for Smith-Waterman
-  float score, min_score = input->min_score;
-  sw_output_t *sw_output;
+  float score, norm_score, min_score = input->min_score;
   
   size_t read_index, num_cals;
 
@@ -440,7 +439,10 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   uint8_t strands[sw_total], chromosomes[sw_total];
   size_t starts[sw_total];
   size_t sw_count = 0, read_indices[sw_total];
-  int read_len, ref_len, max_ref_len;
+  int read_len, ref_len, max_ref_len, read_start, pos, gap_len;
+
+  seed_region_t *s, *new_s;
+  linked_list_iterator_t* itr;
 
   // initialize query and reference sequences to Smith-Waterman
   for (size_t i = 0; i < num_targets; i++) {
@@ -460,48 +462,250 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
       cal = array_list_get(j, cal_list);
       read_indices[sw_count] = read_index;
 
+      read_start = 1;
+      itr = linked_list_iterator_new(cal->sr_list);
+      s = (seed_region_t *) linked_list_iterator_curr(itr);
+      while (s != NULL) {
+	LOG_DEBUG_F("[%i|%i - %i|%i] (read_start %i)\n", 
+		    s->genome_start, s->read_start, s->read_end, s->genome_end, read_start);
+	if (s->read_start != read_start) {
+	  // prepare sw
+	  // query sequence, revcomp if necessary
+	  int gap_len = s->read_start - read_start + 1;
+	  LOG_DEBUG_F("\tgap-length = %i\n", gap_len);
+	  
+	  q[sw_count] = (char *) calloc(gap_len, sizeof(char));
+	  memcpy(q[sw_count], fq_read->sequence + read_start - 1, gap_len);
+	  LOG_DEBUG_F("\tgap-seq = %s\n", q[sw_count]);
+	  if (cal->strand == 1) {
+	    seq_reverse_complementary(q[sw_count], gap_len);
+	    LOG_DEBUG_F("\tgap-seq-rev = %s\n", q[sw_count]);
+	  }
+	
+	  // reference sequence
+	  if (read_start == 1) {
+	    end = s->genome_end;
+	    start = end - gap_len + 1;
+	  } else {
+	    start = pos;
+	    end = start + gap_len - 1;
+	  }
+	  r[sw_count] = calloc(1, gap_len);
+	  genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
+					    cal->chromosome_id - 1, &start, &end, genome);
+	  LOG_DEBUG_F("\tref-seq = (%lu - %lu) : %s\n", start, end, r[sw_count]);
+	  
+	  // save some stuff, we'll use them after...
+	  strands[sw_count] = cal->strand;
+	  chromosomes[sw_count] = cal->chromosome_id;
+	  starts[sw_count] = start;
+	  
+	  // increase counter
+	  sw_count++;	  
 
-      if (flank_length >= cal->start) {
-        start = 0;
-      } else {
-        start = cal->start - flank_length;
+	  // insert gap in the list
+	  new_s = seed_region_new(read_start, s->read_end - 1, 0, 0, 0);
+	  new_s->gap = 1;
+	  linked_list_iterator_insert(new_s, itr);
+	  linked_list_iterator_prev(itr);
+	}
+	read_start = s->read_end + 1;
+	pos = s->genome_end + 1;
+
+	//continue loop...
+	linked_list_iterator_next(itr);
+	s = linked_list_iterator_curr(itr);
       }
+      if (read_start < read_len) { 
+	// prepare sw
+	// query sequence, revcomp if necessary
+	int gap_len = read_len - read_start + 1;
+	LOG_DEBUG_F("seq : %s\n", fq_read->sequence);
+	LOG_DEBUG_F("final gap-length = %i + %i\n", gap_len, (2 * flank_length));
+	
+	q[sw_count] = (char *) calloc(gap_len + flank_length, sizeof(char));
+	memcpy(q[sw_count], fq_read->sequence + read_start - 1 - flank_length, gap_len + flank_length);
+	LOG_DEBUG_F("final gap-seq     = %s\n", q[sw_count]);
+	if (cal->strand == 1) {
+	  seq_reverse_complementary(q[sw_count], gap_len + flank_length);
+	  LOG_DEBUG_F("final gap-seq-rev = %s\n", q[sw_count]);
+	}
+	
+	// reference sequence
+	start = pos - flank_length;
+	end = start + gap_len - 1 + flank_length + flank_length;
+	r[sw_count] = calloc(1, gap_len + flank_length + flank_length);
+	genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome);
+	LOG_DEBUG_F("final ref-seq = (%lu - %lu), gap_len = %i + %i: %s\n", 
+		    start, end, gap_len, (2 * flank_length), r[sw_count]);
+	
+	// save some stuff, we'll use them after...
+	strands[sw_count] = cal->strand;
+	chromosomes[sw_count] = cal->chromosome_id;
+	starts[sw_count] = start;
+	
+	// increase counter
+	sw_count++;
 
-      end = cal->end + flank_length;
-      if (end >= genome->chr_size[cal->chromosome_id - 1]) {
-        end = genome->chr_size[cal->chromosome_id - 1] - 1;
+	// insert gap at the end of the list
+	new_s = seed_region_new(read_start - flank_length - 1, read_start + gap_len - 1, 0, 0, 0);
+	new_s->gap = 1;
+	linked_list_insert_last(new_s, cal->sr_list);
       }
-
-      ref_len = end - start + 2;
-
-      // query sequence, revcomp if necessary
-      q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
-      memcpy(q[sw_count], fq_read->sequence, read_len);
-      if (cal->strand == 1) {
-	seq_reverse_complementary(q[sw_count], read_len);
-      }
-      
-      // reference sequence
-      r[sw_count] = calloc(1, end - start + 2);
-      genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
-					cal->chromosome_id - 1, &start, &end, genome);
-      
-      // save some stuff, we'll use them after...
-      strands[sw_count] = cal->strand;
-      chromosomes[sw_count] = cal->chromosome_id;
-      starts[sw_count] = start;
-      
-      // increase counter
-      sw_count++;
     }
-
-    // free cal_list
-    array_list_clear(cal_list, (void *) cal_free);
   }
 
+  assert(sw_total == sw_count);
+  
   // run Smith-Waterman
-  //  smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+  smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+  LOG_DEBUG_F("\tmquery: %s (start %i)\n", output->query_map_p[0], output->query_start_p[0]);
+  LOG_DEBUG_F("\tmref  : %s (start %i)\n", output->ref_map_p[0], output->ref_start_p[0]);
+  LOG_DEBUG_F("\tscore : %0.2f\n", output->score_p[0]);
 
+  // re-construct the CAL score from region gaps
+  sw_count = 0;
+  int header_len, mapped_len, mquery_start, mref_start;
+  array_list_t *alignment_list;
+  size_t deletion_n, num_cigar_ops, shift;
+  char *cigar, *header_match, *read_match, *quality_match, *quality, *header_clean;
+  char *p, *optional_fields;
+  alignment_t *alignment;
+  int c, optional_fields_length, distance, AS, first;
+
+  for (size_t i = 0; i < num_targets; i++) {
+
+    LOG_DEBUG_F("targets %i of %i\n", i, num_targets);
+
+    read_index = mapping_batch->targets[i];
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
+    cal_list = mapping_batch->mapping_lists[read_index];
+    num_cals = array_list_size(cal_list);
+    
+    LOG_DEBUG_F("read_index =  %i, num_cals = %i\n", read_index, num_cals);
+
+    //    read_len = fq_read->length;
+    //    header_len = get_to_first_blank(fq_read->id, strlen(fq_read->id), header_clean);
+
+    alignment_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+    array_list_set_flag(1, alignment_list);
+
+    // processing each CAL from this read
+    score = 0.0f;
+    for(size_t j = 0; j < num_cals; j++) {
+      // get cal and read index
+      cal = array_list_get(j, cal_list);
+
+      LOG_DEBUG_F("cal %i of %i\n", j, num_cals);
+
+      first = 1;
+      for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	s = list_item->item;
+	LOG_DEBUG_F("is gap ? %s -> [%i|%i - %i|%i]\n", 
+		    (s->gap ? "yes" : "no"), s->genome_start, s->read_start, s->read_end, s->genome_end);
+	if (s->gap) {	  
+	  LOG_DEBUG_F("\tmquery: %s (start %i)\n", output->query_map_p[sw_count], output->query_start_p[sw_count]);
+	  LOG_DEBUG_F("\tmref  : %s (start %i)\n", output->ref_map_p[sw_count], output->ref_start_p[sw_count]);
+	  LOG_DEBUG_F("\tscore : %0.2f\n", output->score_p[sw_count]);
+	  score += output->score_p[sw_count];
+	  if (first) {
+	    mquery_start = output->query_start_p[sw_count];
+	    mref_start = output->ref_start_p[sw_count];
+	  }
+	  // free query and reference
+	  free(q[sw_count]);
+	  free(r[sw_count]);
+	  sw_count++;
+	} else {
+	  score += ((s->read_end - s->read_start + 1) * input->match);
+	  if (first) {
+	    mquery_start = s->read_start - 1;
+	    mref_start = mquery_start;
+	  }
+	}
+	first = 0;
+      }
+      LOG_DEBUG_F("score: %0.2f, mquery_start = %i, mref_start = %i\n",
+		  score, mquery_start, mref_start);
+
+      exit(-1);
+
+      // filter by SW score
+      norm_score = NORM_SCORE(score, read_len, input->match);
+      
+      if (norm_score >= min_score) {
+	/*
+	header_match = (char *) malloc(sizeof(char) * (header_len + 1));
+	memcpy(header_match, header_clean, header_len);
+	header_match[header_len] = '\0';
+      
+	mquery_start = sw_output->mquery_start;
+	mref_start = sw_output->mref_start;
+
+	//printf("%s\n", header_match);
+	//printf("\tstrand = %i, chromosome = %i\n", sw_output->strand, sw_output->chromosome - 1);
+	//printf("\tmquery_start = %i, mref_start = %i\n", mquery_start, mref_start);
+	
+	pos = cal->start + mref_start - 1;
+
+	read_match = (char *) malloc(sizeof(char) * (mapped_len + 1));
+	quality_match = (char *) malloc(sizeof(char) * (mapped_len + 1));
+	c = 0;
+	quality = fq_read->quality + mquery_start;
+	for (int ii = 0; ii < mapped_len; ii++){
+	  if (sw_output->mquery[ii] != '-') {
+	    read_match[c] = sw_output->mquery[ii]; 
+	    quality_match[c] = quality[c];
+	    c++;
+	  }
+	}
+	read_match[c] = '\0'; 
+	quality_match[c] = '\0'; 
+	
+	// set optional fields
+	optional_fields_length = 100;
+	optional_fields = (char *) calloc(optional_fields_length, sizeof(char));
+	
+	p = optional_fields;
+	AS = (int) score;
+	
+	sprintf(p, "ASi");
+	p += 3;
+	memcpy(p, &AS, sizeof(int));
+	p += sizeof(int);
+	
+	sprintf(p, "NHi");
+	p += 3;
+	memcpy(p, &num_cals, sizeof(int));
+	p += sizeof(int);
+	
+	sprintf(p, "NMi");
+	p += 3;
+	memcpy(p, &distance, sizeof(int));
+	p += sizeof(int);
+
+	// create an alignment and insert it into the list
+	alignment = alignment_new();
+	alignment_init_single_end(header_match, read_match, quality_match, 
+				  cal->strand, 
+				  cal->chromosome_id - 1, 
+				  pos,
+				  cigar, num_cigar_ops, norm_score * 254, 1, (num_cals > 1),
+				  optional_fields_length, optional_fields, 0, alignment);
+	
+	array_list_insert(alignment, alignment_list);
+	*/
+      }
+    }
+
+    // free the cal list, and update the mapping list with the alignment list
+    array_list_free(cal_list, (void *) cal_free);
+    mapping_batch->mapping_lists[read_index] = alignment_list;
+  }
+
+/*
   double norm_score;
   // filter alignments by min_score
   for (size_t i = 0; i < sw_count; i++) {
@@ -510,8 +714,8 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
     fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
 
     read_len = fq_read->length;
-    norm_score = 0.0f;
-    //    norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
+    //    norm_score = 0.0f;
+    norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
 
     if (norm_score >= min_score) {
       // valid mappings, 
@@ -544,6 +748,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
     free(r[i]);
   }
   mapping_batch->num_targets = new_num_targets;
+*/
 
   // free
   sw_multi_output_free(output);
