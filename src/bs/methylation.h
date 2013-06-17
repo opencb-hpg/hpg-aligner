@@ -112,14 +112,67 @@ void copy_array(array_list_t *dest, array_list_t *src);
  * 
  * 
  */
-void insert_mappings(array_list_t **dest, array_list_t **src);
+void insert_mappings_array(array_list_t **dest, array_list_t **src);
 
 /**
- * @brief  
+ * @brief  Include the new mappings existing in the "src" into "dest"
+ * @param  dest Mappings that 
  * @param  src 
  * 
  * 
  */
-void transform_mappings(array_list_t **src);
+void insert_mappings(array_list_t *dest, array_list_t *src);
+
+/**
+ * @brief  Set the sequence strand of the mappings on the array to 1
+ * @param  src 
+ * 
+ * 
+ */
+void transform_mappings_array(array_list_t **src);
+
+/**
+ * @brief  Set the sequence strand of the mappings to 1
+ * @param  src Array of mappings
+ * 
+ * 
+ */
+void transform_mappings(array_list_t *src);
+
+/**
+ * @brief  
+ * @param  num_unmapped 
+ * @param  unmapped_indices 
+ * @param  unmapped1,unmapped2,unmapped3,unmapped4 
+ * @param  indices1,indices2,indices3,indices4 
+ * @param  lists,lists2
+ * 
+ * 
+ */
+void select_targets_bs(size_t *num_unmapped, size_t *unmapped_indices,
+		       size_t *indices_1, size_t num_reads,
+		       array_list_t **lists, array_list_t **lists2);
+
+/**
+ * @brief  
+ * @param  num_unmapped 
+ * @param  unmapped_indices 
+ * @param  unmapped1,unmapped2,unmapped3,unmapped4 
+ * @param  indices1,indices2,indices3,indices4 
+ * @param  lists,lists2
+ * 
+ * 
+ */
+void update_targets_bs(size_t num_reads, size_t *unmapped_indices,
+		       size_t unmapped, size_t *indices);
+
+/**
+ * @brief  Set the original read in the sequences of each mapping
+ * @param  src  Array with the mappings of the reads
+ * @param  orig Fastq batch with the original reads
+ * 
+ * Go on the array of mappings, and set the sequence to the original
+ */
+void revert_mappings_seqs(array_list_t **src, array_list_t *orig);
 
 #endif // METHYLATION_H

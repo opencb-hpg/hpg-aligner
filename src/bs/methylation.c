@@ -145,12 +145,13 @@ void cpy_array_bs(array_list_t *src, array_list_t *dest1, array_list_t *dest2, a
 
 //====================================================================================
 
-void insert_mappings(array_list_t **dest, array_list_t **src) {
+void insert_mappings_array(array_list_t **dest, array_list_t **src) {
   size_t num_reads = array_list_size(src);
   size_t num_mappings;
   alignment_t *align_tmp;
 
   for (size_t i = 0; i < num_reads; i++) {
+    //isnert_mappings(dest[i], src[i]);
     num_mappings = array_list_size(src[i]);
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src[i]);
@@ -159,10 +160,23 @@ void insert_mappings(array_list_t **dest, array_list_t **src) {
     }
   }
 }
+//====================================================================================
+
+void insert_mappings(array_list_t *dest, array_list_t *src) {
+  size_t num_mappings;
+  alignment_t *align_tmp;
+
+  num_mappings = array_list_size(src);
+  for (size_t j = 0; j < num_mappings; j++) {
+    align_tmp  = (alignment_t *) array_list_get(j, src);
+    // insert the alignments from the 'src' into the 'dest'
+    array_list_insert(align_tmp, dest);
+  }
+}
 
 //====================================================================================
 
-void transform_mappings(array_list_t **src){
+void transform_mappings_array(array_list_t **src){
   size_t num_reads = array_list_size(src);
   size_t num_mappings;
   alignment_t *align_tmp;
@@ -178,3 +192,70 @@ void transform_mappings(array_list_t **src){
 }
 
 //====================================================================================
+
+void transform_mappings(array_list_t *src){
+  size_t num_mappings;
+  alignment_t *align_tmp;
+
+  num_mappings = array_list_size(src);
+  for (size_t j = 0; j < num_mappings; j++) {
+    align_tmp  = (alignment_t *) array_list_get(j, src);
+    // modify the strand, and make it reverse
+    align_tmp->seq_strand = 1;
+  }
+}
+
+//====================================================================================
+
+void select_targets_bs(size_t *num_unmapped, size_t *unmapped_indices,
+		       size_t *indices_1, size_t num_reads,
+		       array_list_t **lists, array_list_t **lists2) {
+
+  *num_unmapped = 0;
+
+  for (size_t i = 0; i < num_reads; i++) {
+    if (indices_1[i] == 4) {
+      unmapped_indices[(*num_unmapped)++] = indices_1[i];
+      array_list_set_flag(0, lists[indices_1[i]]);
+      array_list_set_flag(0, lists2[indices_1[i]]);
+    }
+  }
+}
+
+//====================================================================================
+
+void update_targets_bs(size_t num_reads, size_t *unmapped_indices,
+		       size_t unmapped, size_t *indices) {
+  for (size_t i = 0; i < unmapped; i++) {
+    if (indices[i] < num_reads) {
+      unmapped_indices[indices[i]]++;
+    }
+  }
+}
+
+//====================================================================================
+
+void revert_mappings_seqs(array_list_t **src, array_list_t *orig) {
+  size_t num_reads = array_list_size(orig);
+  size_t num_mappings;
+  alignment_t *align_tmp;
+  fastq_read_t *fastq_orig;
+
+  //  printf("num reads = %lu\t", array_list_size(orig));
+  //  printf("num reads = %lu\t", array_list_size(src));
+
+  for (size_t i = 0; i < num_reads; i++) {
+    num_mappings = array_list_size(src[i]);
+    fastq_orig  = (fastq_read_t *) array_list_get(i, orig);
+    for (size_t j = 0; j < num_mappings; j++) {
+      align_tmp  = (alignment_t *) array_list_get(j, src[i]);
+      // modify the strand, and make it reverse
+      free(align_tmp->sequence);
+      align_tmp->sequence = strdup(fastq_orig->sequence);
+    }
+  }
+  printf("\n");
+}
+
+//====================================================================================
+

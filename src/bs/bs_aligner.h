@@ -30,6 +30,8 @@
 #include "workflow_functions.h"
 
 #include "methylation.h"
+#include "bs_writer.h"
+
 
 void run_bs_aligner(genome_t *genome1, genome_t *genome2,
 		    bwt_index_t *bwt_index1, bwt_index_t *bwt_index2, 
