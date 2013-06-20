@@ -1,4 +1,5 @@
 #include "bs_writer.h"
+#include "methylation.h"
 
 int bs_writer(void *data) {
      struct timeval start, end;
@@ -15,6 +16,9 @@ int bs_writer(void *data) {
      //alignment_t *alig;
 
      mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
+
+     // set the sequences of the mapping to the original
+     revert_mappings_seqs(mapping_batch->mapping_lists, mapping_batch->mapping_lists2, mapping_batch->fq_batch);
 
      batch_writer_input_t *writer_input = batch->writer_input;
      bam_file_t *bam_file = writer_input->bam_file;     
@@ -85,6 +89,8 @@ int bs_writer(void *data) {
      }
      
      if (batch) batch_free(batch);
+
+     if (found) free(found);
      
      basic_statistics_add(num_reads, num_mapped_reads, total_mappings, basic_st);
      

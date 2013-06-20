@@ -168,11 +168,12 @@ void update_targets_bs(size_t num_reads, size_t *unmapped_indices,
 
 /**
  * @brief  Set the original read in the sequences of each mapping
- * @param  src  Array with the mappings of the reads
+ * @param  src1  Array with the mappings of the reads transformed
+ * @param  src1  Array with the mappings of the reads transformed
  * @param  orig Fastq batch with the original reads
  * 
  * Go on the array of mappings, and set the sequence to the original
  */
-void revert_mappings_seqs(array_list_t **src, array_list_t *orig);
+void revert_mappings_seqs(array_list_t **src1, array_list_t **src2, array_list_t *orig);
 
 #endif // METHYLATION_H

@@ -29,6 +29,7 @@ struct region_seeker_input{
   cal_optarg_t *cal_optarg_p;     /**< cal seeker configuration values */
   bwt_optarg_t *bwt_optarg_p;     /**< burrows wheeler transform configuration values */
   bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
+  bwt_index_t *bwt_index2_p;      /**< structure where were stored burrows wheeler transform second index */
   int padding_left;
   int padding_right;
   #ifdef HPG_GPU

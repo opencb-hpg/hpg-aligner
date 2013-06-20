@@ -35,6 +35,8 @@
 
 #define DNA_MODE           0
 #define RNA_MODE           1
+// added by PP
+#define BS_MODE            2
 
 //------------------------------------------------------------------------------------
 
@@ -47,6 +49,8 @@
 #define PAIR2_FLAG        64
 #define WRITE_ITEM_FLAG  128
 #define SW_ITEM_FLAG     256
+// added by PP
+#define BS_FLAG          512
 
 //------------------------------------------------------------------------------------
 

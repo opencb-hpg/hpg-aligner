@@ -331,6 +331,10 @@ void mapping_batch_free(mapping_batch_t *p) {
     free(p->old_mapping_lists);
   }
 
+  // added by PP
+  if (p->mapping_lists2) { free(p->mapping_lists2); }
+  if (p->bwt_mappings) { free(p->bwt_mappings); }
+
   free(p);
 }
 

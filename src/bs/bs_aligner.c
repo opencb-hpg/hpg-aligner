@@ -4,14 +4,15 @@
 // run dna aligner
 //--------------------------------------------------------------------
 
-void run_bs_aligner(genome_t *genome2, genome_t *genome1, 
+//void run_bs_aligner(genome_t *genome, genome_t *genome1, genome_t *genome2,
+void run_bs_aligner(genome_t *genome2, genome_t *genome1,
 		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1, 
 		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		    pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
 		    options_t *options) {
 
-  //printf("bwt_index1 -> %s\n", bwt_index1->nucleotides);
-  //printf("bwt_index2 -> %s\n", bwt_index2->nucleotides);
+  //printf("index1 %s\n", bwt_index1->nucleotides);
+  //printf("index2 %s\n", bwt_index2->nucleotides);
 
   int path_length = strlen(options->output_name);
   int prefix_length = 0;
@@ -71,6 +72,7 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1,
   region_seeker_input_init(NULL, cal_optarg, bwt_optarg, 
 			   bwt_index1, NULL, 0, options->gpu_process, 0, 0, 
 			   &region_input);
+  region_input.bwt_index2_p = bwt_index2;
   
   cal_seeker_input_t cal_input;
   cal_seeker_input_init(NULL, cal_optarg, NULL, 0, 

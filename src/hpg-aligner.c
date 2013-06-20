@@ -60,9 +60,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		     report_optarg_t *report_optarg, options_t *options);
 
 
-void run_bs_aligner(genome_t *genome1, genome_t *genome2, 
-		    bwt_index_t *bwt_index1, bwt_index_t *bwt_index2, 
-		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
+//void run_bs_aligner(genome_t *genome, genome_t *genome1, genome_t *genome2, 
+void run_bs_aligner(genome_t *genome2, genome_t *genome1,
+		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1,
+		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg,
 		    pair_mng_t *pair_mng, report_optarg_t *report_optarg,
 		    options_t *options);
 
@@ -144,13 +145,13 @@ int main(int argc, char* argv[]) {
       //}
 
       LOG_DEBUG("Generation of AGT index\n");
-      char genome1[256];
-      sprintf(genome1, "%s/AGT_genome.fa", options->bwt_dirname);
+      char genome_1[256];
+      sprintf(genome_1, "%s/AGT_genome.fa", options->bwt_dirname);
       char gen1[256];
-      sprintf(gen1, "sed 's/C/T/g' %s > %s",options->genome_filename, genome1);
+      sprintf(gen1, "sed 's/C/T/g' %s > %s",options->genome_filename, genome_1);
       system(gen1);
 
-      run_index_builder_bs(genome1, bs_dir1, options->index_ratio, "AGT");
+      run_index_builder_bs(genome_1, bs_dir1, options->index_ratio, "AGT");
       LOG_DEBUG("AGT index Done !!\n");
 
       LOG_DEBUG("Generation of ACT index\n");
@@ -160,13 +161,13 @@ int main(int argc, char* argv[]) {
       create_directory(bs_dir2);
       //}
 
-      char genome2[256];
-      sprintf(genome2, "%s/ACT_genome.fa", options->bwt_dirname);
+      char genome_2[256];
+      sprintf(genome_2, "%s/ACT_genome.fa", options->bwt_dirname);
       char gen2[256];
-      sprintf(gen2, "sed 's/G/A/g' %s > %s",options->genome_filename, genome2);
+      sprintf(gen2, "sed 's/G/A/g' %s > %s",options->genome_filename, genome_2);
       system(gen2);
 
-      run_index_builder_bs(genome2, bs_dir2, options->index_ratio, "ACT");
+      run_index_builder_bs(genome_2, bs_dir2, options->index_ratio, "ACT");
       LOG_DEBUG("ACT index Done !!\n");
       exit(0);
     }
@@ -204,6 +205,7 @@ int main(int argc, char* argv[]) {
 
     // genome parameters
     LOG_DEBUG("Reading genomes...");
+    //genome  = genome_new("dna_compression.bin", options->bwt_dirname);
     genome1 = genome_new("dna_compression.bin", bs_dir1);
     genome2 = genome_new("dna_compression.bin", bs_dir2);
     LOG_DEBUG("Done !!");
@@ -256,19 +258,46 @@ int main(int argc, char* argv[]) {
 						     options->report_n_hits, 
 						     options->report_only_paired,
 						     options->report_best);
-  LOG_DEBUG("init table...");
-  initTable();
-  LOG_DEBUG("init table done !!");
-  
+  /*
+  //*********************************
+  {
+    char *seq = strdup("CCTAACCAACATAATAAAACCCCATCTCTACTAAAAATACAAAAAAATTAACAAAACATAATAACAAATACCTATAATCCCAACTACTCAAAAAACTAAA");
+    alignment_t *alig;
+    array_list_t *mapping_list = array_list_new(100000, 1.25f, 
+						COLLECTION_MODE_SYNCHRONIZED);
+    
+    size_t num_mappings;
+    
+    num_mappings = bwt_map_forward_inexact_seq(seq, bwt_optarg, 
+					       bwt_index2, mapping_list);
+    printf("aux seq: %s\n", seq);
+    printf("num_mappings = %lu\n", num_mappings);
+    for (size_t i = 0; i < num_mappings; i++) {
+      alig = array_list_get(i, mapping_list);
+      printf("%lu\t---------------------\n", i);
+      printf("\tstrand = %i, chromosome = %i, position = %i\n", 
+	     alig->seq_strand, alig->chromosome, alig->position);
+    }
+  }
+  //*********************************
+  */
+
   if (!strcmp(command, "rna")) {
+    LOG_DEBUG("init table...");
+    initTable();
+    LOG_DEBUG("init table done !!");
     // RNA version
     run_rna_aligner(genome, bwt_index, pair_mng, bwt_optarg, cal_optarg, report_optarg, options);
   } else if (!strcmp(command, "dna")) {
+    LOG_DEBUG("init table...");
+    initTable();
+    LOG_DEBUG("init table done !!");
     // DNA version
     run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   } else { // if (!strcmp(command, "bs")) {
     // BS version
     run_bs_aligner(genome1, genome2, bwt_index1, bwt_index2,
+    //run_bs_aligner(genome, genome1, genome2, bwt_index1, bwt_index2,
 		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   }
 
@@ -281,6 +310,7 @@ int main(int argc, char* argv[]) {
     bwt_index_free(bwt_index);
     genome_free(genome);
   } else {
+    //genome_free(genome);
     bwt_index_free(bwt_index1);
     genome_free(genome1);
     bwt_index_free(bwt_index2);
