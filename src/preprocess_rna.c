@@ -78,7 +78,7 @@ void show_cals_associate(unsigned char *associate_list, size_t n_cals) {
 
 int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
   //printf("APPLY PREPROCESS RNA...\n");
-
+  /*
     struct timeval start, end;
     double time;
 
@@ -116,59 +116,7 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
       //printf("%s\n", read->sequence);
       num_cals = array_list_size(cals_list);
       if (!num_cals) { continue; }
-      /*
-      for (int j = num_cals - 1; j >= 0; j--) {
-	cal_aux = (cal_t *)array_list_get(j, cals_list);
-	start_cal = cal_aux->start - cal_aux->flank_start;
-	end_cal = cal_aux->end + cal_aux->flank_end;
-	
-	len = end_cal - start_cal;
-	if (len > read->length) {
-	  printf("Remove CALs\n");
-	  array_list_remove_at(j, cals_list);
-	}
-      }
-      */
-      if (!num_cals) { continue; }
 
-      //Merge CALs, but not extend it.
-      /*j = 0;
-      cal_prev = (cal_t *)array_list_get(j, cals_list);
-      start_prev = cal_prev->start - flank_length;
-      end_prev = cal_prev->end + flank_length;
-      if (end_prev >= genome->chr_size[cal_prev->chromosome_id - 1]) {
-	end_prev = genome->chr_size[cal_prev->chromosome_id - 1] - 1;
-      }
-      j++;
-      while(j < num_cals) {
-	cal_next = (cal_t *)array_list_get(j, cals_list);
-	if (cal_next->start <= flank_length) {
-          start_next = 0;
-        }else {
-          start_next = cal_next->start - flank_length;
-        }
-        end_next = cal_next->end + flank_length;
-	if ((cal_next->chromosome_id == cal_prev->chromosome_id) && 
-	    (cal_next->strand == cal_prev->strand) && 
-	    (start_next <= end_prev)) {
-	  //printf("end_prev=%lu/%lu, start_next=%lu/%lu, seed_max_distance = %i, chr_prev=%i, chr_next=%i, flank_length=%i\n", end_prev, cal_prev->end, start_next, cal_next->start, seeds_max_distance, cal_prev->chromosome_id, cal_next->chromosome_id, flank_length);
-	  //show_cals_list(cals_list);
-	  //exit(-1);
-	  cal_next->start = cal_prev->start;
-	  cal_prev = cal_next;
-	  start_prev = start_next;
-	  end_prev = end_next;
-	  cal_aux = array_list_remove_at(j - 1, cals_list);
-	  cal_free(cal_aux);
-	  num_cals--;
-	}else {
-	  cal_prev = cal_next;
-	  start_prev = start_next;
-	  end_prev = end_next;
-	  j++;
-	}
-      }
-      */
       //End Merge Check
       p = 0;
       cal_prev = (cal_t *)array_list_get(0, cals_list);
@@ -192,12 +140,7 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
 	c++;
       }
       associate_cals[i][num_cals - 1] = num_cals - 1;
-      //printf("Fusion CALs END\n");
-      //show_cals_list(cals_list);
       
-      /**************************************************************/
-      /****************** SELECT CALS FOR SW ************************/
-      /**************************************************************/
 
       if (len < 90) {
 	seed_size = 15;
@@ -233,7 +176,7 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
 	  j = associate_cals[i][j];
 	}
 	j++;
-      }
+	}
 
       //if (!t) {
       for (int m = 0; m < t_f; m++) {
@@ -241,11 +184,11 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
       }
       for (int m = 0; m < t_s; m++) {
 	cal_targets[t++] = minor_priority_single[m];
-      }
+	}
 	//}
       //printf("%i < %i\n", i, num_targets);
-      preprocess_data->num_cal_targets[i] = t;
-      /**************************************************************/
+      //preprocess_data->num_cal_targets[i] = t;
+      /**************************************************************
     }
 
     batch->optional_data = (void *)preprocess_data;
@@ -253,6 +196,6 @@ int apply_preprocess_rna(preprocess_rna_input_t* input, batch_t *batch) {
     free(minor_priority_fusion);
     //printf("END PREPROCESS RNA\n");
     if (time_on) { stop_timer(start, end, time); timing_add(time, RNA_PREPROCESS, timing); }
-    //printf("APPLY PREPROCESS RNA DONE!\n");
+    //printf("APPLY PREPROCESS RNA DONE!\n");*/
     return SW_STAGE;
 }

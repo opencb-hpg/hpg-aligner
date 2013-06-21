@@ -209,6 +209,11 @@ typedef struct mapping_batch {
   size_t num_to_do;
   unsigned char extra_stage_do;
   unsigned char was_process;
+
+  size_t num_gaps;
+  size_t num_sws;
+  size_t num_ext_sws;
+
   unsigned char *extra_stage_id;
   array_list_t *fq_batch;
   size_t *targets;

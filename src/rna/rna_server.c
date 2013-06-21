@@ -867,28 +867,115 @@ void search_splice_junctions_sw_output(sw_simd_input_t* input_p, sw_simd_output_
 
 
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
-  /*  mapping_batch_t *mapping_batch = batch->mapping_batch;
+  size_t max_intron_size = 1000000;
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
   size_t num_targets = mapping_batch->num_targets;
-  preprocess_data_t *preprocess_data = (preprocess_data_t *)batch->optional_data;
   size_t num_cals;
-  cal_t *cal;
+  cal_t *cal, *cal_prev, *cal_next;
   fastq_read_t *fq_read;
+  array_list_t *cals_list;/* =  array_list_new(MAX_RNA_CALS + 32,
+					    1.25f,
+					    COLLECTION_MODE_ASYNCHRONIZED);
+			  */
+  array_list_t *cigar_ops_list =  array_list_new(MAX_RNA_CALS + 32,
+						 1.25f,
+						 COLLECTION_MODE_ASYNCHRONIZED);
+  array_list_t *list_aux;
+
+  cigar_op_t *cigar_op;
+  int number_op;
+  char name_op[3];
+
+  int cal_pos, cal_orig, cal_target;
+  int negative_strand = 0;
+  int associate_cals[512];
+  int num_f_cals;
+  int f_cal;
+  int p;
+  seed_region_t *s;
+  int *delete_cals = (int *)calloc(512, sizeof(int));
+
+  printf("I am in RNA Server!!\n");  
 
   for (size_t t = 0; t < num_targets; t++) {
-    num_cals = preprocess_data->num_cal_targets[t];
+    cals_list = mapping_batch->mapping_lists[mapping_batch->targets[t]];
+
+    num_cals = array_list_size(cals_list);
     fq_read = array_list_get(t, mapping_batch->fq_batch);
     printf("%s\n", fq_read->id);
-    printf("Total CALs %i:\n", num_cals);
-    for (size_t c = 0; c < num_cals; c++) {
-      cal = (cal_t *)array_list_get(c, mapping_batch->mapping_lists[mapping_batch->targets[t]]);
-      printf("\tNum Seeds: %i, Flanks: [%i-%i], chr %i:(%i)[%lu-%lu]\n", cal->num_seeds, cal->flank_start, cal->flank_end, 
-	     cal->chromosome_id, cal->strand, cal->start, cal->end);
-    }
-    printf("\n");
-  }  
 
-  apply_sw_rna_1(input_p, batch);
-  */
+    /*
+    for (int j = 0; j < num_cals; j++) {
+      cal = mapping_batch->mapping_lists[mapping_batch->targets[t]];
+      array_list_insert(cal, cals_list);
+    }                                   **/
+ 
+
+
+    num_cals = array_list_size(cals_list);
+    printf("Total CALs %i:\n", num_cals);
+    for (int i = 0; i < num_cals; i++) {
+      cal_t *cal = array_list_get(i, cals_list);
+      printf("\tCAL%i:= Num Seeds: %i, chr %i:(%i)[%lu-%lu], Total Seeds Regions %lu: \n",i, cal->num_seeds,
+	     cal->chromosome_id, cal->strand, cal->start, cal->end, linked_list_size(cal->sr_list));
+
+      for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	seed_region_t *s = list_item->item;
+	printf("[%i|%i - %i|%i] -", s->genome_start, s->read_start, s->read_end, s->genome_end);
+	number_op = (s->genome_end - s->genome_start);
+	if  ((s->read_end - s->read_start) == number_op) {
+	  cigar_op = cigar_op_new(number_op + 1, 'M');
+	  array_list_insert(cigar_op, cigar_ops_list);
+	  printf(" Exact %i%c - \n", cigar_op->number, cigar_op->name);
+	} else {
+	  printf(" Inexact %i/%i SW - \n", (s->read_end - s->read_start), (s->genome_end - s->genome_start));
+	}
+	
+	if (list_item->next) {
+	  seed_region_t *s_next = list_item->next->item;
+	  number_op = (s_next->genome_start - s->genome_end);
+	  if  ((s_next->read_start - s->read_end) == number_op) {
+	    cigar_op = cigar_op_new(number_op - 1, 'M');
+	    array_list_insert(cigar_op , cigar_ops_list);
+	    printf(" Exact %i%c - \n", cigar_op->number, cigar_op->name);
+	  } else {
+	    printf(" Inexact %i/%i SW -\n", (s_next->read_start - s->read_end), (s_next->genome_start - s->genome_end));
+	  }
+	}
+
+      }
+
+      cigar_op = array_list_get(0, cigar_ops_list);
+      char op = cigar_op->name;
+      int value = cigar_op->number;
+      char *cigar = (char *)malloc(sizeof(char)*512);
+      char cigar_op_str[128];
+      cigar[0] = '\0';
+      for (int c = 1; c < array_list_size(cigar_ops_list); c++) {
+	printf("Value %i\n", value);
+	cigar_op = array_list_get(c, cigar_ops_list);
+	if (cigar_op->name == op) {
+	  value += cigar_op->number;
+	} else {
+	  sprintf(cigar_op_str, "%i%c\0", value, op);
+	  strcat(cigar, cigar_op_str);
+	}
+      }
+      sprintf(cigar_op, "%i%c\0", value, op);
+      strcat(cigar, cigar_op);
+
+      printf("End Merge seeds!!! Cigar %s\n", cigar);
+      printf("\n");
+      //array_list_clear(cigar_op_free, cigar_ops_list);
+      cigar_ops_list->size = 0;
+
+    }
+  }
+
+  printf("End RNA Server\n");
+
+  return POST_PAIR_STAGE;
+  
 }
 
 /*
