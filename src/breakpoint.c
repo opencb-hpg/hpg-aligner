@@ -88,6 +88,14 @@ int cigar_code_get_num_ops(cigar_code_t *p) {
 
 //--------------------------------------------------------------------------------------
 
+cigar_op_t *cigar_code_get_op(int index, cigar_code_t *p) {
+  int num_ops = cigar_code_get_num_ops(p);
+  if (num_ops > 0 && index < num_ops) {
+    return array_list_get(index, p->ops);
+  }
+  return NULL;
+}
+
 cigar_op_t *cigar_code_get_last_op(cigar_code_t *p) {
   int num_ops = cigar_code_get_num_ops(p);
   if (num_ops > 0) {
