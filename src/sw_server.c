@@ -442,7 +442,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, genome_t *genome) {
       s = (seed_region_t *) linked_list_iterator_curr(itr);
       while (s != NULL) {
 	LOG_DEBUG_F("\t\t%s (dist. %i)\t[%i|%i - %i|%i]\n", 
-		    (s->info ? cigar_code_get_string((cigar_code_t *) s->info) : "gap"),
+		    (s->info ? new_cigar_code_string((cigar_code_t *) s->info) : "gap"),
 		    (s->info ? ((cigar_code_t *) s->info)->distance : -1),
 		    s->genome_start, s->read_start, s->read_end, s->genome_end);
 	linked_list_iterator_next(itr);
@@ -544,7 +544,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   sw_optarg.subst_matrix['A']['C'] = input->mismatch; sw_optarg.subst_matrix['C']['C'] = input->match;    sw_optarg.subst_matrix['T']['C'] = input->mismatch; sw_optarg.subst_matrix['G']['C'] = input->mismatch;
   sw_optarg.subst_matrix['A']['G'] = input->mismatch; sw_optarg.subst_matrix['C']['T'] = input->mismatch; sw_optarg.subst_matrix['T']['T'] = input->match;    sw_optarg.subst_matrix['G']['T'] = input->mismatch;
   sw_optarg.subst_matrix['A']['T'] = input->mismatch; sw_optarg.subst_matrix['C']['G'] = input->mismatch; sw_optarg.subst_matrix['T']['G'] = input->mismatch; sw_optarg.subst_matrix['G']['G'] = input->match;
-  */
+
 
 
   sw_multi_output_t *output = sw_multi_output_new(sw_total);
