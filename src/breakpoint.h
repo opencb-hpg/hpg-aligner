@@ -3,6 +3,8 @@
 
 #include "containers/array_list.h"
 
+#include "bioformats/bam/alignment.h"
+
 //--------------------------------------------------------------------------------------
 
 //====================================================================================
@@ -11,21 +13,35 @@
 
 typedef struct cigar_op {
   int number;
-  char number_str[16];
+  //  char number_str[16];
   char name;
 } cigar_op_t;
-cigar_op_t *cigar_op_new(int number, char number_str[], char name);
+//cigar_op_t *cigar_op_new(int number, char number_str[], char name);
+cigar_op_t *cigar_op_new(int number, char name);
 void cigar_op_free(cigar_op_t *cigar_op);
 
 typedef struct cigar_code {
-  int num_ops;
-  int num_allocated_ops;
-  cigar_op_t *ops;
+  //  int num_ops;
+  //  int num_allocated_ops;
+  //  cigar_op_t *ops;
+  int distance;
   char *cigar_str;
+  array_list_t *ops;
 } cigar_code_t;
 
-cigar_code_t *cigar_code_new(char *cigar_str);
+cigar_code_t *cigar_code_new();
+cigar_code_t *cigar_code_new_by_string(char *cigar_str);
 void cigar_code_free(cigar_code_t* p);
+
+char *cigar_code_get_string(cigar_code_t *p);
+int cigar_code_get_num_ops(cigar_code_t *p);
+cigar_op_t *cigar_code_get_last_op(cigar_code_t *p);
+void cigar_code_inc_distance(int distance, cigar_code_t *p);
+void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
+
+cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
+				  unsigned int query_start, unsigned int query_len, 
+				  int *distance);
 
 //====================================================================================
 //  Input structure for breakpoint definition

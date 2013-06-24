@@ -67,309 +67,6 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 }
 
 //====================================================================================
-//  Smith-Waterman server main function
-//====================================================================================
-/*
-void sw_server(sw_server_input_t *input_p) {
-     int sw_id = omp_get_thread_num();
-     printf("sw_server (%i): START\n", sw_id);
-
-     unsigned int i, num_reads, num_cals, bytes;
-     char header_id[1024];
-     // lists and items
-     list_t *sw_list_p = input_p->sw_list_p;
-     list_item_t *sw_item_p = NULL;
-     sw_batch_t *sw_batch_p = NULL;
-     
-     list_item_t *item_p = NULL;
-     
-     list_t* write_list_p = input_p->write_list_p;
-     unsigned int write_size = input_p->write_size;
-     write_batch_t *write_batch_p = write_batch_new(write_size, MATCH_FLAG);
-          
-     // genome
-     char *ref_p;
-     unsigned int ref_len;
-     unsigned long int start, end;
-     genome_t *genome_p = input_p->genome_p;
-     
-     unsigned int flank_length = input_p->flank_length;
-     
-     // SIMD support for Smith-Waterman
-     float min_score = input_p->min_score;
-     unsigned int curr_depth = 0;
-     sw_simd_input_t *sw_input_p = sw_simd_input_new(SIMD_DEPTH);
-     sw_simd_output_t *sw_output_p = sw_simd_output_new(SIMD_DEPTH);
-     
-     sw_simd_context_t *context_p = sw_simd_context_new(input_p->match, input_p->mismatch, 
-							input_p->gap_open, input_p->gap_extend); 
-     
-     // for tracking what reads are being mapped successfully
-     unsigned int allocated_mapping_reads = 10000;
-     unsigned char *mapping_reads_p = (unsigned char*) calloc(allocated_mapping_reads, sizeof(unsigned char));
-     
-     // for tracking the current read, cal being processed using sw_channel_t
-     sw_channel_t *channel_p, *sw_channels_p = (sw_channel_t*) calloc(SIMD_DEPTH, sizeof(sw_channel_t));
-     
-     unsigned int header_len, read_len;
-     unsigned int total = 0, total_valids = 0, total_reads = 0;
-     char *header_id_match_p, *search_match_p, *quality_match_p, *cigar_p;
-     unsigned int len_id_header;
-     alignment_t *alignment_p;
-     cal_t *cal_p;
-     // main loop
-     while ( (sw_item_p = list_remove_item(sw_list_p)) != NULL ) {
-
-	  curr_depth = 0;
-	  
-	  if (timing_p != NULL) { timing_start(SW_SERVER, sw_id, timing_p); }
-	  
-	  sw_batch_p = (sw_batch_t*) sw_item_p->data_p;
-	  num_reads = sw_batch_p->num_reads;
-	  total_reads += num_reads;
-	  
-	  if (num_reads > allocated_mapping_reads) {
-	       allocated_mapping_reads = num_reads;
-	       mapping_reads_p = (unsigned char *) realloc(mapping_reads_p, 
-							   allocated_mapping_reads * sizeof(unsigned char));
-	  }
-	  memset(mapping_reads_p, 0, allocated_mapping_reads * sizeof(unsigned char));
-	  
-	  // for each read
-	  for (int i = 0; i < num_reads; i++) {
-	       read_len = strlen(sw_batch_p->allocate_reads_p[i]->sequence);
-	       header_len = strlen(sw_batch_p->allocate_reads_p[i]->id);
-
-	       // for each cal
-	       num_cals = array_list_size(sw_batch_p->allocate_cals_p[i]);
-	       for(int j = 0; j < num_cals; j++) {
-		    cal_p = array_list_get(j, sw_batch_p->allocate_cals_p[i]);
-		    start = cal_p->start - flank_length;
-		    end = cal_p->end + flank_length;
-		    printf("Id:%s\n", sw_batch_p->allocate_reads_p[i]->id);
-		    printf("\tProcess smith-waterman in coordenates: [%d - %d] - [chromosome %d] - [strand %d]\n", start, end, cal_p->chromosome_id, cal_p->strand);
-		    channel_p = &sw_channels_p[curr_depth];
-		    sw_channel_allocate_ref((unsigned int) end - start + 2, channel_p);
-		    
-		    genome_read_sequence_by_chr_index(channel_p->ref_p, cal_p->strand,
-						      cal_p->chromosome_id - 1, &start, &end, genome_p);
-		    
-		    printf("Read to mapped: %s\n", sw_batch_p->allocate_reads_p[i]->sequence);
-		    printf("Mapped to reference : %s\n", channel_p->ref_p);
-		    
-		    sw_channel_update(i, j, read_len, header_len, end - start + 1, channel_p);
-		    
-		    sw_simd_input_add(sw_batch_p->allocate_reads_p[i]->sequence, read_len,
-				      channel_p->ref_p, channel_p->ref_len, 
-				      curr_depth, sw_input_p);
-
-		    // if depth is full, run SMID Smith-Waterman
-		    if ((++curr_depth) == SIMD_DEPTH) {
-			 smith_waterman_simd(sw_input_p, sw_output_p, context_p);
-			 write_batch_p = process_sw_output(sw_output_p, sw_input_p, min_score, curr_depth, sw_channels_p, sw_batch_p, write_list_p, write_batch_p, write_size, sw_id, &total_valids, mapping_reads_p, genome_p);
-			 
-			 curr_depth = 0;
-		    }
-	       } // end of for 0..num_cals
-	  } // end of for 0..num_reads
-	  
-	  if (curr_depth > 0) {
-	       //printf("remaining smith-watermans = %i\n", curr_depth);
-	       i = channel_p->read_index;
-	       ref_p = channel_p->ref_p;
-	       ref_len = channel_p->ref_len;
-	       read_len = channel_p->read_len;
-	       
-	       for (int k = curr_depth; k < SIMD_DEPTH; k++) {
-		    sw_simd_input_add(sw_batch_p->allocate_reads_p[i]->sequence, read_len,
-				      ref_p, ref_len, 
-				      k, sw_input_p);
-	       }
-	       smith_waterman_simd(sw_input_p, sw_output_p, context_p);
-	       
-	       write_batch_p = process_sw_output(sw_output_p, sw_input_p, min_score, curr_depth, sw_channels_p, sw_batch_p, write_list_p, write_batch_p, write_size, sw_id, &total_valids, mapping_reads_p, genome_p);
-	       curr_depth = 0;
-	  }
-	  	  
-	  for (i = 0; i < num_reads; i++) {
-	       if (mapping_reads_p[i] == 0) {
-		    printf("****************** read %i NO MAPPED !!!\n", i);
-		    read_len = strlen(sw_batch_p->allocate_reads_p[i]->sequence);
-		    header_len = strlen(sw_batch_p->allocate_reads_p[i]->id);
-
-		    if ( write_batch_p->size > write_batch_p->allocated_size ) {
-		      item_p = list_item_new(0, WRITE_ITEM, write_batch_p);
-		      //if (time_on) { timing_stop(EXACT_SEEKER_INDEX, 0, timing_p); }
-		      list_insert_item(item_p, write_list_p);
-		      //if (time_on) { timing_start(EXACT_SEEKER_INDEX, 0, timing_p); }
-		      
-		      write_batch_p = write_batch_new(write_size, MATCH_FLAG);
-		    }
-		    
-		    search_match_p = (char *)malloc(sizeof(char)*(read_len + 1));
-		    memcpy(search_match_p, sw_batch_p->allocate_reads_p[i]->sequence, read_len);
-		    search_match_p[read_len] = '\0';
-		    
-		    quality_match_p = (char *)malloc(sizeof(char)*(read_len + 1));
-		    memcpy(quality_match_p, sw_batch_p->allocate_reads_p[i]->quality, read_len);
-		    quality_match_p[read_len] = '\0';
-		
-		    len_id_header = get_to_first_blank(sw_batch_p->allocate_reads_p[i]->id, header_len, &header_id);
-		    
-		    header_id_match_p = (char *)malloc(sizeof(char)*len_id_header);
-		    memcpy(header_id_match_p, &header_id, len_id_header);
-		    
-		    alignment_p = alignment_new();
-		    cigar_p = (char *)malloc(sizeof(char)*10);
-		    sprintf(cigar_p, "%d%c\0", read_len, 'X');
-		    //TODO:chromosome 0??
-		    
-		    alignment_init_single_end(header_id_match_p, search_match_p, quality_match_p, 0, 0, 0, cigar_p, 1, 255, 0, 0, alignment_p);
-
-		    //printf("seq: %s\n", alignment_p->sequence);
-		    ((alignment_t **)write_batch_p->buffer_p)[write_batch_p->size] = alignment_p;
-		    write_batch_p->size++;
-		      
-		    mapping_reads_p[i] = 2;
-	       } // end of if mapping_reads_p[i] == 0
-	  } // end of for 0..num_reads
-	  
-	  sw_batch_free(sw_batch_p);
-	  list_item_free(sw_item_p);
-	  
-	  if (timing_p != NULL) { timing_stop(SW_SERVER, sw_id, timing_p); }
-     } // end of while 
-     
-     // insert or free memory
-     if (write_batch_p != NULL) {
-	  if (write_batch_p->size > 0) {
-	       item_p = list_item_new(0, WRITE_ITEM, write_batch_p);
-	       list_insert_item(item_p, write_list_p);
-	  } else {
-	       write_batch_free(write_batch_p);
-	  }
-     }
-     
-     for(int k = 0; k < SIMD_DEPTH; k++) {
-	  free(sw_channels_p[k].ref_p);
-     }
-     free(sw_channels_p);
-     
-     sw_simd_input_free(sw_input_p);
-     sw_simd_output_free(sw_output_p);
-     sw_simd_context_free(context_p); 
-     
-     list_decr_writers(write_list_p);
-     
-     printf("sw_server: END (%i reads, %i smith-waterman -> %i valids)\n", total_reads, total, total_valids);
-}
-
-//------------------------------------------------------------------------------------
-
-write_batch_t* process_sw_output(sw_simd_output_t* sw_output_p, sw_simd_input_t* sw_input_p,
-				 float min_score, unsigned int depth, sw_channel_t* sw_channels_p,
-				 sw_batch_t* sw_batch_p, list_t* write_list_p, write_batch_t* write_batch_p, 
-				 unsigned int write_size, unsigned int sw_id, unsigned int* total_valids_p,
-				 unsigned char* mapping_reads_p, genome_t* genome_p) {
-
-     unsigned int i, j;
-     unsigned int header_len, read_len, mapped_len, bytes;
-     short int primary_alignment;
-     char header_id[1024];
-     char *header_match_p, *read_match_p, *quality_match_p;
-     char *cigar_p;
-     short int number_cigar_op;
-     alignment_t *alignment_p;
-     unsigned int chromosome;
-     unsigned int deletion_n;
-     list_item_t* item_p = NULL;
-     
-     printf(" ======================== Process Output SW =========================\n");
-     sw_simd_input_display(depth, sw_input_p);
-     sw_simd_output_display(depth, sw_output_p);
-     printf("======================================================================\n");
-     for (int k = 0; k < depth; k++) {
-	  
-	  read_len = sw_channels_p[k].read_len;
-	  mapped_len = sw_output_p->mapped_len_p[k];
-	  
-	  // is it a valid mapping ? && TODO:mapped_len >= read_len ??
-	  if (sw_output_p->norm_score_p[k] > min_score ) {
-	       
-	       i = sw_channels_p[k].read_index;
-	       j = sw_channels_p[k].cal_index;
-	       
-	       
-	       (*total_valids_p)++;
-	       
-	       // process valid alignment: sam format and save into batch to write
-	        header_len = sw_channels_p[k].header_len;
-	        if ( write_batch_p->size > write_batch_p->allocated_size ) {
-		  item_p = list_item_new(0, WRITE_ITEM, write_batch_p);
-		  //if (time_on) { timing_stop(EXACT_SEEKER_INDEX, 0, timing_p); }
-		  list_insert_item(item_p, write_list_p);
-		  //if (time_on) { timing_start(EXACT_SEEKER_INDEX, 0, timing_p); }
-		  
-		  write_batch_p = write_batch_new(write_size, MATCH_FLAG);
-		  
-		}
-		
-		deletion_n = 0;
-		for(int i = 0; i < mapped_len; i++){
-		  if( sw_output_p->mapped_seq_p[k][i] == '-'){
-		    deletion_n++;
-		  }
-		}
-		
-		if(mapping_reads_p[i] == 1){
-		    primary_alignment = 1;
-		}else{
-		    primary_alignment = 0;
-		}
-		alignment_p = alignment_new();
-		
-		
-		header_len = get_to_first_blank(sw_batch_p->allocate_reads_p[i]->id, header_len, header_id);
-		header_match_p = (char *)malloc(sizeof(char)*(header_len + 1));
-		memcpy(header_match_p, &header_id, header_len);
-		header_match_p[header_len] = '\0';
-		printf("%d deletion\n", deletion_n);
-		
-		
-		read_match_p = (char *)malloc(sizeof(char)*(mapped_len + 1));
-		memcpy(read_match_p, sw_batch_p->allocate_reads_p[i]->sequence + sw_output_p->start_seq_p[k], mapped_len - deletion_n);
-		read_match_p[mapped_len - deletion_n ] = '\0';
-		printf("%s\n", read_match_p);
-		
-		quality_match_p = (char *)malloc(sizeof(char)*(mapped_len + 1));
-		memcpy(quality_match_p, sw_batch_p->allocate_reads_p[i]->quality + sw_output_p->start_seq_p[k], mapped_len - deletion_n);
-		quality_match_p[mapped_len - deletion_n] = '\0';
-		//printf("%s\n", quality_match_p);
-		
-		cigar_p =  generate_cigar_str(sw_output_p->mapped_seq_p[k], sw_output_p->mapped_ref_p[k], sw_output_p->start_seq_p[k], sw_input_p->seq_len_p[k], sw_output_p->mapped_len_p[k], &number_cigar_op);
-		printf("Generate cigar end\n");
-		printf("chromosome %d\n", ((cal_t *)array_list_get(j, sw_batch_p->allocate_cals_p[i]))->chromosome_id );
-		printf("cigar_p(%d)=%s\n", number_cigar_op, cigar_p);
-		
-		
-		alignment_init_single_end(header_match_p, read_match_p, quality_match_p, ((cal_t *)array_list_get(j, sw_batch_p->allocate_cals_p[i]))->strand, ((cal_t *)array_list_get(j, sw_batch_p->allocate_cals_p[i]))->chromosome_id - 1, ((cal_t *)array_list_get(j, sw_batch_p->allocate_cals_p[i]))->start, cigar_p, number_cigar_op, 255, primary_alignment, 1, alignment_p);
-		//printf("seq: %s\n", alignment_p->sequence);
-		
-		((alignment_t **)write_batch_p->buffer_p)[write_batch_p->size] = alignment_p;
-		write_batch_p->size++;
-		mapping_reads_p[i] = 1;
-	           
-	  } // end of if norm_score
-	  
-	  // free mapped sequence and reference
-	  free(sw_output_p->mapped_seq_p[k]);
-	  free(sw_output_p->mapped_ref_p[k]);
-     } // end of for 0..depth
-     
-     return write_batch_p;
-}
-*/
-//====================================================================================
 //  Smith-Waterman channel for SIMD implementation
 //====================================================================================
 
@@ -399,20 +96,360 @@ inline void sw_channel_update(size_t read_index, unsigned int cal_index, unsigne
 }
 
 //====================================================================================
-// apply_sw
+// main sw function
 //====================================================================================
-//int unmapped_by_score_counter[100];
 
-//FILE *fd_ref = NULL, *fd_query = NULL;
+void set_sw_sequences(char **q, char **r, size_t sw_count, char *sequence, 
+		      genome_t *genome, int chromosome, seed_region_t *sr) {
+  int gap_len;
+
+  // get query sequence, revcomp if necessary
+  gap_len = sr->read_end - sr->read_start + 1;
+  q[sw_count] = (char *) malloc((gap_len + 1) * sizeof(char));
+  memcpy(q[sw_count], &sequence[sr->read_start], gap_len);
+  q[sw_count][gap_len] = '\0';
+
+  // get ref. sequence
+  gap_len = sr->genome_end - sr->genome_start + 1;
+  r[sw_count] = (char *) malloc((gap_len + 1) * sizeof(char));
+  genome_read_sequence_by_chr_index(r[sw_count], 0, chromosome, 
+  				    &sr->genome_start, &sr->genome_end, genome);
+  r[sw_count][gap_len] = '\0';
+}
+
+//------------------------------------------------------------------------------------
+
+void fill_gaps(mapping_batch_t *mapping_batch, genome_t *genome, int seed_size) {
+
+  int sw_count = 0;
+
+  fastq_read_t *fq_read;
+  array_list_t *fq_batch = mapping_batch->fq_batch;
+
+  size_t read_index, read_len;
+
+  cal_t *cal;
+  array_list_t *cal_list = NULL;
+  size_t num_cals, num_targets = mapping_batch->num_targets;
+
+  char *revcomp_seq = NULL;
+
+  seed_region_t *s, *prev_s, *new_s;
+  linked_list_iterator_t* itr;
+
+  cigar_code_t *cal_cigar_code, *cigar_code;
+
+  size_t gap_read_start, gap_read_end, gap_read_len;
+  size_t gap_genome_start, gap_genome_end, gap_genome_len;
+
+  //  LOG_DEBUG("\n\n P R E   -   P R O C E S S\n");
+
+  // initialize query and reference sequences to Smith-Waterman
+  for (size_t i = 0; i < num_targets; i++) {
+
+    read_index = mapping_batch->targets[i];
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+
+    cal_list = mapping_batch->mapping_lists[read_index];
+    num_cals = array_list_size(cal_list);
+    
+    if (num_cals <= 0) continue;
+
+    read_len = fq_read->length;
+
+    // processing each CAL from this read
+    for(size_t j = 0; j < num_cals; j++) {
+
+      // get cal and read index
+      cal = array_list_get(j, cal_list);
+      LOG_DEBUG_F("CAL #%i of %i (strand %i), sr_list size = %i\n", j, num_cals, cal->strand, cal->sr_list->size);
+
+      prev_s = NULL;
+      itr = linked_list_iterator_new(cal->sr_list);
+      s = (seed_region_t *) linked_list_iterator_curr(itr);
+      while (s != NULL) {
+	LOG_DEBUG_F("\tseed: [%i|%i - %i|%i]\n", 
+		    s->genome_start, s->read_start, s->read_end, s->genome_end);
+
+	// set the cigar for the current region
+	gap_read_len = s->read_end - s->read_start + 1;
+	cigar_code = cigar_code_new();
+	cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
+	s->info = (void *) cigar_code;
+
+	cigar_code = NULL;
+
+	if ((prev_s == NULL && s->read_start != 0) || (prev_s != NULL)) {
+	  mapping_batch->num_gaps++;
+	  if (prev_s == NULL) {
+	    // gap at the first position
+	    gap_read_start = 0;
+	    gap_read_end = s->read_start - 1;
+
+	    gap_genome_start = s->genome_start - s->read_start;
+	    gap_genome_end = s->genome_start - 1;
+
+	    gap_read_len = gap_read_end - gap_read_start + 1;
+	    gap_genome_len = gap_genome_end - gap_genome_start + 1;
+
+	    if (gap_read_len > seed_size) {
+	      // the gap is too big, may be there's another CAL to cover it
+	      cigar_code = cigar_code_new();
+	      cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
+	    }
+	  } else {
+	    assert(prev_s->read_end < s->read_start);
+
+	    // gap in a middle position
+	    gap_read_start = prev_s->read_end + 1;
+	    gap_read_end = s->read_start - 1;
+
+	    gap_genome_start = prev_s->genome_end + 1;
+	    gap_genome_end = s->genome_start - 1;
+
+	    gap_read_len = gap_read_end - gap_read_start + 1;
+	    gap_genome_len = gap_genome_end - gap_genome_start + 1;
+	  }
+
+	  if (!cigar_code) {
+	    // we have to try to fill this gap and get a cigar
+	    if (gap_read_len == gap_genome_len) {
+
+	      //    1) first, for from  begin -> end, and begin <- end
+	      int distance, first = -1, last = -1;
+	      char *query;
+	      char *ref = (char *) malloc((gap_genome_len + 1) * sizeof(char));;
+	      genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
+						&gap_genome_start, &gap_genome_end, genome);
+	      // handle strand -
+	      if (cal->strand) {
+		if (revcomp_seq == NULL) {
+		  revcomp_seq = strdup(fq_read->sequence);
+		  seq_reverse_complementary(revcomp_seq, read_len);
+		}
+		query = &revcomp_seq[gap_read_start];
+	      } else {
+		query = &fq_read->sequence[gap_read_start];
+	      }
+	      
+	      //LOG_DEBUG_F("query: %s\n", query);
+	      //LOG_DEBUG_F("ref  : %s\n", ref);
+	      distance = 0;
+	      for (int k = 0; k < gap_read_len; k++) {
+		if (query[k] != ref[k]) {
+		  distance++;
+		  if (first == -1) first = k;
+		  last = k;
+		}
+	      }
+	      LOG_DEBUG_F("dist.: %i of %i (first = %i, last = %i)\n", distance, gap_read_len, first, last);
+	      if (distance <= 5) {
+		cigar_code = cigar_code_new();
+		cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
+		cigar_code_inc_distance(distance, cigar_code);
+	      }
+	      
+	      // free memory
+	      free(ref);
+	    }
+	    if (!cigar_code) {
+	      //    2) second, prepare SW to run
+
+	      // get query sequence, revcomp if necessary
+	      size_t read_start = gap_read_start - left_flank;
+	      size_t read_end = gap_read_end + right_flank;
+	      int gap_read_len_ex = read_end - read_start + 1;
+	      char *query = (char *) malloc((gap_read_len_ex + 1) * sizeof(char));
+	      // handle strand -
+	      if (cal->strand) {
+		if (revcomp_seq == NULL) {
+		  revcomp_seq = strdup(fq_read->sequence);
+		  seq_reverse_complementary(revcomp_seq, read_len);
+		}
+		memcpy(query, &revcomp_seq[read_start], gap_read_len_ex);
+	      } else {
+		memcpy(query, &fq_read->sequence[read_start] gap_read_len_ex);
+	      }
+	      query[gap_read_len_len] = '\0';
+
+	      // get ref. sequence
+	      size_t genome_start = gap_genome_start - left_flank;
+	      size_t genome_end = gap_genome_end + right_flank;
+	      int gap_genome_len_ex = genome_end - genome_start + 1;
+	      char *ref = (char *) malloc((gap_genome_len_ex + 1) * sizeof(char));;
+	      genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
+						&start, &end, genome);
+	      
+	      array_list_insert(query, queries_list);
+	      array_list_insert(ref, refs_list);
+
+	      // increase counter
+	      sw_count++;	  
+	    }
+	  }
+	  
+	  // insert gap in the list
+	  new_s = seed_region_new(gap_read_start, gap_read_end, gap_genome_start, gap_genome_end, 0);
+	  new_s->info = (void *) cigar_code;
+	  linked_list_iterator_insert(new_s, itr);
+	}
+
+	// continue loop...
+	prev_s = s;
+	linked_list_iterator_next(itr);
+	s = linked_list_iterator_curr(itr);
+      }
+
+      // check for a gap at the last position
+      if (prev_s != NULL && prev_s->read_end < read_len - 1) { 
+	//	LOG_DEBUG("\tgap at the last position...");
+	cigar_code = NULL;
+	mapping_batch->num_gaps++;
+	//	mapping_batch->num_sws++;
+	//	mapping_batch->num_ext_sws++;
+
+	// gap at the last position
+	gap_read_start = prev_s->read_end + 1;
+	gap_read_end = read_len - 1;
+	gap_read_len = gap_read_end - gap_read_start + 1;
+	
+	gap_genome_len = gap_read_len;
+	gap_genome_start = prev_s->genome_end + 1;
+	gap_genome_end = gap_genome_start + gap_genome_len - 1;
+
+	//	LOG_DEBUG_F("\t\tgap_read_len = %i, gap_genome_len = %i\n", gap_read_len, gap_genome_len);
+	//	LOG_DEBUG_F("\t\t%i of %i: [%lu|%lu - %lu|%lu]\n", 
+	//		    sw_count, sw_total, gap_genome_start, gap_read_start, gap_read_end, gap_genome_end);
+
+	if (gap_read_len > seed_size) {
+	  // the gap is too big, may be there's another CAL to cover it
+	  cigar_code = cigar_code_new();
+	  cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
+	} else {
+	  // we have to try to fill this gap and get a cigar
+	  
+	  //    1) first, for from  begin -> end, and begin <- end
+	  int distance, first = -1, last = -1;
+	  char *query;
+	  char *ref = (char *) malloc((gap_genome_len + 1) * sizeof(char));;
+	  genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
+					    &gap_genome_start, &gap_genome_end, genome);
+	  // handle strand -
+	  if (cal->strand) {
+	    if (revcomp_seq == NULL) {
+	      revcomp_seq = strdup(fq_read->sequence);
+	      seq_reverse_complementary(revcomp_seq, read_len);
+	    }
+	    query = &revcomp_seq[gap_read_start];
+	  } else {
+	    query = &fq_read->sequence[gap_read_start];
+	  }
+	  
+	  LOG_DEBUG_F("query: %s\n", query);
+	  LOG_DEBUG_F("ref  : %s\n", ref);
+	  distance = 0;
+	  for (int k = 0; k < gap_read_len; k++) {
+	    if (query[k] != ref[k]) {
+	      distance++;
+	      if (first == -1) first = k;
+	      last = k;
+	    }
+	  }
+	  LOG_DEBUG_F("dist.: %i of %i (first = %i, last = %i)\n", distance, gap_read_len, first, last);
+	  if (distance <= 5) {
+	    cigar_code = cigar_code_new();
+	    cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
+	    cigar_code_inc_distance(distance, cigar_code);
+	  } else {
+	    //    2) second, prepare SW to run
+
+
+	    // increase counter
+	    sw_count++;	  
+	  }
+	}
+	
+	// insert gap in the list
+	new_s = seed_region_new(gap_read_start, gap_read_end, gap_genome_start, gap_genome_end, 0);
+	new_s->info = (void *) cigar_code;
+	linked_list_insert_last(new_s, cal->sr_list);
+      }
+      linked_list_iterator_free(itr);
+      
+      LOG_DEBUG("\tUpdated list:");
+      itr = linked_list_iterator_new(cal->sr_list);
+      s = (seed_region_t *) linked_list_iterator_curr(itr);
+      while (s != NULL) {
+	LOG_DEBUG_F("\t\t%s (dist. %i)\t[%i|%i - %i|%i]\n", 
+		    (s->info ? cigar_code_get_string((cigar_code_t *) s->info) : "gap"),
+		    (s->info ? ((cigar_code_t *) s->info)->distance : -1),
+		    s->genome_start, s->read_start, s->read_end, s->genome_end);
+	linked_list_iterator_next(itr);
+	s = linked_list_iterator_curr(itr);
+      }
+      linked_list_iterator_free(itr);
+    }
+
+    // free memory
+    if (revcomp_seq) {
+      free(revcomp_seq);
+      revcomp_seq = NULL;
+    }
+  }
+
+  LOG_DEBUG_F("R U N   S W (sw_count = %i)\n", sw_count);
+  
+  /*
+  //  LOG_DEBUG_F("R U N   S W (sw_total = %i, sw_count = %i)\n", sw_total, sw_count);
+  assert(mapping_batch->num_sws == sw_count);
+  //  mapping_batch->num_gaps += sw_total;
+
+  // run Smith-Waterman
+  //  smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+  smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+
+  //  LOG_DEBUG("\n\n P O S T   -   P R O C E S S\n");
+
+  // re-construct the CAL score from region gaps
+  sw_count = 0;
+  int header_len, mquery_start, mref_start;
+  char *header_match, *read_match, *quality_match;
+  char *p, *optional_fields;
+  int pos, optional_fields_length, distance, AS, first, cigar_number;
+
+  cigar_op_t* cigar_op;
+  cigar_code_t *cigar_code;
+
+  alignment_t *alignment;
+  array_list_t *alignment_list;
+
+  for (size_t i = 0; i < num_targets; i++) {
+    
+    //    LOG_DEBUG_F("targets %i of %i\n", i, num_targets);
+    
+    read_index = mapping_batch->targets[i];
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
+    cal_list = mapping_batch->mapping_lists[read_index];
+    num_cals = array_list_size(cal_list);
+    
+    //    LOG_DEBUG_F("read_index =  %i, num_cals = %i\n", read_index, num_cals);
+    */
+}
+  
+//------------------------------------------------------------------------------------
+// apply_sw
+//------------------------------------------------------------------------------------
 
 int apply_sw(sw_server_input_t* input, batch_t *batch) {
 
-  //  if (fd_ref == NULL) { fd_ref = fopen("sw_ref2.txt", "w"); }
-  //  if (fd_query == NULL) { fd_query = fopen("sw_query2.txt", "w"); }
-
-  //  printf("START: apply_sw\n"); 
-  int tid = omp_get_thread_num();
   mapping_batch_t *mapping_batch = batch->mapping_batch;
+  genome_t *genome = input->genome_p;
+
+  fill_gaps(mapping_batch, genome, 20);
+  /*
+
+  int tid = omp_get_thread_num();
   cal_t *cal = NULL;
   array_list_t *cal_list = NULL, *mapping_list = NULL;//, *old_list = NULL, *new_list = NULL;
 
@@ -420,29 +457,13 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   fastq_read_t *fq_read;
 
   size_t start, end;
-  genome_t *genome = input->genome_p;
      
   size_t flank_length = input->flank_length;
 
   // SIMD support for Smith-Waterman
-  float score, min_score = input->min_score;
-  //  size_t curr_depth = 0;
-  sw_output_t *sw_output;
-  //  sw_simd_input_t *sw_sinput = sw_simd_input_new(SIMD_DEPTH);
-  //  sw_simd_output_t *sw_soutput = sw_simd_output_new(SIMD_DEPTH);
-  //sw_simd_context_t *context = sw_simd_context_new(input->match, input->mismatch, 
-  //						    input->gap_open, input->gap_extend); 
-
-  // for tracking the current read, cal being processed using sw_channel_t
-  //sw_channel_t *channel;
-  //sw_channel_t sw_channels[SIMD_DEPTH];
-  //memset(sw_channels, 0, sizeof(sw_channels));
-  
-  //size_t header_len, read_len;
-  //size_t strands[SIMD_DEPTH], chromosomes[SIMD_DEPTH], starts[SIMD_DEPTH];
+  float score, norm_score, min_score = input->min_score;
   
   size_t read_index, num_cals;
-  //  size_t total = 0, valids = 0;
 
   size_t num_targets = mapping_batch->num_targets;
   size_t new_num_targets = 0;
@@ -451,15 +472,6 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
 
   // set to zero
   mapping_batch->num_to_do = 0;
-
-  /*
-  // for all seqs pending to process !!
-  size_t sw_total = 0;
-  for (size_t i = 0; i < num_seqs; i++) {
-    sw_total += array_list_size(batch->mapping_lists[batch->targets[i]]);
-  }
-  printf("number of sw to run: %d (vs num_done = %d)\n", sw_total, batch->num_done);
-  */
 
   sw_optarg_t *sw_optarg = &input->sw_optarg;
 
@@ -473,204 +485,360 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   sw_optarg.subst_matrix['A']['T'] = input->mismatch; sw_optarg.subst_matrix['C']['G'] = input->mismatch; sw_optarg.subst_matrix['T']['G'] = input->mismatch; sw_optarg.subst_matrix['G']['G'] = input->match;
   */
 
+
   sw_multi_output_t *output = sw_multi_output_new(sw_total);
   char *q[sw_total], *r[sw_total];
-  uint8_t strands[sw_total], chromosomes[sw_total];
-  size_t starts[sw_total];
-  size_t sw_count = 0, read_indices[sw_total];
+  int sw_count = 0, run_sw;
   int read_len, ref_len, max_ref_len;
+  int gap_read_len, gap_genome_len;
+  size_t gap_read_start, gap_read_end, gap_genome_start, gap_genome_end;
 
-  // debugging: to kown how many reads are not mapped by SW score
-  //  int unmapped_by_score[fq_batch->num_reads];
-  //  memset(unmapped_by_score, 0, fq_batch->num_reads * sizeof(int));
+  seed_region_t *s, *prev_s, *new_s;
+  linked_list_iterator_t* itr;
 
-  //  printf("num of sw to do: %i\n", sw_total);
+  char *revcomp_seq;
+
+  //  LOG_DEBUG("\n\n P R E   -   P R O C E S S\n");
 
   // initialize query and reference sequences to Smith-Waterman
   for (size_t i = 0; i < num_targets; i++) {
-    //    printf("sw_server: target #%i of %i\n", i, num_seqs);
 
     read_index = mapping_batch->targets[i];
     fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
-
-    //    printf("sw_server: read #%i\n", read_index);
 
     cal_list = mapping_batch->mapping_lists[read_index];
     num_cals = array_list_size(cal_list);
 
     read_len = fq_read->length;
-    //    max_ref_len = read_len + (read_len / 2);
 
-    //    printf("sw_server: num_cals = %i cals\n", num_cals);
+    revcomp_seq = strdup(fq_read->sequence);
+    seq_reverse_complementary(revcomp_seq, read_len);
+
+    //    LOG_DEBUG_F("%s: seq : %s\n", fq_read->id, fq_read->sequence);
 
     // processing each CAL from this read
     for(size_t j = 0; j < num_cals; j++) {
 
       // get cal and read index
       cal = array_list_get(j, cal_list);
-      read_indices[sw_count] = read_index;
 
+      //      LOG_DEBUG_F("cal %i of %i (strand %i)\n", j, num_cals, cal->strand);
 
-      if (flank_length >= cal->start) {
-        start = 0;
-      } else {
-        start = cal->start - flank_length;
-      }
+      prev_s = NULL;
 
-      end = cal->end + flank_length;
-      if (end >= genome->chr_size[cal->chromosome_id - 1]) {
-        end = genome->chr_size[cal->chromosome_id - 1] - 1;
-      }
+      itr = linked_list_iterator_new(cal->sr_list);
+      s = (seed_region_t *) linked_list_iterator_curr(itr);
+      while (s != NULL) {
+	//	LOG_DEBUG_F("\tseed: [%i|%i - %i|%i]\n", 
+	//		    s->genome_start, s->read_start, s->read_end, s->genome_end);
 
-      ref_len = end - start + 2;
-      //      if (ref_len < max_ref_len) {
+	if ((prev_s == NULL && s->read_start != 0) || (prev_s != NULL)) {
+	  mapping_batch->num_gaps++;
+	  run_sw = 0;
+	  if (prev_s == NULL) {
+	    // gap at the first position
+	    gap_read_start = 0;
+	    gap_read_end = s->read_start - 1;
 
-	// query sequence, revcomp if necessary
-	q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
-	memcpy(q[sw_count], fq_read->sequence, read_len);
-	if (cal->strand == 1) {
-	  seq_reverse_complementary(q[sw_count], read_len);
+	    gap_genome_start = s->genome_start - s->read_start;
+	    gap_genome_end = s->genome_start - 1;
+
+	    gap_read_len = gap_read_end - gap_read_start + 1;
+	    gap_genome_len = gap_genome_end - gap_genome_start + 1;
+
+	    // always run a SW in this case
+	    run_sw = 1;
+	    mapping_batch->num_ext_sws++;
+	  } else {
+	    assert(prev_s->read_end < s->read_start);
+
+	    // gap in a middle position
+	    gap_read_start = prev_s->read_end + 1;
+	    gap_read_end = s->read_start - 1;
+
+	    gap_genome_start = prev_s->genome_end + 1;
+	    gap_genome_end = s->genome_start - 1;
+
+	    gap_read_len = gap_read_end - gap_read_start + 1;
+	    gap_genome_len = gap_genome_end - gap_genome_start + 1;
+
+	    // only run a SW if gaps have different lengths
+	    if (gap_read_len != gap_genome_len) {
+	      run_sw = 1;
+	    }
+	  }
+	  
+	  //	  LOG_DEBUG_F("\t\tgap_read_len = %i, gap_genome_len = %i\n", gap_read_len, gap_genome_len);
+	  //	  LOG_DEBUG_F("\t\t%i of %i: [%lu|%lu - %lu|%lu]\n", 
+	  //		      sw_count, sw_total, gap_genome_start, gap_read_start, gap_read_end, gap_genome_end);
+
+	  // insert gap in the list
+	  new_s = seed_region_new(gap_read_start, gap_read_end, gap_genome_start, gap_genome_end, 0);
+	  new_s->gap = 1;
+	  linked_list_iterator_insert(new_s, itr);
+
+	  if (run_sw == 1) {
+	    mapping_batch->num_sws++;
+	    new_s->run_sw = 1;
+	    
+	    // generate sequences for sw
+	    if (cal->strand == 1) {
+	      set_sw_sequences(q, r, sw_count, revcomp_seq, genome, cal->chromosome_id - 1, new_s);
+	    } else {
+	      set_sw_sequences(q, r, sw_count, fq_read->sequence, genome, cal->chromosome_id - 1, new_s);
+	    }
+	    
+	    //	  LOG_DEBUG_F("\t\tquery-seq : %s\n", q[sw_count]);
+	    //	  LOG_DEBUG_F("\t\tref-seq   : %s\n", r[sw_count]);
+	    
+	    // increase counter
+	    sw_count++;	  
+	  }
 	}
-	//q[sw_count] = &(fq_batch->seq[fq_batch->data_indices[index]]);
-	
-	// reference sequence
-	//printf("\tSW: %d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", j, cal->chromosome_id, cal->strand, cal->start, cal->end);
-	
-	r[sw_count] = calloc(1, end - start + 2);
-	genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
-					  cal->chromosome_id - 1, &start, &end, genome);
-	
-	// save some stuff, we'll use them after...
-	strands[sw_count] = cal->strand;
-	chromosomes[sw_count] = cal->chromosome_id;
-	starts[sw_count] = start;
-	
-	//      if ( strchr(r[sw_count], 'N') == NULL && strlen(r[sw_count]) < (strlen(q[sw_count]) + (strlen(q[sw_count])/2)) ) {
-	//	fprintf(fd_ref, "%s\n", r[sw_count]);
-	//	fprintf(fd_query, "%s\n", q[sw_count]);
-	//      }
-	
-	/*
-	  printf("\tread #%i (sw #%i of %i):\n", index, sw_count, sw_total);
-	  printf("\t\tquery: %s (%i)\n\t\tref  : %s (%i)\n\n", 
-	  q[sw_count], strlen(q[sw_count]), r[sw_count], strlen(r[sw_count]));
-	*/
-	// increase counter
-	sw_count++;
-	//      } else {
-	//	printf("ref_len = %i (max. %i)\n", ref_len, max_ref_len);
-	//      }
-    }
 
-    // free cal_list
-    array_list_clear(cal_list, (void *) cal_free);
-    //    batch->mapping_lists[index] = NULL;
+	//continue loop...
+	prev_s = s;
+	linked_list_iterator_next(itr);
+	s = linked_list_iterator_curr(itr);
+      }
+
+      if (prev_s != NULL && prev_s->read_end < read_len - 1) { 
+	//	LOG_DEBUG("\tgap at the last position...");
+	mapping_batch->num_gaps++;
+	mapping_batch->num_sws++;
+	mapping_batch->num_ext_sws++;
+
+	// gap at the last position
+	gap_read_start = prev_s->read_end + 1;
+	gap_read_end = read_len - 1;
+	gap_read_len = gap_read_end - gap_read_start + 1;
+	
+	gap_genome_len = gap_read_len;
+	gap_genome_start = prev_s->genome_end + 1;
+	gap_genome_end = gap_genome_start + gap_genome_len - 1;
+
+	//	LOG_DEBUG_F("\t\tgap_read_len = %i, gap_genome_len = %i\n", gap_read_len, gap_genome_len);
+	//	LOG_DEBUG_F("\t\t%i of %i: [%lu|%lu - %lu|%lu]\n", 
+	//		    sw_count, sw_total, gap_genome_start, gap_read_start, gap_read_end, gap_genome_end);
+
+	// insert gap in the list
+	new_s = seed_region_new(gap_read_start, gap_read_end, gap_genome_start, gap_genome_end, 0);
+	new_s->gap = 1;
+	new_s->run_sw = 1;
+	linked_list_insert_last(new_s, cal->sr_list);
+	
+	// generate sequences for sw
+	if (cal->strand == 1) {
+	  set_sw_sequences(q, r, sw_count, revcomp_seq, genome, cal->chromosome_id - 1, new_s);
+	} else {
+	  set_sw_sequences(q, r, sw_count, fq_read->sequence, genome, cal->chromosome_id - 1, new_s);
+	}
+	
+	//	LOG_DEBUG_F("\t\tquery-seq : %s\n", q[sw_count]);
+	//	LOG_DEBUG_F("\t\tref-seq   : %s\n", r[sw_count]);
+	
+	// increase counter
+	sw_count++;	  
+      }
+      linked_list_iterator_free(itr);
+
+
+      //      LOG_DEBUG("\tUpdated list:");
+      //itr = linked_list_iterator_new(cal->sr_list);
+      //s = (seed_region_t *) linked_list_iterator_curr(itr);
+      //while (s != NULL) {
+	//	LOG_DEBUG_F("\t\t%s [%i|%i - %i|%i]\n", (s->gap ? "gap   " : "region"),
+	//		    s->genome_start, s->read_start, s->read_end, s->genome_end);
+//	linked_list_iterator_next(itr);
+//	s = linked_list_iterator_curr(itr);
+//      }
+//      linked_list_iterator_free(itr);
+
+    }
+    // free memory
+    free(revcomp_seq);
   }
+
+  //  LOG_DEBUG_F("R U N   S W (sw_total = %i, sw_count = %i)\n", sw_total, sw_count);
+  assert(mapping_batch->num_sws == sw_count);
+  //  mapping_batch->num_gaps += sw_total;
 
   // run Smith-Waterman
-  //  printf("before smith_waterman: sw_total = %i, sw_count = %i\n", sw_total, sw_count);
+  //  smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
   smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
-  //  printf("after smith_waterman\n");
 
-  /*
-  // debugging
-  {
-    FILE *fd = fopen("sw.out", "w");
-    sw_multi_output_save(sw_total, output, fd);
-    fclose(fd);
-  }
-  */
-  double norm_score;
-  // filter alignments by min_score
-  for (size_t i = 0; i < sw_count; i++) {
+  //  LOG_DEBUG("\n\n P O S T   -   P R O C E S S\n");
 
-    //    score = output->score_p[i] / (strlen(output->query_map_p[i]) * input->match);
-    //    if (score >= min_score) {
-    /*
-    printf("--------------------------------------------------------------\n");
-    printf("Smith-Waterman results: read_indices = %i\n", read_indices[i]);
-    //    printf("id\t%s\n", &(batch->fq_batch->header[batch->fq_batch->header_indices[read_indices[i]]]));
-    printf("ref\n%s\n", r[i]);
-    printf("query\n%s\n", q[i]);
-    printf("map\n%s\n", output->ref_map_p[i]);
-    printf("ref: chr = %d, strand = %d, start = %d, len = %d\n", chromosomes[i], strands[i], starts[i], strlen(r[i]));
-    printf("query-map-start = %d, ref-map-start = %d\n", 
-	   output->query_start_p[i], output->ref_start_p[i]);
-    printf("score = %0.2f (min. score = %0.2f)\n", output->score_p[i], min_score);
-    printf("--------------------------------------------------------------\n");
-    */
+  // re-construct the CAL score from region gaps
+  sw_count = 0;
+  int header_len, mquery_start, mref_start;
+  char *header_match, *read_match, *quality_match;
+  char *p, *optional_fields;
+  int pos, optional_fields_length, distance, AS, first, cigar_number;
 
-    read_index = read_indices[i];
+  cigar_op_t* cigar_op;
+  cigar_code_t *cigar_code;
+
+  alignment_t *alignment;
+  array_list_t *alignment_list;
+
+  for (size_t i = 0; i < num_targets; i++) {
+    
+    //    LOG_DEBUG_F("targets %i of %i\n", i, num_targets);
+    
+    read_index = mapping_batch->targets[i];
     fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
+    cal_list = mapping_batch->mapping_lists[read_index];
+    num_cals = array_list_size(cal_list);
+    
+    //    LOG_DEBUG_F("read_index =  %i, num_cals = %i\n", read_index, num_cals);
 
     read_len = fq_read->length;
-    norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
+    header_match = (char *) calloc(strlen(fq_read->id) + 1, sizeof(char));
+    header_len = get_to_first_blank(fq_read->id, strlen(fq_read->id), header_match);
+    header_match[header_len] = '\0';    
 
-    /*
-    LOG_DEBUG_F("ref. map : %s (start: %i)\n", 
-		output->ref_map_p[i], output->ref_start_p[i]);
-    LOG_DEBUG_F("query map: %s (start: %i)\n", 
-		output->query_map_p[i], output->query_start_p[i]);
-    LOG_DEBUG("\n");
-    */
+    alignment_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+    array_list_set_flag(1, alignment_list);
 
-    if (norm_score >= min_score) {
-      // valid mappings, 
-      //insert in the list for further processing
-      mapping_list = mapping_batch->mapping_lists[read_index];
-      array_list_set_flag(0, mapping_list);
+    // processing each CAL from this read
+    score = 0.0f;
+    for(size_t j = 0; j < num_cals; j++) {
+      // get cal and read index
+      cal = array_list_get(j, cal_list);
 
-      if (array_list_size(mapping_list) == 0) {
-      //	mapping_list = array_list_new(1000, 
-      //				      1.25f, 
-      //				      COLLECTION_MODE_ASYNCHRONIZED);
+      //      LOG_DEBUG_F("cal %i of %i\n", j, num_cals);
+
+      cigar_code = cigar_code_new();
+      distance = 0;
+
+      read_match = (char *) calloc((read_len * 2), sizeof(char));
+      quality_match = (char *) calloc((read_len * 2), sizeof(char));
+
+      first = 1;
+      for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	s = list_item->item;
+	//	LOG_DEBUG_F("is gap ? %s -> [%i|%i - %i|%i]\n", 
+	//		    (s->gap ? "yes" : "no"), s->genome_start, s->read_start, s->read_end, s->genome_end);
+	if (s->gap) {	  
+	  // gap found !!
+	  if (s->run_sw) {
+	    int distance;
+	    int read_gap_len = s->read_end - s->read_start + 1;
+	    int genome_gap_len = s->genome_end - s->genome_start + 1;
 	
-      //	batch->mapping_lists[index] = mapping_list;
-	mapping_batch->targets[new_num_targets++] = read_index;
+	    LOG_DEBUG_F("\tgap (read %lu-%lu, genome %lu-%lu) = (%i, %i)\n", 
+			s->read_start, s->read_end, s->genome_start, s->genome_end,
+			read_gap_len, genome_gap_len);
+	    LOG_DEBUG_F("\tmquery: %s (start %i)\n", output->query_map_p[sw_count], output->query_start_p[sw_count]);
+	    LOG_DEBUG_F("\tmref  : %s (start %i)\n", output->ref_map_p[sw_count], output->ref_start_p[sw_count]);
+	
+	    cigar_code_t *cigar_c = generate_cigar_code(output->query_map_p[sw_count], output->ref_map_p[sw_count],
+							strlen(output->query_map_p[sw_count]), output->ref_start_p[sw_count],
+							read_gap_len, &distance);
+
+	    //	    LOG_DEBUG_F("\tscore : %0.2f, cigar: %s (distance = %i)\n", 
+	    //		output->score_p[sw_count], cigar_code_get_string(cigar_c), distance);
+	    cigar_code_free(cigar_c);
+	
+	    score += output->score_p[sw_count];
+	    if (first) {
+	      mquery_start = output->query_start_p[sw_count];
+	      mref_start = output->ref_start_p[sw_count];
+	    }
+	    // free query and reference
+	    free(q[sw_count]);
+	    free(r[sw_count]);
+	    sw_count++;
+	  } else {
+	    
+	  }
+	} else {
+	  // no gap: exact region
+	  cigar_number = s->read_end - s->read_start + 1;
+	  cigar_op = cigar_code_get_last_op(cigar_code);
+	  if (cigar_op && cigar_op->name == 'M') {
+	    cigar_op->number += cigar_number;
+	  } else {
+	    cigar_code_append_op(cigar_op_new(cigar_number, 'M'), cigar_code);
+	  }
+	  score += (cigar_number * input->match);
+	  if (first) {
+	    mquery_start = s->read_start;
+	    mref_start = mquery_start;
+	  }
+	}
+	first = 0;
       }
 
-      sw_output = sw_output_new(strands[i],
-				chromosomes[i],
-				starts[i],
-				strlen(r[i]),
-				strlen(output->query_map_p[i]),
-				output->query_start_p[i],
-				output->ref_start_p[i],
-				output->score_p[i],
-				norm_score,
-				output->query_map_p[i],
-				output->ref_map_p[i]);
-      array_list_insert(sw_output, mapping_list);
+      memcpy(read_match, fq_read->quality, read_len);
+      read_match[read_len] = '\0';
 
-      mapping_batch->num_to_do++;
+      memcpy(quality_match, fq_read->quality, read_len);
+      quality_match[read_len] = '\0';
 
-      // debugging
-      //unmapped_by_score[index] = 1;
+      // filter by SW score
+      norm_score = NORM_SCORE(score, read_len, input->match);
+
+      //      LOG_DEBUG_F("score: %0.2f -> (%0.2f, min. %0.2f), mquery_start = %i, mref_start = %i\n",
+      //		  score, norm_score, min_score, mquery_start, mref_start);
+
+      if (0) {
+	//      if (norm_score >= min_score) {
+	
+        pos = cal->start + mref_start - 1;
+
+	// set optional fields
+	optional_fields_length = 100;
+	optional_fields = (char *) calloc(optional_fields_length, sizeof(char));
+	
+	p = optional_fields;
+	AS = (int) score;
+	
+	sprintf(p, "ASi");
+	p += 3;
+	memcpy(p, &AS, sizeof(int));
+	p += sizeof(int);
+	
+	sprintf(p, "NHi");
+	p += 3;
+	memcpy(p, &num_cals, sizeof(int));
+	p += sizeof(int);
+	
+	sprintf(p, "NMi");
+	p += 3;
+	memcpy(p, &distance, sizeof(int));
+	p += sizeof(int);
+
+	// create an alignment and insert it into the list
+	alignment = alignment_new();
+	alignment_init_single_end(strdup(header_match), read_match, quality_match, 
+				  cal->strand, cal->chromosome_id - 1, pos,
+				  cigar_code_get_string(cigar_code), cigar_code_get_num_ops(cigar_code), 
+				  norm_score * 254, 1, (num_cals > 1),
+				  optional_fields_length, optional_fields, 0, alignment);
+	array_list_insert(alignment, alignment_list);
+      } else {
+	// free memory
+	if (read_match) free(read_match);
+	if (quality_match) free(quality_match);
+      }
+      
+      // free memory
+      cigar_code_free(cigar_code);
     }
-
-    // free query and reference
-    free(q[i]);
-    free(r[i]);
+    
+    // free the cal list, and update the mapping list with the alignment list
+    free(header_match);
+    array_list_free(cal_list, (void *) cal_free);
+    mapping_batch->mapping_lists[read_index] = alignment_list;
   }
-  mapping_batch->num_targets = new_num_targets;
-  /*
-  // debugging
-  for (size_t i = 0; i < fq_batch->num_reads; i++) {
-    if (unmapped_by_score[i] == 0) {
-	unmapped_by_score_counter[tid]++;
-	//printf("by score: %s\n", &(batch->fq_batch->header[batch->fq_batch->header_indices[index]]));
-      }
-  }
-  */
-
-  // update counter
-  //  thr_sw_items[tid] += sw_count;
 
   // free
   sw_multi_output_free(output);
-
+      */
   // go to the next stage
-
   return POST_PAIR_STAGE;
 
   //  printf("END: apply_sw, (%d Smith-Waterman, %d valids)\n", total, valids);

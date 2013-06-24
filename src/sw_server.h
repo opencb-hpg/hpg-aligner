@@ -18,6 +18,7 @@
 #include "timing.h"
 #include "buffers.h"
 #include "pair_server.h"
+#include "breakpoint.h"
 
 //====================================================================================
 //  Input structure for Smith-Waterman server

@@ -949,7 +949,7 @@ int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
 
   if (batch->mapping_mode == DNA_MODE) {
     // convert Smith-Waterman output objects to alignments
-    prepare_single_alignments(input, batch->mapping_batch);
+    //    prepare_single_alignments(input, batch->mapping_batch);
   }
 
   if (input->pair_mng->pair_mode == SINGLE_END_MODE) {
