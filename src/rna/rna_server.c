@@ -1142,12 +1142,13 @@ char *generate_cigar_str_2(array_list_t *ops_list) {
 }
 
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
+
   /*size_t max_intron_size = 1000000;
 
-  sw_optarg_t *sw_optarg = &input_p->sw_optarg;
+
   int min_intron_length = input_p->min_intron_size;
   float score_match = input_p->match;
-  genome_t *genome = input_p->genome_p;
+
   cal_t *cal_prev, *cal_next;
   array_list_t *cigar_ops_list;
   array_list_t *list_aux;
@@ -1180,7 +1181,10 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   extern pthread_mutex_t sw_mutex;
   */
 
+  sw_optarg_t *sw_optarg = &input_p->sw_optarg;
+  genome_t *genome = input_p->genome_p;
 
+  fill_gaps(batch->mapping_batch, sw_optarg, genome, 20);
   merge_seed_regions(batch->mapping_batch);
 
   exit(-1);

@@ -140,7 +140,6 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   
   mapping_batch->num_targets = target_pos;
 
-  fill_gaps(mapping_batch, genome, seed_size);
 
   if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
 

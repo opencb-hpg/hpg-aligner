@@ -144,7 +144,7 @@ void sw_prepare_free(sw_prepare_t *p) {
 //------------------------------------------------------------------------------------
 
 void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg, 
-	       genome_t *genome) {
+	       genome_t *genome, int min_gap) {
 
   int sw_count = 0;
 
@@ -222,8 +222,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	    gap_read_len = gap_read_end - gap_read_start + 1;
 	    gap_genome_len = gap_genome_end - gap_genome_start + 1;
 
-	    if (gap_read_len > s->read_end - s->read_start + 1) {
-	      //if (s->id > 2) {
+	    if (gap_read_len > min_gap) {
+	    //	    if (gap_read_len > seed_size) {
 	      // the gap is too big, may be there's another CAL to cover it
 	      cigar_code = cigar_code_new();
 	      cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
@@ -345,7 +345,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
       // check for a gap at the last position
       sw_prepare = NULL;
       if (prev_s != NULL && prev_s->read_end < read_len - 1) { 
-	//	LOG_DEBUG("\tgap at the last position...");
+		LOG_DEBUG("****** \tgap at the last position...");
 	cigar_code = NULL;
 	mapping_batch->num_gaps++;
 	//	mapping_batch->num_sws++;
@@ -360,11 +360,11 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	gap_genome_start = prev_s->genome_end + 1;
 	gap_genome_end = gap_genome_start + gap_genome_len - 1;
 
-	//	LOG_DEBUG_F("\t\tgap_read_len = %i, gap_genome_len = %i\n", gap_read_len, gap_genome_len);
-	//	LOG_DEBUG_F("\t\t%i of %i: [%lu|%lu - %lu|%lu]\n", 
-	//		    sw_count, sw_total, gap_genome_start, gap_read_start, gap_read_end, gap_genome_end);
+	LOG_DEBUG_F("\t\tgap_read_len = %i, gap_genome_len = %i\n", gap_read_len, gap_genome_len);
+	LOG_DEBUG_F("\t\t%i : [%lu|%lu - %lu|%lu]\n", 
+		    sw_count, gap_genome_start, gap_read_start, gap_read_end, gap_genome_end);
 
-	if (gap_read_len > prev_s->read_end - prev_s->read_start + 1) {
+	if (gap_read_len > min_gap) {
 	  // the gap is too big, may be there's another CAL to cover it
 	  cigar_code = cigar_code_new();
 	  cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
@@ -573,7 +573,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   sw_optarg_t *sw_optarg = &input->sw_optarg;
 
   // fill gaps between seeds
-  fill_gaps(mapping_batch, sw_optarg, genome);
+  fill_gaps(mapping_batch, sw_optarg, genome, 20);
 
   fastq_read_t *fq_read;
   array_list_t *fq_batch = mapping_batch->fq_batch;
