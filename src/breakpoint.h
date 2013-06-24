@@ -24,6 +24,7 @@ typedef struct cigar_code {
   //  int num_ops;
   //  int num_allocated_ops;
   //  cigar_op_t *ops;
+  int distance;
   char *cigar_str;
   array_list_t *ops;
 } cigar_code_t;
@@ -35,6 +36,7 @@ void cigar_code_free(cigar_code_t* p);
 char *cigar_code_get_string(cigar_code_t *p);
 int cigar_code_get_num_ops(cigar_code_t *p);
 cigar_op_t *cigar_code_get_last_op(cigar_code_t *p);
+void cigar_code_inc_distance(int distance, cigar_code_t *p);
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
 
 cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
