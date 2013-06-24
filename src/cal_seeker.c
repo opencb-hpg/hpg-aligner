@@ -34,6 +34,8 @@ void merge_seed_regions(mapping_batch_t *mapping_batch) {
       linked_list_iterator_init(cal->sr_list, &itr);
 
       s_first = linked_list_iterator_curr(&itr);      
+      if (!s_first) { LOG_DEBUG("\t\tLINKED LIST EMPTY"); continue; }
+
       cigar_code_prev = (cigar_code_t *)s_first->info;
       s = linked_list_iterator_next(&itr);
       while (s) {
@@ -145,7 +147,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
   //printf("APPLY CAL SEEKER DONE!\n");
 
-  return SW_STAGE;
+  return RNA_STAGE;
 
 
 
@@ -185,7 +187,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     return SEEDING_STAGE;
   } 
 
-  return RNA_PREPROCESS_STAGE;
+  //return RNA_PREPROCESS_STAGE;
 
 }
 
@@ -452,7 +454,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     return SW_STAGE;
   }
   
-  return POST_PAIR_STAGE;
+  return DNA_POST_PAIR_STAGE;
 }
 
 //------------------------------------------------------------------------------------

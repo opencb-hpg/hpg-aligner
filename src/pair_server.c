@@ -940,7 +940,8 @@ int apply_pair(pair_server_input_t* input, batch_t *batch) {
   if (batch->mapping_batch->num_targets > 0) {
     return SW_STAGE;
   }
-  return POST_PAIR_STAGE;
+
+  return DNA_POST_PAIR_STAGE;
 }
 
 //------------------------------------------------------------------------------------
