@@ -102,7 +102,13 @@ int bam_writer(void *data) {
 
      writer_input->total_batches++;
 
+     extern size_t *histogram_sw;
+
      if (batch->mapping_mode == DNA_MODE || batch->mapping_mode == RNA_MODE) {
+       for (int i = 0; i < 1024; i++) {
+	 histogram_sw[i] += mapping_batch->histogram_sw[i];
+       }
+       free(mapping_batch->histogram_sw);
        //
        // DNA mode
        //

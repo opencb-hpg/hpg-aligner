@@ -267,10 +267,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   workflow_t *wf = workflow_new();
      
   workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
-						 rna_preprocess_stage, sw_stage, post_pair_stage};
+						 sw_stage, post_pair_stage};
 
-  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-  workflow_set_stages(6, &stage_functions, stage_labels, wf);
+  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "SW", "POST PAIR"};
+  workflow_set_stages(5, &stage_functions, stage_labels, wf);
      
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);

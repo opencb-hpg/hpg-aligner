@@ -104,7 +104,7 @@ typedef struct cigar_data{
  * 
  * Return the description of the cigar operation input.
  */
-char* cigar_automata_status(unsigned char status);
+//char* cigar_automata_status(unsigned char status);
 
 /**
  * @brief  Insert new cigar operation to @a cigar_data_t.

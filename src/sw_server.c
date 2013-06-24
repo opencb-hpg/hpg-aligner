@@ -462,7 +462,8 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   */
 
   sw_optarg_t *sw_optarg = &input->sw_optarg;
-    /*
+
+  /*
   sw_optarg_t sw_optarg; //= sw_optarg_new(gap_open, gap_extend, matrix_filename);
   sw_optarg.gap_open = input->gap_open;
   sw_optarg.gap_extend = input->gap_extend;
@@ -470,7 +471,8 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   sw_optarg.subst_matrix['A']['C'] = input->mismatch; sw_optarg.subst_matrix['C']['C'] = input->match;    sw_optarg.subst_matrix['T']['C'] = input->mismatch; sw_optarg.subst_matrix['G']['C'] = input->mismatch;
   sw_optarg.subst_matrix['A']['G'] = input->mismatch; sw_optarg.subst_matrix['C']['T'] = input->mismatch; sw_optarg.subst_matrix['T']['T'] = input->match;    sw_optarg.subst_matrix['G']['T'] = input->mismatch;
   sw_optarg.subst_matrix['A']['T'] = input->mismatch; sw_optarg.subst_matrix['C']['G'] = input->mismatch; sw_optarg.subst_matrix['T']['G'] = input->mismatch; sw_optarg.subst_matrix['G']['G'] = input->match;
-    */
+  */
+
   sw_multi_output_t *output = sw_multi_output_new(sw_total);
   char *q[sw_total], *r[sw_total];
   uint8_t strands[sw_total], chromosomes[sw_total];

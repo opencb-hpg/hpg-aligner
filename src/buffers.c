@@ -273,6 +273,9 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 					 COLLECTION_MODE_ASYNCHRONIZED); 
   }
     
+
+  p->histogram_sw = (size_t *)calloc(1024, sizeof(size_t));
+
   return p;
 }
 

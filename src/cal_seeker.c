@@ -27,14 +27,6 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   total_reads += num_targets;
   target_pos = 0;
 
-  /*
-  printf("(STEP %i)TARGETS: ", mapping_batch->extra_stage);
-  for (int i = 0; i < num_targets; i++){
-    printf("%i,", mapping_batch->targets[i]);
-  }
-  printf("\n");
-  */
-
   mapping_batch->extra_stage_do = 1;
 
   for (size_t i = 0; i < num_targets; i++) {
@@ -46,11 +38,11 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
     //printf("%i mini-mappings\n", array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]));
     max_seeds = (read->length / 15)*2 + 10;
-    num_cals = bwt_generate_cal_rna_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						     input->cal_optarg,
-						     &min_seeds, &max_seeds,
-						     genome->num_chromosomes + 1,
-						     allocate_cals, read->length);
+    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
+						 input->cal_optarg,
+						 &min_seeds, &max_seeds,
+						 genome->num_chromosomes + 1,
+						 allocate_cals, read->length);
 
     //printf("\t Target %i: %i\n", mapping_batch->targets[i], num_cals);
     array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
@@ -83,8 +75,10 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
 
   //printf("APPLY CAL SEEKER DONE!\n");
+  return SW_STAGE;
 
-  return RNA_PREPROCESS_STAGE;
+
+
 
   // this code does not offer great improvements !!!
   // should we comment it ?

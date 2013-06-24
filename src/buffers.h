@@ -22,8 +22,8 @@
 #define CAL_STAGE               2
 #define PRE_PAIR_STAGE          3
 #define RNA_PREPROCESS_STAGE    3
-#define SW_STAGE                4
-#define POST_PAIR_STAGE         5
+#define SW_STAGE                3
+#define POST_PAIR_STAGE         4
 #define CONSUMER_STAGE         -1
 
 //------------------------------------------------------------------------------------
@@ -218,6 +218,8 @@ typedef struct mapping_batch {
   pair_mng_t *pair_mng;
   array_list_t **old_mapping_lists;
   unsigned char *bwt_mappings;
+
+  size_t *histogram_sw;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);
