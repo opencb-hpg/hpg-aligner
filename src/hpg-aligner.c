@@ -47,7 +47,9 @@ pthread_mutex_t bwt_mutex;
 
 // timing
 double main_time;
-
+size_t total_sw = 0;
+pthread_mutex_t sw_mutex;
+size_t *histogram_sw;
 
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
@@ -63,9 +65,13 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 // main parameters support
 //--------------------------------------------------------------------
 int main(int argc, char* argv[]) {
+
+  histogram_sw = (size_t *)calloc(1024, sizeof(size_t));
+
   pthread_mutex_init(&cal_st.mutex, NULL);
   pthread_mutex_init(&mutex_sp, NULL);
   pthread_mutex_init(&bwt_mutex, NULL);
+  pthread_mutex_init(&sw_mutex, NULL);
 
   const char HEADER_FILE[1024] = "Human_NCBI37.hbam\0";
   basic_st = basic_statistics_new();
@@ -180,7 +186,12 @@ int main(int argc, char* argv[]) {
   options_free(options);
 
   //printf("Reads mapped in BWT Section %lu (%lu correct(%f) and %lu misses(%f))\n", bwt_correct + bwt_error, bwt_correct, (float)(bwt_correct * 100)/(float)(bwt_correct + bwt_error), bwt_error, (float)(bwt_error * 100)/(float)(bwt_correct + bwt_error));
-  
+
+  printf("Total SW Processed: %i\n", total_sw);
+  printf("Length Ref; Number\n");
+  for (int i = 0; i < 1024; i++) {
+    printf(" %i; %i\n", i, histogram_sw[i]);
+  }
   return 0;
 }
 

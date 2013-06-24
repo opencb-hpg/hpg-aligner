@@ -69,6 +69,10 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch);
 int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch);
 
 //--------------------------------------------------------------------------------------
+
+void merge_seed_regions(mapping_batch_t *mapping_batch);
+
+//--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------
 
 #endif  // CAL_SEEKER_H

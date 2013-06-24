@@ -4,6 +4,73 @@
 // cal_seeker_input functions: init
 //------------------------------------------------------------------------------------
 
+void merge_seed_regions(mapping_batch_t *mapping_batch) {
+  linked_list_item_t *list_item;
+  cal_t *cal;
+  seed_region_t *s, *s_first;
+  cigar_code_t *cigar_code, *cigar_code_prev;
+  cigar_op_t *cigar_op, *cigar_op_prev;
+  int num_ops;
+  int op;
+  array_list_t *cals_list;
+  fastq_read_t *fq_read;
+  linked_list_iterator_t itr;
+
+  register size_t num_targets = mapping_batch->num_targets;
+  register size_t num_cals;
+  register int i;
+  register size_t t;
+
+  for (t = 0; t < num_targets; t++) {
+    cals_list = mapping_batch->mapping_lists[mapping_batch->targets[t]];
+    num_cals = array_list_size(cals_list);
+    fq_read = array_list_get(mapping_batch->targets[t], mapping_batch->fq_batch);
+
+    LOG_DEBUG_F("Read %s\n", fq_read->id);
+
+    for (i = 0; i < num_cals; i++) {
+      cal = array_list_get(i, cals_list);
+      LOG_DEBUG_F("\tCAL %i:\n", i);
+      linked_list_iterator_init(cal->sr_list, &itr);
+
+      s_first = linked_list_iterator_curr(&itr);      
+      cigar_code_prev = (cigar_code_t *)s_first->info;
+      s = linked_list_iterator_next(&itr);
+      while (s) {
+	//LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
+	cigar_code = (cigar_code_t *)s->info;
+	if (cigar_code) { //TODO: delete
+	  num_ops = array_list_size(cigar_code->ops);
+	  for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
+	       op < num_ops;
+	       op++, cigar_op = array_list_get(op, cigar_code->ops)) {
+	    cigar_code_append_op(cigar_op, cigar_code_prev);	    
+	  }
+	  cigar_code_prev->distance += cigar_code->distance;
+	} 
+
+	s_first->read_end = s->read_end;
+	s_first->genome_end = s->genome_end;
+
+	linked_list_iterator_remove(&itr);
+	s = linked_list_iterator_curr(&itr);
+      }
+
+      LOG_DEBUG_F("\tFusion Result %i\n", linked_list_size(cal->sr_list));
+
+      linked_list_iterator_init(cal->sr_list, &itr);
+      s = linked_list_iterator_curr(&itr);
+      while (s) {
+	cigar_code = (cigar_code_t *)s->info;	
+	LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: Distance(%i) %s\n", s->genome_start, s->read_start, s->read_end, s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
+	s = linked_list_iterator_next(&itr);
+      }
+    }
+  }
+}
+
+
+
 int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   //printf("APPLY CALING ...\n");
   struct timeval start, end;
@@ -20,20 +87,13 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   genome_t *genome = input->genome;
   size_t *targets_aux;
   size_t min_seeds, max_seeds;
+  int seed_size = 16;
 
   num_targets = mapping_batch->num_targets;
   total_targets = 0;
   extra_target_pos = 0;
   total_reads += num_targets;
   target_pos = 0;
-
-  /*
-  printf("(STEP %i)TARGETS: ", mapping_batch->extra_stage);
-  for (int i = 0; i < num_targets; i++){
-    printf("%i,", mapping_batch->targets[i]);
-  }
-  printf("\n");
-  */
 
   mapping_batch->extra_stage_do = 1;
 
@@ -46,11 +106,11 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
     //printf("%i mini-mappings\n", array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]));
     max_seeds = (read->length / 15)*2 + 10;
-    num_cals = bwt_generate_cal_rna_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						     input->cal_optarg,
-						     &min_seeds, &max_seeds,
-						     genome->num_chromosomes + 1,
-						     allocate_cals, read->length);
+    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
+						 input->cal_optarg,
+						 &min_seeds, &max_seeds,
+						 genome->num_chromosomes + 1,
+						 allocate_cals, read->length);
 
     //printf("\t Target %i: %i\n", mapping_batch->targets[i], num_cals);
     array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
@@ -80,11 +140,16 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   
   mapping_batch->num_targets = target_pos;
 
+  fill_gaps(mapping_batch, genome, seed_size);
+
   if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
 
   //printf("APPLY CAL SEEKER DONE!\n");
 
-  return RNA_PREPROCESS_STAGE;
+  return SW_STAGE;
+
+
+
 
   // this code does not offer great improvements !!!
   // should we comment it ?

@@ -33,6 +33,7 @@ cigar_code_t *cigar_code_new();
 cigar_code_t *cigar_code_new_by_string(char *cigar_str);
 void cigar_code_free(cigar_code_t* p);
 
+char *new_cigar_code_string(cigar_code_t* p);
 char *cigar_code_get_string(cigar_code_t *p);
 int cigar_code_get_num_ops(cigar_code_t *p);
 cigar_op_t *cigar_code_get_op(int index, cigar_code_t *p);

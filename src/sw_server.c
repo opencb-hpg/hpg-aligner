@@ -171,7 +171,6 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
   sw_prepare_t *sw_prepare;
   array_list_t *sw_prepare_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
 
-
   //  LOG_DEBUG("\n\n P R E   -   P R O C E S S\n");
 
   // initialize query and reference sequences to Smith-Waterman
@@ -460,7 +459,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
       s = (seed_region_t *) linked_list_iterator_curr(itr);
       while (s != NULL) {
 	LOG_DEBUG_F("\t\t%s (dist. %i)\t[%i|%i - %i|%i]\n", 
-		    (s->info ? cigar_code_get_string((cigar_code_t *) s->info) : "gap"),
+		    (s->info ? new_cigar_code_string((cigar_code_t *) s->info) : "gap"),
 		    (s->info ? ((cigar_code_t *) s->info)->distance : -1),
 		    s->genome_start, s->read_start, s->read_end, s->genome_end);
 	linked_list_iterator_next(itr);
@@ -516,7 +515,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 						strlen(output->query_map_p[i]), output->ref_start_p[i],
 						read_gap_len, &distance);
     LOG_DEBUG_F("\tscore : %0.2f, cigar: %s (distance = %i)\n", 
-		output->score_p[i], cigar_code_get_string(cigar_c), distance);
+		output->score_p[i], new_cigar_code_string(cigar_c), distance);
 
     assert(output->query_start_p[i] == 0);
     assert(output->ref_start_p[i] == 0);
@@ -533,7 +532,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	cigar_op->number -= sw_prepare->right_flank;
       }
       init_cigar_string(cigar_c);
-      LOG_DEBUG_F("\tnew cigar: %s\n", cigar_code_get_string(cigar_c));
+      LOG_DEBUG_F("\tnew cigar: %s\n", new_cigar_code_string(cigar_c));
     } else {
       assert(cigar_code_get_num_ops(cigar_c) == 1);
       if (sw_prepare->right_flank > 0) {
@@ -547,7 +546,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	} else{
 	  init_cigar_string(cigar_c);
 	}
-	LOG_DEBUG_F("\tnew cigar: %s\n", cigar_code_get_string(cigar_c));
+	LOG_DEBUG_F("\tnew cigar: %s\n", new_cigar_code_string(cigar_c));
       }
     }
 
@@ -565,6 +564,9 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 //------------------------------------------------------------------------------------
 
 int apply_sw(sw_server_input_t* input, batch_t *batch) {
+
+  LOG_DEBUG("**************************************\n");
+
 
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   genome_t *genome = input->genome_p;
@@ -636,6 +638,18 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   mapping_batch->num_to_do = 0;
 
   sw_optarg_t *sw_optarg = &input->sw_optarg;
+
+  /*
+  sw_optarg_t sw_optarg; //= sw_optarg_new(gap_open, gap_extend, matrix_filename);
+  sw_optarg.gap_open = input->gap_open;
+  sw_optarg.gap_extend = input->gap_extend;
+  sw_optarg.subst_matrix['A']['A'] = input->match;    sw_optarg.subst_matrix['C']['A'] = input->mismatch; sw_optarg.subst_matrix['T']['A'] = input->mismatch; sw_optarg.subst_matrix['G']['A'] = input->mismatch;
+  sw_optarg.subst_matrix['A']['C'] = input->mismatch; sw_optarg.subst_matrix['C']['C'] = input->match;    sw_optarg.subst_matrix['T']['C'] = input->mismatch; sw_optarg.subst_matrix['G']['C'] = input->mismatch;
+  sw_optarg.subst_matrix['A']['G'] = input->mismatch; sw_optarg.subst_matrix['C']['T'] = input->mismatch; sw_optarg.subst_matrix['T']['T'] = input->match;    sw_optarg.subst_matrix['G']['T'] = input->mismatch;
+  sw_optarg.subst_matrix['A']['T'] = input->mismatch; sw_optarg.subst_matrix['C']['G'] = input->mismatch; sw_optarg.subst_matrix['T']['G'] = input->mismatch; sw_optarg.subst_matrix['G']['G'] = input->match;
+
+
+
   sw_multi_output_t *output = sw_multi_output_new(sw_total);
   char *q[sw_total], *r[sw_total];
   int sw_count = 0, run_sw;

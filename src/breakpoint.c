@@ -98,10 +98,10 @@ cigar_op_t *cigar_code_get_op(int index, cigar_code_t *p) {
 
 cigar_op_t *cigar_code_get_last_op(cigar_code_t *p) {
   int num_ops = cigar_code_get_num_ops(p);
-  if (num_ops > 0) {
-    return array_list_get(num_ops - 1, p->ops);
-  }
-  return NULL;
+  //if (num_ops > 0) {
+  return array_list_get(num_ops - 1, p->ops);
+    //}
+  //return NULL;
 }
 
 //--------------------------------------------------------------------------------------
@@ -114,8 +114,6 @@ void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p) {
     } else {
       array_list_insert(op, p->ops);
     }
-
-    init_cigar_string(p);
   }
 }
 
@@ -129,14 +127,7 @@ void cigar_code_inc_distance(int distance, cigar_code_t *p) {
 
 //--------------------------------------------------------------------------------------
 
-char *cigar_code_get_string(cigar_code_t *p) {
-  return p->cigar_str;
-}
-
-//--------------------------------------------------------------------------------------
-
-void init_cigar_string(cigar_code_t *p) {
-
+char *new_cigar_code_string(cigar_code_t *p) {
   if (p->cigar_str) {
     free(p->cigar_str);
   }
@@ -152,6 +143,30 @@ void init_cigar_string(cigar_code_t *p) {
   }
 
   p->cigar_str = str;
+  
+  return p->cigar_str;
+}
+
+//--------------------------------------------------------------------------------------
+
+void init_cigar_string(cigar_code_t *p) {
+  return;
+
+  /*if (p->cigar_str) {
+    free(p->cigar_str);
+  }
+
+  int num_ops = cigar_code_get_num_ops(p);
+  char *str = malloc(num_ops * 5 * sizeof(char));
+  *str = 0;
+
+  cigar_op_t *op;
+  for (int i = 0; i < num_ops; i++) {
+    op = array_list_get(i, p->ops);
+    sprintf(str, "%s%i%c", str, op->number, op->name);
+  }
+
+  p->cigar_str = str;*/
 }
 
 //--------------------------------------------------------------------------------------

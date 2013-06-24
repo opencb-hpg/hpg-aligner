@@ -22,6 +22,10 @@ void bwt_server_input_init(list_t* read_list_p, unsigned int batch_size, bwt_opt
 //====================================================================================
 
 int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
+
+
+  LOG_DEBUG("**************************************\n");
+
   // run bwt _by_filter
   //printf("APPLY BWT SERVER...\n");
   struct timeval start, end;
