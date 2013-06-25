@@ -74,10 +74,22 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
     for (size_t i = 0; i < num_targets; i++) {
       read = array_list_get(targets[i], mapping_batch->fq_batch);
       //      printf("region_seeker: seeds for %s\n", read->id);
+      /*
       num_mappings = bwt_map_exact_seeds_seq_by_num(read->sequence, num_seeds,
 						    seed_size, min_seed_size,
 						    input->bwt_optarg_p, input->bwt_index_p, 
 						    mapping_batch->mapping_lists[targets[i]]);
+      */
+      num_mappings = bwt_map_exact_seeds_seq(0,
+					     0,
+					     read->sequence,
+					     seed_size,
+					     min_seed_size,
+					     input->bwt_optarg_p, 
+					     input->bwt_index_p, 
+					     mapping_batch->mapping_lists[targets[i]],
+					     0);
+      
       if (num_mappings > 0) {
 	array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
 	targets[new_num_targets++] = targets[i];

@@ -1189,7 +1189,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 
   exit(-1);
   
-  return POST_PAIR_STAGE;
+  return RNA_POST_PAIR_STAGE;
 
   /*  if (s_prev && s_prev->info) {
 	    if (s_prev->read_end == s->read_start - 1) {

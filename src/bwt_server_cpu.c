@@ -42,18 +42,16 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
 
   if (time_on) { stop_timer(start, end, time); timing_add(time, BWT_SERVER, timing); }
   
-  //printf("APPLY BWT SERVER DONE!\n");
-
   if (batch->mapping_batch->num_targets > 0) {
-    //TODO: DELETE
-    //printf("Web have targets\n");
-    for (int i = 0; i < batch->mapping_batch->num_targets; i++) {
-      batch->mapping_batch->bwt_mappings[batch->mapping_batch->targets[i]] = 1;
-    }
     return SEEDING_STAGE;
   }
-  //printf("Reads are mapped\n");
-  return POST_PAIR_STAGE;
+
+  if (batch->mapping_mode == RNA_MODE) {
+    return RNA_POST_PAIR_STAGE;
+  } else {
+    return DNA_POST_PAIR_STAGE;
+  }    
+
 }
 
 //------------------------------------------------------------------------------------

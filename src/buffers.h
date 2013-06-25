@@ -20,10 +20,18 @@
 #define BWT_STAGE               0
 #define SEEDING_STAGE           1
 #define CAL_STAGE               2
+
 #define PRE_PAIR_STAGE          3
-#define RNA_PREPROCESS_STAGE    3
+
+//#define RNA_PREPROCESS_STAGE    3
+//#define SW_STAGE                4
+//#define POST_PAIR_STAGE         5
+
+#define RNA_STAGE               3
 #define SW_STAGE                4
-#define POST_PAIR_STAGE         5
+#define DNA_POST_PAIR_STAGE     5
+#define RNA_POST_PAIR_STAGE     4
+
 #define CONSUMER_STAGE         -1
 
 //------------------------------------------------------------------------------------
