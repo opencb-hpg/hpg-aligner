@@ -88,6 +88,10 @@ int cigar_code_get_num_ops(cigar_code_t *p) {
 
 //--------------------------------------------------------------------------------------
 
+cigar_op_t *cigar_code_get_first_op(cigar_code_t *p) {
+  return array_list_get(0, p->ops);
+}
+
 cigar_op_t *cigar_code_get_op(int index, cigar_code_t *p) {
   int num_ops = cigar_code_get_num_ops(p);
   if (num_ops > 0 && index < num_ops) {
@@ -133,6 +137,8 @@ char *new_cigar_code_string(cigar_code_t *p) {
   }
 
   int num_ops = cigar_code_get_num_ops(p);
+  if (!num_ops) { return NULL; }
+
   char *str = malloc(num_ops * 5 * sizeof(char));
   *str = 0;
 

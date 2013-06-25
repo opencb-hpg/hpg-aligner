@@ -26,47 +26,52 @@ void merge_seed_regions(mapping_batch_t *mapping_batch) {
     num_cals = array_list_size(cals_list);
     fq_read = array_list_get(mapping_batch->targets[t], mapping_batch->fq_batch);
 
-    LOG_DEBUG_F("Read %s\n", fq_read->id);
+    //LOG_DEBUG_F("Read %s\n", fq_read->id);
 
     for (i = 0; i < num_cals; i++) {
       cal = array_list_get(i, cals_list);
-      LOG_DEBUG_F("\tCAL %i:\n", i);
+      //LOG_DEBUG_F("\tCAL %i:\n", i);
       linked_list_iterator_init(cal->sr_list, &itr);
 
       s_first = linked_list_iterator_curr(&itr);      
-      if (!s_first) { LOG_DEBUG("\t\tLINKED LIST EMPTY"); continue; }
-
-      cigar_code_prev = (cigar_code_t *)s_first->info;
-      s = linked_list_iterator_next(&itr);
-      while (s) {
-	//LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
-	cigar_code = (cigar_code_t *)s->info;
-	if (cigar_code) { //TODO: delete
-	  num_ops = array_list_size(cigar_code->ops);
-	  for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
-	       op < num_ops;
-	       op++, cigar_op = array_list_get(op, cigar_code->ops)) {
-	    cigar_code_append_op(cigar_op, cigar_code_prev);	    
-	  }
-	  cigar_code_prev->distance += cigar_code->distance;
-	} 
-
-	s_first->read_end = s->read_end;
-	s_first->genome_end = s->genome_end;
-
-	linked_list_iterator_remove(&itr);
-	s = linked_list_iterator_curr(&itr);
+      if (s_first) {
+	cigar_code_prev = (cigar_code_t *)s_first->info;
+	s = linked_list_iterator_next(&itr);
+	while (s) {
+	  //LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
+	  cigar_code = (cigar_code_t *)s->info;
+	  if (cigar_code) { //TODO: delete
+	    num_ops = array_list_size(cigar_code->ops);
+	    for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
+		 op < num_ops;
+		 op++, cigar_op = array_list_get(op, cigar_code->ops)) {
+	      cigar_code_append_op(cigar_op, cigar_code_prev);	    
+	    }
+	    cigar_code_prev->distance += cigar_code->distance;
+	  } 
+	  
+	  s_first->read_end = s->read_end;
+	  s_first->genome_end = s->genome_end;
+	  
+	  linked_list_iterator_remove(&itr);	
+	  s = linked_list_iterator_curr(&itr);
+	}
+	cal->info = (void *)cigar_code_prev;
+      } else {
+	cal->info = NULL;
+	//LOG_DEBUG("\t\tLINKED LIST EMPTY");
       }
 
-      LOG_DEBUG_F("\tFusion Result %i\n", linked_list_size(cal->sr_list));
-
+      /*LOG_DEBUG_F("\tFusion Result %i\n", linked_list_size(cal->sr_list));      
       linked_list_iterator_init(cal->sr_list, &itr);
       s = linked_list_iterator_curr(&itr);
       while (s) {
 	cigar_code = (cigar_code_t *)s->info;	
-	LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: Distance(%i) %s\n", s->genome_start, s->read_start, s->read_end, s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
+	LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: Distance(%i) %s\n", s->genome_start, s->read_start,
+		    s->read_end, s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
 	s = linked_list_iterator_next(&itr);
-      }
+	}
+      */
     }
   }
 }
