@@ -149,6 +149,24 @@ char *new_cigar_code_string(cigar_code_t *p) {
 
 //--------------------------------------------------------------------------------------
 
+int cigar_read_coverage(cigar_code_t *p) {
+  int coverage = 0;
+
+  if (p) {    
+    size_t num_ops = array_list_size(p->ops);
+    for (size_t i = 0; i < num_ops; i++) {
+      cigar_op_t *cigar_op = array_list_get(i, p->ops);
+      if (cigar_op->name == 'M' || cigar_op->name == 'I') {
+	coverage += cigar_op->number;
+      }
+    }
+  }
+
+  return coverage;
+}
+
+//--------------------------------------------------------------------------------------
+
 void init_cigar_string(cigar_code_t *p) {
   return;
 

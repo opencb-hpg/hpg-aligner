@@ -1142,9 +1142,7 @@ char *generate_cigar_str_2(array_list_t *ops_list) {
 }
 
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
-
   /*size_t max_intron_size = 1000000;
-
 
   int min_intron_length = input_p->min_intron_size;
   float score_match = input_p->match;
@@ -1181,16 +1179,55 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   extern pthread_mutex_t sw_mutex;
   */
 
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
   sw_optarg_t *sw_optarg = &input_p->sw_optarg;
   genome_t *genome = input_p->genome_p;
+  size_t num_targets = mapping_batch->num_targets;
+  array_list_t *cals_list;
+  cal_t *cal;
+  fastq_read_t *fq_read;
+  linked_list_iterator_t itr;  
+  seed_region_t *s;
+  cigar_code_t *cigar_code;
+  int coverage;
+
+
+  size_t num_cals;
+  register size_t t;
+  register int i;
 
   fill_gaps(batch->mapping_batch, sw_optarg, genome, 20);
   merge_seed_regions(batch->mapping_batch);
+  
+  LOG_DEBUG("RNA PHASE\n");
+  for (t = 0; t < num_targets; t++) {
+    cals_list = mapping_batch->mapping_lists[mapping_batch->targets[t]];
+    fq_read = array_list_get(mapping_batch->targets[t], mapping_batch->fq_batch);
+
+    //TODO: Set flag negative strand
+    num_cals = array_list_size(cals_list);
+
+    //printf("Total CALs %i:\n", num_cals);
+    for (i = 0; i < num_cals; i++) {
+      cal = array_list_get(i, cals_list);
+
+      linked_list_iterator_init(cal->sr_list, &itr);
+      s = linked_list_iterator_curr(&itr);
+      coverage = 0;
+      if (s) {
+	printf("AA\n");
+	cigar_code = (cigar_code_t *)s->info;
+	coverage = cigar_read_coverage(cigar_code);
+      }      
+      LOG_DEBUG_F("CAL %i: %i coverage\n", i, coverage);
+    }           
+  }
+  
 
   exit(-1);
   
   return RNA_POST_PAIR_STAGE;
-
+}
   /*  if (s_prev && s_prev->info) {
 	    if (s_prev->read_end == s->read_start - 1) {
 	      cigar_op_prev = array_list_get(array_list_size(((cigar_code_t *)s_prev->info)->ops) - 1, ((cigar_code_t *)s_prev->info)->ops);
@@ -1255,7 +1292,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   }
   */
 
-}
+
   ///////******************************************************************\\\\\\\\\\\\
 
 
