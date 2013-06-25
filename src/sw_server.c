@@ -565,15 +565,15 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
 int apply_sw(sw_server_input_t* input, batch_t *batch) {
 
-  LOG_DEBUG("**************************************\n");
-
-
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   genome_t *genome = input->genome_p;
   sw_optarg_t *sw_optarg = &input->sw_optarg;
 
   // fill gaps between seeds
   fill_gaps(mapping_batch, sw_optarg, genome, 20);
+  merge_seed_regions(mapping_batch);
+
+  exit(-1);
 
   fastq_read_t *fq_read;
   array_list_t *fq_batch = mapping_batch->fq_batch;

@@ -40,6 +40,7 @@ void merge_seed_regions(mapping_batch_t *mapping_batch) {
 	//LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
 	cigar_code = (cigar_code_t *)s->info;
 	if (cigar_code) { //TODO: delete
+	  LOG_DEBUG_F("\t\tpart. cigar: %s\n", new_cigar_code_string(cigar_code));
 	  num_ops = array_list_size(cigar_code->ops);
 	  for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
 	       op < num_ops;
