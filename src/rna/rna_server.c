@@ -1153,19 +1153,45 @@ char *generate_cigar_str_2(array_list_t *ops_list) {
 }
 
 
-int generate_cals_score(array_list_t *fusion_cals) {
+int generate_cals_score(array_list_t *fusion_cals, int read_length) {
   int score = 0;
   size_t num_cals = array_list_size(fusion_cals);
   cal_t *cal;
   linked_list_iterator_t itr;  
   seed_region_t *s;
   cigar_code_t *cigar_code;
+  cigar_op_t *cigar_op_start, *cigar_op_end;
+
+  if (num_cals == 1) {
+    cal = array_list_get(0, fusion_cals);
+    cigar_code = (cigar_code_t *)cal->info;
+    if (!cigar_code) { return 0; }
+    score = cigar_read_coverage(cigar_code);
+    cigar_op_start = cigar_code_get_first_op(cigar_code);
+    cigar_op_end = cigar_code_get_last_op(cigar_code);
+
+    if (cigar_op_start->name != 'H' && 
+	cigar_op_end->name != 'H') {
+      score += score * read_length;
+    }
+ 
+    if (cigar_op_start->name == 'H' && 
+	cigar_op_start->number < 20 && 
+	cigar_op_end->name == 'H' && 
+	cigar_op_end->number < 20) {
+      score += score * read_length / 2;
+    }
+
+    return score;
+
+  }
 
   for (int j = 0; j < num_cals; j++) {
     cal = array_list_get(j, fusion_cals);
     cigar_code = (cigar_code_t *)cal->info;
     if (cigar_code) {
       score += cigar_read_coverage(cigar_code);
+      if (score > read_length ) { score = read_length; }
     } else {
       return 0;
     }
@@ -1188,24 +1214,36 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   linked_list_iterator_t itr;  
   seed_region_t *s;
   cigar_code_t *cigar_code;
-  cigar_op_t *cigar_op_start, *cigar_op_end;
+  cigar_op_t *cigar_op_start, *cigar_op_end, *cigar_op;
   array_list_t *cals_targets[mapping_batch->num_allocated_targets];
+  int *new_targets = (int *)calloc(mapping_batch->num_allocated_targets, sizeof(int));
   array_list_t *merge_cals;
   int *cals_score = (int *)calloc(100, sizeof(int));
   char reference[2048];
+  char reference_aux[2048];
   char query[2048];
+  alignment_t *alignment;
+  char *q[2*40*mapping_batch->num_allocated_targets];
+  char *r[2*40*mapping_batch->num_allocated_targets];
 
+  
+  int num_sw = 0;
   size_t num_new_targets = 0;
   int coverage;
   int read_length;
   int cal_pos = 0;
-  int number_of_best;
+  int number_of_best = 1;
   int target;
-  size_t genome_start, genome_end;
+  int c, exact_nt;
+  size_t genome_start, genome_end, read_start, read_end;
+  int flank;
+  int n_delete;
+
+
 
   register size_t num_cals;
   register size_t t;
-  register int i;
+  register int i, j;
   
 
   fill_gaps(mapping_batch, sw_optarg, genome, 20);
@@ -1221,9 +1259,10 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
     num_cals = array_list_size(cals_list);
     
     //===== Step-1: Concatenate CALs =====//
+    LOG_DEBUG("STEP-1");
     cals_targets[target] = array_list_new(num_cals,
-				  1.25f,
-				  COLLECTION_MODE_ASYNCHRONIZED);
+					  1.25f,
+					  COLLECTION_MODE_ASYNCHRONIZED);
     merge_cals = array_list_new(10,
 				1.25f,
 				COLLECTION_MODE_ASYNCHRONIZED);
@@ -1232,9 +1271,9 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
     array_list_insert(cal_prev, merge_cals);    
     while (cal_pos < num_cals) {                                                                                                                 
       cal_next = (cal_t *)array_list_get(cal_pos, cals_list);      
-      if (cal_prev->chromosome_id == cal_next->chromosome_id &&                                                                                                       
+      if (cal_prev->chromosome_id == cal_next->chromosome_id && 
 	  cal_prev->strand == cal_next->strand && 
-	  (cal_next->start <= (cal_prev->end + max_intron_size))) {                                                                                                   
+	  (cal_next->start <= (cal_prev->end + max_intron_size))) {
 	array_list_insert(cal_next, merge_cals);
       } else { 
 	array_list_insert(merge_cals, cals_targets[target]);
@@ -1250,26 +1289,85 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
     array_list_clear(mapping_batch->mapping_lists[target], NULL);
     //===== Step-1: END =====//
 
-
-    //===== Step-2: Extend to first mismatch and Generate CALs score  =====//
-    for (int i = 0; i < array_list_size(cals_targets[target]); i++) {
+    
+    //===== Step-2: Generate CALs Score and filter reads that were process =====//
+    LOG_DEBUG("STEP-2");
+    for (i = 0; i < array_list_size(cals_targets[target]); i++) {
       fusion_cals = array_list_get(i, cals_targets[target]);
-      LOG_DEBUG_F("CAL merge %i\n", i);
-      for (int j = 0; j < array_list_size(fusion_cals); j++) {
-	LOG_DEBUG_F("\tCAL id %i\n", j);
+      for (j = 0; j < array_list_size(fusion_cals); j++) {	
+	cals_score[i] = generate_cals_score(fusion_cals, fq_read->length);
+      }
+    }
+    //===== Step-2: END =====//
+
+        
+    //===== Step-3: Ranking CALs by score (the n best)=====//
+    LOG_DEBUG("STEP-3");
+    for (i = 0; i < number_of_best; i++) {
+      for (j = i + 1; j < array_list_size(cals_targets[target]); j++) {
+	if (cals_score[j] > cals_score[i]) {
+	  array_list_swap(i, j, cals_targets[target]);
+	  coverage = cals_score[j];
+	  cals_score[j] = cals_score[i];
+	  cals_score[i] = coverage;
+	}
+      }
+    }
+    //===== Step-3: END =====//
+
+
+    //===== Step-4: Remove the complete best scores from the list  =====//
+    LOG_DEBUG("STEP-4");
+    n_delete = 0;
+    for (i = 0; i < number_of_best; i++) {
+      printf("Score %i\n", cals_score[i]);
+      if (cals_score[i] > fq_read->length && 
+	  array_list_size(cals_targets[target]) == 1) {
+	//CAL Mapped
+	fusion_cals = array_list_remove_at(i, cals_targets[target]);
+	cal = array_list_get(0, fusion_cals);
+	cigar_code = (cigar_code_t *)cal->info;
+	LOG_DEBUG_F("+++++ Read Mapped %s +++++\n", new_cigar_code_string(cigar_code));
+	n_delete++;
+	alignment = alignment_new();
+	alignment_init_single_end(strdup(fq_read->id), strdup(fq_read->sequence), strdup(fq_read->quality),
+				  cal->strand,
+				  cal->chromosome_id - 1, cal->start - 1,
+				  new_cigar_code_string(cigar_code), 1, 254, 1, 1,
+				  0, NULL, 0, alignment);
+	array_list_insert(alignment, mapping_batch->mapping_lists[target]);
+	cal_free(cal);
+      }
+    }
+
+    if (n_delete != number_of_best && array_list_size(cals_targets[target]) ) {
+      new_targets[num_new_targets++] = target;
+    } else {
+      continue;
+    }
+    //===== Step-4: END =====//
+    
+
+    //===== Step-5: Extend to first mismatch and Generate CALs score  =====//
+    LOG_DEBUG("STEP-5");
+    for (i = 0; i < array_list_size(cals_targets[target]); i++) {
+      fusion_cals = array_list_get(i, cals_targets[target]);
+      //LOG_DEBUG_F("CAL merge %i\n", i);
+      for (j = 0; j < array_list_size(fusion_cals); j++) {
+	//LOG_DEBUG_F("\tCAL id %i\n", j);
 	cal = array_list_get(j, fusion_cals);	
 	s = linked_list_get_first(cal->sr_list);
 	if (s) {
 	  cigar_code = (cigar_code_t *)cal->info;
-	  LOG_DEBUG_F("\t\tFUSION %i:[%lu|%i - %i|%lu]: Distance(%i) %s\n", j, s->genome_start, s->read_start, s->read_end, 
-		      s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
-		  
+	  //LOG_DEBUG_F("\t\tFUSION %i:[%lu|%i - %i|%lu]: Distance(%i) %s\n", j, s->genome_start, s->read_start, s->read_end, 
+	  //	      s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
+	  
 	  if (cigar_code) {
 	    cigar_op_start = cigar_code_get_first_op(cigar_code);
 	    cigar_op_end = cigar_code_get_last_op(cigar_code);
 	  }
 	  
-	  if (cigar_op_start->name == 'H') {	 
+	  if (cigar_op_start->name == 'H') {
 	    genome_start = s->genome_start;
 	    genome_end = s->genome_start + cigar_op_start->number - 1;
 	    genome_read_sequence_by_chr_index(reference, 0, 
@@ -1277,9 +1375,16 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	    memcpy(query, fq_read->sequence, cigar_op_start->number);
 	    query[cigar_op_start->number] = '\0';
 
-	    LOG_DEBUG_F("\t\tExtract reference for Start hard clipping [%i:%lu-%lu]: \n", cal->chromosome_id, genome_start, genome_end);
-	    LOG_DEBUG_F("REFERENCE: %s\n", reference);
-	    LOG_DEBUG_F("QUERY    : %s\n", query);
+	    //LOG_DEBUG_F("\t\tExtract reference for Start hard clipping [%i:%lu-%lu]: \n", cal->chromosome_id, genome_start, genome_end);
+	    //LOG_DEBUG_F("REFERENCE: %s\n", reference);
+	    //LOG_DEBUG_F("QUERY    : %s\n", query);
+	    
+	    c = cigar_op_start->number - 1;
+	    exact_nt = 0;
+	    while (reference[c] == query[c]) { exact_nt++; c--; }
+	    cigar_op = cigar_code_get_op(1, cigar_code);
+	    cigar_op->number += exact_nt;
+	    cigar_op_start->number -= exact_nt;
 	  }
 		
 	  if (cigar_op_end->name == 'H') {
@@ -1290,61 +1395,152 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	    memcpy(query, (fq_read->sequence + fq_read->length) - cigar_op_end->number , cigar_op_end->number);
 	    query[cigar_op_end->number] = '\0';
 
-	    LOG_DEBUG_F("\t\tExtract reference for End hard clipping [%i:%lu-%lu]: \n", cal->chromosome_id, genome_start, genome_end);
-	    LOG_DEBUG_F("REFERENCE: %s\n", reference);
-	    LOG_DEBUG_F("QUERY    : %s\n", query);
+	    //LOG_DEBUG_F("\t\tExtract reference for End hard clipping [%i:%lu-%lu]: \n", cal->chromosome_id, genome_start, genome_end);
+	    //LOG_DEBUG_F("REFERENCE: %s\n", reference);
+	    //LOG_DEBUG_F("QUERY    : %s\n", query);
+
+	    c = 0;
+	    exact_nt = 0;
+	    while (reference[c] == query[c]) { exact_nt++; c++; }
+	    cigar_op = cigar_code_get_op(cigar_code_get_num_ops(cigar_code) - 2, cigar_code);
+	    cigar_op->number += exact_nt;
+	    cigar_op_end->number -= exact_nt;
 	  }
+	  //LOG_DEBUG_F("\t\tNew Cigar %s\n", new_cigar_code_string(cigar_code));
 	}
       }
 
-      cals_score[i] = generate_cals_score(fusion_cals);
+      cals_score[i] = generate_cals_score(fusion_cals, fq_read->length);
 
     }
-
-    //===== Step-2: END =====//
-
-
-    //===== Step-3: Ranking CALs by score=====//
-    /*number_of_best = 1;
-    for (int i = 0; i < number_of_best; i++) {
-      for (int j = i + 1; j < array_list_size(cals_targets[target]); j++) {
-	//printf("%i : Compare %i > %i\n", j, cals_score[j], cals_score[i]);
-	if (cals_score[j] > cals_score[i]) {
-	  array_list_swap(i, j, cals_targets);
-	  coverage = cals_score[j];
-	  cals_score[j] = cals_score[i];
-	  cals_score[i] = coverage;
-	}
-      }
-      }*/
-    //===== Step-3: END =====//
+    //===== Step-5: END =====//
 
 
-    //===== Step-4: Process CALs, fill extern gaps and mount Smith-Watermans =====//
-    /*for (int i = 0; i < number_of_best; i++) {
+    //===== Step-6: Process CALs and mount Smith-Watermans =====//
+    LOG_DEBUG("STEP-6");
+    for (i = 0; i < number_of_best; i++) {
       fusion_cals = array_list_get(i, cals_targets[target]);
-      LOG_DEBUG_F("\tPROCESS CALS FUSION %i:\n", array_list_size(fusion_cals));  
-      if (array_list_size(fusion_cals) == 1) {
+      //LOG_DEBUG_F("\tPROCESS CALS FUSION %i:\n", array_list_size(fusion_cals));  
+      j = 0;
+      cal = array_list_get(j, fusion_cals);
+      cigar_code = (cigar_code_t *)cal->info;
+      s = linked_list_get_first(cal->sr_list);
+      cigar_op = cigar_code_get_first_op(cigar_code);
+
+      if (cigar_op->name == 'H' && cigar_op->number > 20) {
+	flank = 10;
+	genome_start = s->genome_start;
+	genome_end = s->genome_start + cigar_op->number + flank - 1;
+	genome_read_sequence_by_chr_index(reference, 0, 
+					  cal->chromosome_id - 1, &genome_start, &genome_end, genome);
+	memcpy(query, fq_read->sequence, cigar_op->number + flank);
+	query[cigar_op_end->number + flank] = '\0';
+
+	r[num_sw] = strdup(reference);
+	q[num_sw++] = strdup(query);
+	LOG_DEBUG_F("START-REFERENCE: %s\n", reference);
+	LOG_DEBUG_F("START-QUERY    : %s\n", query);	
+	  
+	cal->l_flank = flank;
+      }
+
+      j++;
+      cal_prev = cal;
+      flank = 20;
+      for (; j < array_list_size(fusion_cals); j++) {
+	s = linked_list_get_first(cal_prev->sr_list);
+	cigar_code = (cigar_code_t *)cal_prev->info;
+	cigar_op = cigar_code_get_first_op(cigar_code);
+	genome_start = s->genome_start;
+	if (cigar_op->name == 'H') { 
+	  genome_start += cigar_op->number; 
+	  read_start += cigar_op->number;
+	}
+	read_start += cigar_read_coverage(cigar_code);
+	if (cigar_read_coverage(cigar_code) < flank ) {
+	  assert(flank);
+	}
+	read_start -= flank;
+	cal_prev->r_flank = flank;
+	genome_start += cigar_genome_coverage(cigar_code);
+	genome_end = genome_start + flank;
+	genome_start -= flank;
+	genome_read_sequence_by_chr_index(reference, 0,
+					  cal->chromosome_id - 1, &genome_start, &genome_end, genome);
+	LOG_DEBUG_F("MIDDLE-REFERENCE [%i:%lu-%lu]: %s\n", cal->chromosome_id, genome_start, genome_end, reference);
+	
 	cal = array_list_get(j, fusion_cals);
 	
+	s = linked_list_get_first(cal->sr_list);
+	//flank = 20;
+	cigar_code = (cigar_code_t *)cal->info;
+	cigar_op = cigar_code_get_first_op(cigar_code);
+	genome_start = s->genome_start;
+	if (cigar_op->name == 'H') { genome_start += cigar_op->number; }
+	else { assert(cigar_op->name); }
+
+	if (cigar_read_coverage(cigar_code) < flank ) {
+	  assert(flank);
+	}
+	read_end = cigar_op->number;
+	read_end += flank;
+	cal_prev->l_flank = flank;
+	genome_end = genome_start + flank;
+	genome_start -= flank;
+	genome_read_sequence_by_chr_index(reference_aux, 0,
+					  cal->chromosome_id - 1, &genome_start, &genome_end, genome);
+	LOG_DEBUG_F("MIDDLE-REFERENCE [%i:%lu-%lu]: %s\n", cal->chromosome_id, genome_start, genome_end, reference_aux);
+
+	strcat(reference, reference_aux);	
+	memcpy(query, fq_read->sequence + read_start, read_end - read_start); 
+	query[read_end - read_start] = '\0';
+	LOG_DEBUG_F("MIDDLE-QUERY     [%lu-%lu]: %s\n", read_start, read_end, query);	
+
+	r[num_sw] = strdup(reference);
+	q[num_sw++] = strdup(query);
+
+	//LOG_DEBUG_F("MIDDLE-REFERENCE [%i:%lu-%lu]: %s\n", reference);
+	//LOG_DEBUG_F("MIDDLE-QUERY     [%i:%lu-%lu]: %s\n", query);	
+
+	cal_prev = cal;
       }
 
-      for (int j = 0; j < array_list_size(fusion_cals); j++) {
-	cal = array_list_get(j, fusion_cals);
-	linked_list_iterator_init(cal->sr_list, &itr);
-	s = linked_list_iterator_curr(&itr);
-	if (s) {
-	  cigar_code = (cigar_code_t *)s->info;
-	  LOG_DEBUG_F("\t\tFUSION %i:[%lu|%i - %i|%lu]: Distance(%i) %s\n", j, s->genome_start, s->read_start, s->read_end, 
-	  	      s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
-	}	
+      if (cigar_op->name == 'H') {
+	flank = 10;
+	genome_end = s->genome_end;
+	genome_start = s->genome_end - (cigar_op->number + flank) + 1;
+	genome_read_sequence_by_chr_index(reference, 0, 
+					  cal->chromosome_id - 1, &genome_start, &genome_end, genome);
+	memcpy(query, (fq_read->sequence + fq_read->length) - (cigar_op_end->number + flank), cigar_op_end->number);
+	query[cigar_op_end->number + flank] = '\0';
+	cal->r_flank = flank;
+	r[num_sw] = strdup(reference);
+	q[num_sw++] = strdup(query);
+	LOG_DEBUG_F("END-REFERENCE: %s\n", reference);
+	LOG_DEBUG_F("END-QUERY    : %s\n", query);
       }
-
-      }*/
-    //===== Step-4: Process CALs =====//
-
+    }
+    //===== Step-6: Process CALs =====//
   } //End loop targets 
+
+  LOG_DEBUG("========== S M I T H - W A T E R M A N ==========\n");
+
+  LOG_DEBUG("I N P U T \n");
+  for (i = 0;  i < num_sw; i++) {
+    LOG_DEBUG_F("Query (%i): %s\n", strlen(q[i]), q[i]);
+    LOG_DEBUG_F("Refer (%i): %s\n", strlen(r[i]), r[i]);
+  }
   
+  sw_multi_output_t *output = sw_multi_output_new(num_sw);  
+  smith_waterman_mqmr(q, r, num_sw, sw_optarg, 1, output);
+
+  LOG_DEBUG("O U T P U T \n");
+  for (i = 0;  i < num_sw; i++) {
+    LOG_DEBUG_F("Query Map: %s (Start:%i, Len:%i)\n", output->query_map_p[i], output->query_start_p, strlen(output->query_map_p[i]));
+    LOG_DEBUG_F("Refer Map: %s (Start:%i, Len:%i)\n", output->ref_map_p[i],   output->ref_start_p,   strlen(output->ref_map_p[i]));
+  }
+
+  LOG_DEBUG("========== S M I T H - W A T E R M A N ==========\n");
 
   exit(-1);
   
