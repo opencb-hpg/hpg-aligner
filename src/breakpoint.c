@@ -70,7 +70,8 @@ cigar_code_t *cigar_code_new_by_string(char *cigar_str) {
 
 void cigar_code_free(cigar_code_t* p) {
   if (p) {
-    if (p->ops) array_list_free(p->ops, (void *) cigar_op_free);
+    //    if (p->ops) array_list_free(p->ops, (void *) cigar_op_free);
+    if (p->ops) array_list_free(p->ops, (void *) NULL);
     if (p->cigar_str) free(p->cigar_str);
     free(p);
   }
@@ -145,6 +146,47 @@ char *new_cigar_code_string(cigar_code_t *p) {
   p->cigar_str = str;
   
   return p->cigar_str;
+}
+
+//--------------------------------------------------------------------------------------
+
+int cigar_code_nt_length(cigar_code_t *p) {
+  if (!p) {
+    return 0;
+  }
+
+  int len = 0;
+  int num_ops = array_list_size(p->ops);
+
+  cigar_op_t *op;
+  for (int i = 0; i < num_ops; i++) {
+    op = array_list_get(i, p->ops);
+    if (op->name == 'M' || op->name == 'I' || op->name == '=') {
+      len += op->number;
+    }
+  }
+
+  return len;
+}
+
+//--------------------------------------------------------------------------------------
+
+float cigar_code_get_score(int read_len, cigar_code_t *p) {
+  float ret = 0.0f;
+  int cigar_len = cigar_code_nt_length(p);
+
+  int distance = (abs(read_len - cigar_len) * 2) + p->distance;
+  
+  ret = read_len - distance;
+  //  LOG_DEBUG_F("score = %0.2f (distance = %i, read len = %i, cigar len = %i)\n", 
+  //	      ret, p->distance, read_len, cigar_len);
+  if (ret < 0.0f) {
+    ret = 0;
+    //    LOG_FATAL_F("score is negative %0.2f (distance = %i)\n", ret, p->distance);
+  }
+  
+  //  return ret;
+  return 0.7f;
 }
 
 //--------------------------------------------------------------------------------------
@@ -289,6 +331,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   *distance = dist;
 
   init_cigar_string(p);
+  p->distance = dist;
 
   return p;
 }

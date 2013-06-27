@@ -125,60 +125,6 @@ int bam_writer(void *data) {
 	 total_mappings += num_items;
 	 fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
 
-	 //-----------------------------
-	 //TODO: delete
-	 /*char *token;
-	 char *string;
-	 char *tofree;
-	 int tt = 0;
-	 unsigned char chr;
-	 size_t start, end;
-	 string = strdup(fq_read->id);
-	 
-	 if (string != NULL) {
-	   tofree = string;
-	   while ((token = strsep(&string, "@")) != NULL)
-	     {
-	       tt++;
-	       if (tt == 5) {
-		 if (strcmp(token, "X") == 0) chr = 22;
-		 else if (strcmp(token, "Y") == 0) chr = 23;
-		 else if (strcmp(token, "MT") == 0) chr = 24;
-		 else { chr = atoi(token); chr--;}
-	       }
-	       else if (tt == 6)
-		 start = atof(token);
-	       else if (tt == 7)
-		 end = atof(token);
-	       
-	     }
-	   free(tofree);
-	 }
-	 if (!mapping_batch->bwt_mappings[i]) {
-	   int is_correct = 0;
-	   //Is the read correct mapped?	     
-	   for (int j = 0; j < array_list_size(mapping_batch->mapping_lists[i]); j++) {
-	     alignment_t *alig = array_list_get(j, mapping_batch->mapping_lists[i]);
-	     //printf("%s\n", fq_read->id);
-	     //printf("%i - %i - %i :: Mapping %i - %i\n", chr, start, end, alig->chromosome, alig->position);
-	     if (alig->chromosome == chr && alig->position >= start && alig->position <= end) {
-	       is_correct = 1;
-	       break;
-	     }
-	   }
-
-	   pthread_mutex_lock(&bwt_mutex);
-	   if (is_correct) 	       
-	     bwt_correct++;
-	   else {
-	     bwt_error++;
-	     //printf("%s\n%s\n+\n%s\n", fq_read->id, fq_read->sequence, fq_read->sequence);
-	   }
-	   pthread_mutex_unlock(&bwt_mutex);
-	   //exit(-1);
-	   }*/	   
-	 //------------------------
-	 
 	 // mapped or not mapped ?	 
 	 if (num_items == 0) {
 	   total_mappings++;
@@ -305,6 +251,8 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
       bam_fwrite(bam1, bam_file);
       bam_destroy1(bam1);	 
       alignment_free(alig);
+    } else {
+      LOG_FATAL_F("alig is NULL, num_items = %lu\n", num_items)
     }
   }
   if (array_list) { array_list_free(array_list, NULL); }
