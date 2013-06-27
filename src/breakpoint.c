@@ -78,6 +78,16 @@ void cigar_code_free(cigar_code_t* p) {
 
 //--------------------------------------------------------------------------------------
 
+void cigar_code_merge(cigar_code_t *p, cigar_code_t *merge_p) {
+  cigar_op_t *op;
+  for (int i = 0; i < array_list_size(merge_p->ops); i++) {
+    op = array_list_get(i, merge_p->ops);
+    array_list_insert(op, p->ops);
+  }
+  
+}
+
+//--------------------------------------------------------------------------------------
 int cigar_code_get_num_ops(cigar_code_t *p) {
   int num = 0;
   if (p && p->ops) { 
@@ -119,6 +129,12 @@ void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p) {
       array_list_insert(op, p->ops);
     }
   }
+}
+
+//--------------------------------------------------------------------------------------
+
+void cigar_code_append_new_op(int value, char name, cigar_code_t *p) {
+  cigar_code_append_op(cigar_op_new(value, name), p);
 }
 
 //--------------------------------------------------------------------------------------
