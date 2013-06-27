@@ -44,6 +44,8 @@
 #define DEFAULT_FILTER_SEED_MAPPINGS    500
 //new variable for default uses
 #define DEFAULT_NUCLEOTIDES             "ACGT"
+#define DEFAULT_FILTER_READ_MAPPINGS_BS 50
+#define DEFAULT_FILTER_SEED_MAPPINGS_BS 500
 //=====================================================================
 
 //#define NUM_OPTIONS			45

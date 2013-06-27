@@ -64,32 +64,10 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   //printf("APPLY BWT_BS SERVER...\n");
   struct timeval start, end;
   double time;
+  
+  // variables for histogram
+  float histogram[256];
 
-  /*
-  //*********************************
-  {
-    char *seq = strdup("CCTAACCAACATAATAAAACCCCATCTCTACTAAAAATACAAAAAAATTAACAAAACATAATAACAAATACCTATAATCCCAACTACTCAAAAAACTAAA");
-    alignment_t *alig;
-    array_list_t *mapping_list = array_list_new(100000, 1.25f, 
-						COLLECTION_MODE_SYNCHRONIZED);
-    
-    size_t num_mappings;
-    
-    num_mappings = bwt_map_forward_inexact_seq(seq, input->bwt_optarg_p, 
-					       input->bwt_index2_p, mapping_list);
-    printf("aux seq: %s\n", seq);
-    printf("num_mappings = %lu\n", num_mappings);
-    for (size_t i = 0; i < num_mappings; i++) {
-      alig = array_list_get(i, mapping_list);
-      printf("%lu\t---------------------\n", i);
-      printf("\tstrand = %i, chromosome = %i, position = %i\n", 
-	     alig->seq_strand, alig->chromosome, alig->position);
-    }
-
-    //    exit(-1);
-  }
-  //*********************************
-  */
 
   if (time_on) { start_timer(start); }
 
@@ -125,25 +103,10 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   mapping_batch->GA_fq_batch     = array_list_new(num_reads + 2, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   mapping_batch->GA_rev_fq_batch = array_list_new(num_reads + 2, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
 
-  cpy_array_bs(mapping_batch->fq_batch, 
-	       mapping_batch->CT_fq_batch, mapping_batch->CT_rev_fq_batch, 
-	       mapping_batch->GA_fq_batch, mapping_batch->GA_rev_fq_batch);
-
-  //printf("******end copy array\n");
-
-  //transform the batch reads
-  replace_array(mapping_batch->GA_fq_batch, ACT);
-  //printf("******end replace G->A\n");
-  //rev_comp_array(mapping_batch->GA_rev_fq_batch, mapping_batch->fq_batch);
-  //replace_array(mapping_batch->GA_rev_fq_batch, AGT);
-  rev_comp_array(mapping_batch->GA_rev_fq_batch, mapping_batch->GA_fq_batch);
-  //printf("******end rev_comp G->A\n");
-  replace_array(mapping_batch->CT_fq_batch, AGT);
-  //printf("******end replace C->T\n");
-  //rev_comp_array(mapping_batch->CT_rev_fq_batch, mapping_batch->fq_batch);
-  //replace_array(mapping_batch->CT_rev_fq_batch, ACT);
-  rev_comp_array(mapping_batch->CT_rev_fq_batch, mapping_batch->CT_fq_batch);
-  //printf("******end rev_comp C->T\n");
+  // copy and transform the reads simultaneously
+  cpy_transform_array_bs(mapping_batch->fq_batch, 
+			 mapping_batch->CT_fq_batch, mapping_batch->CT_rev_fq_batch, 
+			 mapping_batch->GA_fq_batch, mapping_batch->GA_rev_fq_batch);
 
   /*
   // mostrar las reads
@@ -173,10 +136,131 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   mapping_batch->num_targets = 0;
 
   for (size_t i = 0; i < num_reads; i++) {
+    //printf("\n********** read %lu **********\n", i);
+
     array_list_set_flag(1, mapping_batch->mapping_lists[i]);
     array_list_set_flag(1, mapping_batch->mapping_lists2[i]);
 
-    //printf("\n********** read %lu **********\n", i);
+    /*
+    // make histogram of the original read
+    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
+    // initialize the counter
+    histogram['A'] = 0.0;
+    histogram['C'] = 0.0;
+    histogram['G'] = 0.0;
+    histogram['T'] = 0.0;
+
+    for (size_t j = 0; j < fq_read->length; j++) {
+      histogram[fq_read->sequence[j]]++;
+    }
+
+    //printf("A=%.0f\tC=%.0f\tG=%.0f\tT=%.0f\n",
+    //	   histogram['A'], histogram['C'],histogram['G'], histogram['T']);
+    //printf("A=%.2f\tC=%.2f\tG=%.2f\tT=%.2f\n",
+    //	   histogram['A'] / fq_read->length, histogram['C'] / fq_read->length,
+    //	   histogram['G'] / fq_read->length, histogram['T'] / fq_read->length);
+
+    if (histogram['C'] / fq_read->length < LIMIT_INF &&
+	histogram['T'] / fq_read->length > LIMIT_SUP) {
+      //printf("1\n");
+
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
+      //printf("index2 %s\n", input->bwt_index2_p->nucleotides);
+      //printf("read3   %s\n", fq_read->sequence);
+      num_mapps3 = bwt_map_forward_inexact_seq(fq_read->sequence,
+					       input->bwt_optarg_p, input->bwt_index2_p,
+					       mapping_batch->mapping_lists2[i]);
+      
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
+      //printf("index1 %s\n", input->bwt_index_p->nucleotides);
+      //printf("read4   %s\n", fq_read->sequence);
+      num_mapps4 = bwt_map_forward_inexact_seq(fq_read->sequence,
+					       input->bwt_optarg_p, input->bwt_index_p,
+					       mapping_list2);
+
+      if (num_mapps3 + num_mapps4 == 0) {
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
+	//printf("index1 %s\n", input->bwt_index_p->nucleotides);
+	//printf("read1   %s\n", fq_read->sequence);
+	num_mapps1 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index_p,
+						 mapping_batch->mapping_lists[i]);
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
+	//printf("index2 %s\n", input->bwt_index2_p->nucleotides);
+	//printf("read2   %s\n", fq_read->sequence);
+	num_mapps2 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index2_p,
+						 mapping_list1);
+      }
+    }
+    else {
+      if (histogram['G'] / fq_read->length < LIMIT_INF &&
+	  histogram['A'] / fq_read->length > LIMIT_SUP) {
+	//printf("2\n");
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
+	//printf("index1 %s\n", input->bwt_index_p->nucleotides);
+	//printf("read1   %s\n", fq_read->sequence);
+	num_mapps1 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index_p,
+						 mapping_batch->mapping_lists[i]);
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
+	//printf("index2 %s\n", input->bwt_index2_p->nucleotides);
+	//printf("read2   %s\n", fq_read->sequence);
+	num_mapps2 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index2_p,
+						 mapping_list1);
+	if (num_mapps1 + num_mapps2 == 0) {
+	  fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
+	  //printf("index2 %s\n", input->bwt_index2_p->nucleotides);
+	  //printf("read3   %s\n", fq_read->sequence);
+	  num_mapps3 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						   input->bwt_optarg_p, input->bwt_index2_p,
+						   mapping_batch->mapping_lists2[i]);
+
+	  fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
+	  //printf("index1 %s\n", input->bwt_index_p->nucleotides);
+	  //printf("read4   %s\n", fq_read->sequence);
+	  num_mapps4 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						   input->bwt_optarg_p, input->bwt_index_p,
+						   mapping_list2);
+	}
+      }
+      else {
+	//printf("3\n");
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
+	//printf("index1 %s\n", input->bwt_index_p->nucleotides);
+	//printf("read1   %s\n", fq_read->sequence);
+	num_mapps1 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index_p,
+						 mapping_batch->mapping_lists[i]);
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
+	//printf("index2 %s\n", input->bwt_index2_p->nucleotides);
+	//printf("read2   %s\n", fq_read->sequence);
+	num_mapps2 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index2_p,
+						 mapping_list1);
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
+	//printf("index2 %s\n", input->bwt_index2_p->nucleotides);
+	//printf("read3   %s\n", fq_read->sequence);
+	num_mapps3 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index2_p,
+						 mapping_batch->mapping_lists2[i]);
+
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
+	//printf("index1 %s\n", input->bwt_index_p->nucleotides);
+	//printf("read4   %s\n", fq_read->sequence);
+	num_mapps4 = bwt_map_forward_inexact_seq(fq_read->sequence,
+						 input->bwt_optarg_p, input->bwt_index_p,
+						 mapping_list2);
+      }
+    }
+    */
 
     fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
     //printf("index1 %s\n", input->bwt_index_p->nucleotides);
@@ -214,6 +298,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
     //printf("mapps  %lu\n", num_mapps4);
     //printf("end    %s\n", fq_read->sequence);
 
+
     if (num_mapps1 + num_mapps2 + num_mapps3 + num_mapps4 > 0) {
       array_list_set_flag(1, mapping_batch->mapping_lists[i]);
       array_list_set_flag(1, mapping_batch->mapping_lists2[i]);
@@ -223,14 +308,12 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 	transform_mappings(mapping_list1);
 	insert_mappings(mapping_batch->mapping_lists[i], mapping_list1);
       }
-      array_list_clear(mapping_list1, NULL);
 
       // transform and unify the mappings of search 4 in the mappings of search 3
       if (num_mapps4 > 0) {
 	transform_mappings(mapping_list2);
 	insert_mappings(mapping_batch->mapping_lists2[i], mapping_list2);
       }
-      array_list_clear(mapping_list2, NULL);
 
       //printf("num_reads = %lu\tnum_mapps1 = %lu\tnum_mapps2 = %lu\tnum_mapps3 = %lu\tnum_mapps4 = %lu\n",
       //     num_reads, num_mapps1, num_mapps2, num_mapps3, num_mapps4);
@@ -271,15 +354,20 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 
     } else {
       //imprimir (o guardar) las reads no mapeadas exactas (para depuración)
-      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
-      printf("read no mapp %s\n", fq_read->sequence);
+      //fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+      //printf("read no mapp %s\n", fq_read->sequence);
 
-      if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2) {
+      if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 2) {
 	mapping_batch->targets[(mapping_batch->num_targets)++] = i;
 	array_list_set_flag(0, mapping_batch->mapping_lists[i]);
 	array_list_set_flag(0, mapping_batch->mapping_lists2[i]);
+      } else {
+	array_list_set_flag(2, mapping_batch->mapping_lists[i]);
+	array_list_set_flag(2, mapping_batch->mapping_lists2[i]);
       }
     }
+    array_list_clear(mapping_list1, NULL);
+    array_list_clear(mapping_list2, NULL);
   }
 
   array_list_free(mapping_list1, NULL);
@@ -301,9 +389,8 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   if (time_on) { stop_timer(start, end, time); timing_add(time, BWT_SERVER, timing); }
   
   //printf("APPLY BWT SERVER DONE!\n");
-  return CONSUMER_STAGE;
+  //return CONSUMER_STAGE;
 
-  /*
   if (batch->mapping_batch->num_targets > 0) {
     //TODO: DELETE
     //printf("Web have targets\n");
@@ -312,9 +399,10 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
     }
     return SEEDING_STAGE;
   }
+
   //printf("Reads are mapped\n");
-  return POST_PAIR_STAGE;
-  */
+  //return POST_PAIR_STAGE;
+  return CONSUMER_STAGE;
 }
 
 //------------------------------------------------------------------------------------

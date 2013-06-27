@@ -198,6 +198,10 @@ int main(int argc, char* argv[]) {
     LOG_DEBUG("Reading bwt index done !!");
   }
   else {
+    // change the filter_*_mappings values for bisulfite alignments
+    options->filter_read_mappings = DEFAULT_FILTER_READ_MAPPINGS_BS;
+    options->filter_seed_mappings = DEFAULT_FILTER_SEED_MAPPINGS_BS;
+
     char bs_dir1[256];
     sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
     char bs_dir2[256];

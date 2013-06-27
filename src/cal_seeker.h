@@ -21,13 +21,14 @@ extern size_t reads_no_cals;
  * to insert and read data batches.
  */
 struct cal_seeker_input {
-  unsigned batch_size;             /**< size of data batches*/
+  unsigned batch_size;           /**< size of data batches*/
   list_t *write_list;            /**< list for store write batches*/
   list_t *regions_list;          /**< list for read batches with all regions found for each read */
   list_t *sw_list;               /**< list to store batches with all CALs found for each read */
   list_t *pair_list;
   cal_optarg_t *cal_optarg;      /**< cal seeker configuration values */
   genome_t *genome;
+  genome_t *genome2;             /**< second genome for bisulfite */
 };
 
 /**

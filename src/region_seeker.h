@@ -10,6 +10,7 @@
 #endif
 
 #include "buffers.h"
+#include "bs/methylation.h"
 
 //====================================================================================
 //  structures and prototypes

@@ -108,7 +108,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
 
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   array_list_t *list = NULL;
-  size_t read_index, num_mappings;
+  size_t read_index;
   size_t num_mapps1 = 0, num_mapps2 = 0,
     num_mapps3 = 0, num_mapps4 = 0;
 
@@ -145,6 +145,8 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
   //TODO: omp parallel for !!
   //if (batch->mapping_mode == BS_MODE) {
   for (size_t i = 0; i < num_targets; i++) {
+    // original call
+    /*
     read = array_list_get(targets[i], mapping_batch->fq_batch);
     //printf("Seq (i=%i)(target=%i): %s\n", i, targets[i], read->sequence);
     //printf("region_seeker: seeds for %s\n", read->id);
@@ -152,6 +154,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
 						     seed_size, min_seed_size,
 						     input->bwt_optarg_p, input->bwt_index_p, 
 						     mapping_batch->mapping_lists[targets[i]]);
+    */
 
     read = array_list_get(targets[i], mapping_batch->GA_fq_batch);
     //printf("Seq (i=%i)(target=%i): %s\n", i, targets[i], read->sequence);
@@ -167,7 +170,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
     num_mapps2 = bwt_map_exact_seeds_seq_by_num_bs(read->sequence, num_seeds,
 						   seed_size, min_seed_size,
 						   input->bwt_optarg_p, input->bwt_index2_p, 
-						   mapping_batch->mapping_lists[targets[i]]);
+						   mapping_list1);
 
     read = array_list_get(targets[i], mapping_batch->CT_fq_batch);
     //printf("Seq (i=%i)(target=%i): %s\n", i, targets[i], read->sequence);
@@ -175,7 +178,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
     num_mapps3 = bwt_map_exact_seeds_seq_by_num_bs(read->sequence, num_seeds,
 						   seed_size, min_seed_size,
 						   input->bwt_optarg_p, input->bwt_index2_p, 
-						   mapping_batch->mapping_lists[targets[i]]);
+						   mapping_batch->mapping_lists2[targets[i]]);
 
     read = array_list_get(targets[i], mapping_batch->CT_rev_fq_batch);
     //printf("Seq (i=%i)(target=%i): %s\n", i, targets[i], read->sequence);
@@ -183,14 +186,30 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
     num_mapps4 = bwt_map_exact_seeds_seq_by_num_bs(read->sequence, num_seeds,
 						   seed_size, min_seed_size,
 						   input->bwt_optarg_p, input->bwt_index_p, 
-						   mapping_batch->mapping_lists[targets[i]]);
+						   mapping_list2);
 
-    //printf("Num mappings %i\n", num_mappings);
-    if (num_mappings > 0) {
+    //printf("Num mappings %i\n", num_mapps4);
+    if (num_mapps1 + num_mapps2 + num_mapps3 + num_mapps4 > 0) {
+      if (num_mapps2 > 0) {
+	transform_regions(mapping_list1);
+	insert_regions(mapping_batch->mapping_lists[i], mapping_list1);
+      }
+      if (num_mapps4 > 0) {
+	transform_regions(mapping_list2);
+	insert_regions(mapping_batch->mapping_lists2[i], mapping_list2);
+      }
+
       array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
+      array_list_set_flag(2, mapping_batch->mapping_lists2[targets[i]]);
       targets[new_num_targets++] = targets[i];
-      mapping_batch->num_to_do += num_mappings;
+      mapping_batch->num_to_do += num_mapps1 + num_mapps2 + num_mapps3 + num_mapps4;
     }
+
+
+    array_list_clear(mapping_list1, NULL);
+    array_list_clear(mapping_list2, NULL);
+
+
   }
   //}
 
@@ -202,6 +221,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
   //printf("APPLY SEEDING DONE!\n");
 
   return CAL_STAGE;
+  //return CONSUMER_STAGE;
 
 }
 

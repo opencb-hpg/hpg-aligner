@@ -345,6 +345,8 @@ int bwt_stage(void *data) {
      return apply_bwt(batch->bwt_input, batch);     
 }
 
+//--------------------------------------------------------------------
+
 int bwt_stage_bs(void *data) {
      batch_t *batch = (batch_t *) data;
 
@@ -358,6 +360,8 @@ int seeding_stage(void *data) {
 
      return apply_seeding(batch->region_input, batch);
 }
+
+//--------------------------------------------------------------------
 
 int seeding_stage_bs(void *data) {
      batch_t *batch = (batch_t *) data;

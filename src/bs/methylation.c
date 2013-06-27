@@ -58,11 +58,11 @@ char complement (char c) {
 
 //====================================================================================
 
-void rev_comp(char *query, char *seq, int len) {
+void rev_comp(char *orig, char *dest, int len) {
   for (int i = 0; i < len; i++) {
-    seq[len - i - 1] = complement(query[i]);
+    dest[len - i - 1] = complement(orig[i]);
   }
-  seq[len] = '\0';
+  dest[len] = '\0';
 }
 
 //====================================================================================
@@ -145,6 +145,35 @@ void cpy_array_bs(array_list_t *src, array_list_t *dest1, array_list_t *dest2, a
 
 //====================================================================================
 
+void cpy_transform_array_bs(array_list_t *src, array_list_t *dest_ct, array_list_t *dest_ct_rev, array_list_t *dest_ga, array_list_t *dest_ga_rev) {
+  size_t num_reads = array_list_size(src);
+  fastq_read_t *fq_read_src;
+  fastq_read_t *fq_read_dest;
+  fastq_read_t *fq_read_tmp;
+
+  for (size_t i = 0; i < num_reads; i++) {
+    fq_read_src  = (fastq_read_t *) array_list_get(i, src);
+
+    fq_read_dest = fastq_read_dup(fq_read_src);
+    replace(fq_read_dest->sequence, fq_read_dest->length, AGT);
+    array_list_insert(fq_read_dest, dest_ct);
+
+    fq_read_tmp = fastq_read_dup(fq_read_src);
+    rev_comp(fq_read_dest->sequence, fq_read_tmp->sequence, fq_read_dest->length);
+    array_list_insert(fq_read_tmp, dest_ct_rev);
+
+    fq_read_dest = fastq_read_dup(fq_read_src);
+    replace(fq_read_dest->sequence, fq_read_dest->length, ACT);
+    array_list_insert(fq_read_dest, dest_ga);
+
+    fq_read_tmp = fastq_read_dup(fq_read_src);
+    rev_comp(fq_read_dest->sequence, fq_read_tmp->sequence, fq_read_dest->length);
+    array_list_insert(fq_read_tmp, dest_ga_rev);
+  }
+}
+
+//====================================================================================
+
 void insert_mappings_array(array_list_t **dest, array_list_t **src) {
   size_t num_reads = array_list_size(src);
   size_t num_mappings;
@@ -155,11 +184,12 @@ void insert_mappings_array(array_list_t **dest, array_list_t **src) {
     num_mappings = array_list_size(src[i]);
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src[i]);
-      // insert the alignments from the 'src' into the 'dest'
+      // insert the alignments from the 'src' into 'dest'
       array_list_insert(align_tmp, dest[i]);
     }
   }
 }
+
 //====================================================================================
 
 void insert_mappings(array_list_t *dest, array_list_t *src) {
@@ -171,6 +201,20 @@ void insert_mappings(array_list_t *dest, array_list_t *src) {
     align_tmp  = (alignment_t *) array_list_get(j, src);
     // insert the alignments from the 'src' into the 'dest'
     array_list_insert(align_tmp, dest);
+  }
+}
+
+//====================================================================================
+
+void insert_regions(array_list_t *dest, array_list_t *src) {
+  size_t num_mappings;
+  region_t *region_tmp;
+
+  num_mappings = array_list_size(src);
+  for (size_t j = 0; j < num_mappings; j++) {
+    region_tmp  = (region_t *) array_list_get(j, src);
+    // insert the alignments from the 'src' into the 'dest'
+    array_list_insert(region_tmp, dest);
   }
 }
 
@@ -202,6 +246,19 @@ void transform_mappings(array_list_t *src){
     align_tmp  = (alignment_t *) array_list_get(j, src);
     // modify the strand, and make it reverse
     align_tmp->seq_strand = 1;
+  }
+}
+
+//====================================================================================
+void transform_regions(array_list_t *src){
+  size_t num_mappings;
+  region_t *region_tmp;
+
+  num_mappings = array_list_size(src);
+  for (size_t j = 0; j < num_mappings; j++) {
+    region_tmp  = (region_t *) array_list_get(j, src);
+    // modify the strand, and make it reverse
+    //region_tmp->seq_strand = 1;
   }
 }
 
