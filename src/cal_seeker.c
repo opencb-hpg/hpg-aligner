@@ -1009,7 +1009,8 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 						 list,
 						 read->length);
     // for debugging
-    LOG_DEBUG_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
+    LOG_DEBUG_F("read %s : num. cals = %i, min. seeds = %i, max. seeds = %i\n", 
+		read->id, num_cals, min_seeds, max_seeds);
 
     /*
     for (size_t j = 0; j < num_cals; j++) {
@@ -1025,6 +1026,9 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     int founds[num_cals], found = 0;
     for (size_t j = 0; j < num_cals; j++) {
       cal = array_list_get(j, list);
+      LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
+		  j, num_cals, cal->sr_list->size, cal->num_seeds,
+		  cal->chromosome_id, cal->start, cal->end);
       if (cal->sr_list->size > 0) {
 	int start = 0;
 	for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
@@ -1035,13 +1039,21 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 	  }
 	  start = s->read_end + 1;
 	}
+	//      } else {
+	//	found++;
+	//	founds[j] = 1;
       }
     }
     if (found) {
+      //      min_seeds = 100000;
+      //      max_seeds = 0;
       cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
       for (size_t j = 0; j < num_cals; j++) {
 	if (!founds[j]) {
 	  cal = array_list_get(j, list);
+	  //	  cal->num_seeds = cal->sr_list->size;
+	  //	  if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
+	  //	  if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
 	  array_list_insert(cal, cal_list);
 	  array_list_set(j, NULL, list);
 	}
@@ -1051,9 +1063,12 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       list = cal_list;
     }
 
+    //    LOG_FATAL_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
+
     // filter CALs by the number of seeds
     int min_limit = input->cal_optarg->min_num_seeds_in_cal;
     if (min_limit < 0) min_limit = max_seeds;
+    //    min_limit -= 3;
     
     if (min_seeds == max_seeds || min_limit <= min_seeds) {
       cal_list = list;
@@ -1079,7 +1094,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       num_cals = array_list_size(cal_list);
     }
     
-    LOG_DEBUG_F("num. cals = %i, MAX_CALS = %i\n", num_cals, MAX_CALS);
+    //    LOG_DEBUG_F("num. cals = %i, MAX_CALS = %i\n", num_cals, MAX_CALS);
 
     if (num_cals > 0 && num_cals <= MAX_CALS) {
       array_list_set_flag(2, cal_list);
