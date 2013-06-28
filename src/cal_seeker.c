@@ -1025,6 +1025,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     // filter incoherent CALs
     int founds[num_cals], found = 0;
     for (size_t j = 0; j < num_cals; j++) {
+      founds[j] = 0;
       cal = array_list_get(j, list);
       LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
 		  j, num_cals, cal->sr_list->size, cal->num_seeds,
@@ -1033,27 +1034,30 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 	int start = 0;
 	for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
 	  seed_region_t *s = list_item->item;
+	  
+	  LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
 	  if (start > s->read_start) {
+	    LOG_DEBUG("\t\t\t:: remove\n");
 	    found++;
 	    founds[j] = 1;
 	  }
 	  start = s->read_end + 1;
 	}
-	//      } else {
-	//	found++;
-	//	founds[j] = 1;
+      } else {
+	found++;
+	founds[j] = 1;
       }
     }
     if (found) {
-      //      min_seeds = 100000;
-      //      max_seeds = 0;
+      min_seeds = 100000;
+      max_seeds = 0;
       cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
       for (size_t j = 0; j < num_cals; j++) {
 	if (!founds[j]) {
 	  cal = array_list_get(j, list);
-	  //	  cal->num_seeds = cal->sr_list->size;
-	  //	  if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
-	  //	  if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
+	  cal->num_seeds = cal->sr_list->size;
+	  if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
+	  if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
 	  array_list_insert(cal, cal_list);
 	  array_list_set(j, NULL, list);
 	}
