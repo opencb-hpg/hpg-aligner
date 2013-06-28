@@ -655,7 +655,7 @@ inline size_t select_best_hits(array_list_t *mapping_list,
 				       1.25f, 
 				       COLLECTION_MODE_ASYNCHRONIZED);
     
-  //  printf("Initial array size %i\n", array_list_size(mapping_list));
+  //  LOG_DEBUG_F("Initial array size %i\n", array_list_size(mapping_list));
   for (j = 0; j < report_n_best; j++) {     
     best_pos = 0;
     best_alignment = array_list_get( 0, mapping_list);
@@ -681,8 +681,9 @@ inline size_t select_best_hits(array_list_t *mapping_list,
     alignment_free(aux_alignment);
   }
 
-  //  printf("Move %i elements to list with %i elements\n", 
-  //	 array_list_size(mapping_list_filter), array_list_size(mapping_list));
+  //  LOG_DEBUG_F("Move %i elements to list with %i elements\n", 
+  //	      array_list_size(mapping_list_filter), array_list_size(mapping_list));
+
   for (j = report_n_best - 1; j >= 0; j--) {
     aux_alignment = array_list_remove_at(j, mapping_list_filter);
     array_list_insert(aux_alignment, mapping_list);
@@ -697,6 +698,7 @@ inline size_t select_best_hits(array_list_t *mapping_list,
     }
   }
 
+  //  LOG_DEBUG_F("Final array size %i\n", array_list_size(mapping_list));
   return array_list_size(mapping_list);
 }
 

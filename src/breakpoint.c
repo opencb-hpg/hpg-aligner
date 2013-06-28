@@ -35,17 +35,17 @@ cigar_code_t *cigar_code_new() {
 
 cigar_code_t *cigar_code_new_by_string(char *cigar_str) {
   cigar_code_t *p = cigar_code_new();
-
   /*
   int cigar_len = strlen(cigar_str);
 
   p->cigar_str = strdup(cigar_str);
-  p->num_allocated_ops = (cigar_len > 10 ? cigar_len / 2 : cigar_len);
-  p->ops = (cigar_op_t*) calloc(p->num_allocated_ops, sizeof(cigar_op_t));
+  //p->num_allocated_ops = (cigar_len > 10 ? cigar_len / 2 : cigar_len);
+  //p->ops = (cigar_op_t*) calloc(p->num_allocated_ops, sizeof(cigar_op_t));
 
   int cigar_op_counter = 0;
   int c = 0;
   char op;
+  
   for (int j = 0; j < cigar_len; j++) {
     op = cigar_str[j];
     if (op < 58) {
@@ -61,8 +61,8 @@ cigar_code_t *cigar_code_new_by_string(char *cigar_str) {
   }
   
   p->num_ops = cigar_op_counter;
+  
   */
-
   return p;
 }
 
@@ -70,7 +70,8 @@ cigar_code_t *cigar_code_new_by_string(char *cigar_str) {
 
 void cigar_code_free(cigar_code_t* p) {
   if (p) {
-    if (p->ops) array_list_free(p->ops, (void *) cigar_op_free);
+    //    if (p->ops) array_list_free(p->ops, (void *) cigar_op_free);
+    if (p->ops) array_list_free(p->ops, (void *) NULL);
     if (p->cigar_str) free(p->cigar_str);
     free(p);
   }
@@ -99,6 +100,7 @@ int cigar_code_get_num_ops(cigar_code_t *p) {
 //--------------------------------------------------------------------------------------
 
 cigar_op_t *cigar_code_get_first_op(cigar_code_t *p) {
+  if (!p) { return NULL; }
   return array_list_get(0, p->ops);
 }
 
@@ -112,7 +114,7 @@ cigar_op_t *cigar_code_get_op(int index, cigar_code_t *p) {
 
 cigar_op_t *cigar_code_get_last_op(cigar_code_t *p) {
   int num_ops = cigar_code_get_num_ops(p);
-  //if (num_ops > 0) {
+
   return array_list_get(num_ops - 1, p->ops);
     //}
   //return NULL;
@@ -148,6 +150,9 @@ void cigar_code_inc_distance(int distance, cigar_code_t *p) {
 //--------------------------------------------------------------------------------------
 
 char *new_cigar_code_string(cigar_code_t *p) {
+  
+  if (!p) { return ""; }
+
   if (p->cigar_str) {
     free(p->cigar_str);
   }
@@ -170,6 +175,7 @@ char *new_cigar_code_string(cigar_code_t *p) {
 }
 
 //--------------------------------------------------------------------------------------
+
 
 int cigar_read_coverage(cigar_code_t *p) {
   int coverage = 0;
@@ -201,6 +207,46 @@ int cigar_genome_coverage(cigar_code_t *p) {
   }
 
   return coverage;
+}
+
+int cigar_code_nt_length(cigar_code_t *p) {
+  if (!p) {
+    return 0;
+  }
+
+  int len = 0;
+  int num_ops = array_list_size(p->ops);
+
+  cigar_op_t *op;
+  for (int i = 0; i < num_ops; i++) {
+    op = array_list_get(i, p->ops);
+    if (op->name == 'M' || op->name == 'I' || op->name == '=') {
+      len += op->number;
+    }
+  }
+
+  return len;
+}
+
+//--------------------------------------------------------------------------------------
+
+float cigar_code_get_score(int read_len, cigar_code_t *p) {
+  float ret = 0.0f;
+  int cigar_len = cigar_code_nt_length(p);
+
+  int distance = (abs(read_len - cigar_len) * 2) + p->distance;
+  
+  ret = read_len - distance;
+  //  LOG_DEBUG_F("score = %0.2f (distance = %i, read len = %i, cigar len = %i)\n", 
+  //	      ret, p->distance, read_len, cigar_len);
+  if (ret < 0.0f) {
+    ret = 0;
+    //    LOG_FATAL_F("score is negative %0.2f (distance = %i)\n", ret, p->distance);
+  }
+  
+  //  return ret;
+  return 0.7f;
+
 }
 
 //--------------------------------------------------------------------------------------
@@ -345,9 +391,11 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   *distance = dist;
 
   init_cigar_string(p);
+  p->distance = dist;
 
   return p;
 }
+
 
 /*
 //--------------------------------------------------------------------------------------

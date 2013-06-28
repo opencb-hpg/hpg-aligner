@@ -50,8 +50,13 @@ void cigar_code_inc_distance(int distance, cigar_code_t *p);
 void cigar_code_append_new_op(int value, char name, cigar_code_t *p);
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
 void init_cigar_string(cigar_code_t *p);
+
 int cigar_read_coverage(cigar_code_t *p);
 int cigar_genome_coverage(cigar_code_t *p);
+
+int cigar_code_nt_length(cigar_code_t *p);
+float cigar_code_get_score(int read_len, cigar_code_t *p);
+
 
 cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
 				  unsigned int query_start, unsigned int query_len, 

@@ -89,7 +89,9 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 					     input->bwt_index_p, 
 					     mapping_batch->mapping_lists[targets[i]],
 					     0);
-      
+
+      //      LOG_FATAL_F("num_mappings = %i\n", num_mappings);
+
       if (num_mappings > 0) {
 	array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
 	targets[new_num_targets++] = targets[i];

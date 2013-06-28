@@ -126,7 +126,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      // end of workflow management
      //--------------------------------------------------------------------------------------
 
-     printf("***** (num_sws, num_ext_sws, num_gaps) = (%i, %i, %i)\n", num_sws, num_ext_sws, num_gaps);
+     //     printf("***** (num_sws, num_ext_sws, num_gaps) = (%i, %i, %i)\n", num_sws, num_ext_sws, num_gaps);
 
      //closing files
      if (options->pair_mode == SINGLE_END_MODE) {

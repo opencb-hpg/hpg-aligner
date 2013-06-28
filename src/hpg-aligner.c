@@ -187,11 +187,21 @@ int main(int argc, char* argv[]) {
 
   //printf("Reads mapped in BWT Section %lu (%lu correct(%f) and %lu misses(%f))\n", bwt_correct + bwt_error, bwt_correct, (float)(bwt_correct * 100)/(float)(bwt_correct + bwt_error), bwt_error, (float)(bwt_error * 100)/(float)(bwt_correct + bwt_error));
 
+
   //printf("Total SW Processed: %i\n", total_sw);
   //printf("Length Ref; Number\n");
   //for (int i = 0; i < 1024; i++) {
   //printf(" %i; %i\n", i, histogram_sw[i]);
   //}
+
+  //printf("Total SW Processed: %i\n", total_sw);
+  /*
+  printf("Length Ref; Number\n");
+  for (int i = 0; i < 1024; i++) {
+    printf(" %i; %i\n", i, histogram_sw[i]);
+  }
+  */
+
   return 0;
 }
 
