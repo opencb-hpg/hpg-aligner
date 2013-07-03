@@ -218,7 +218,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 			   options->min_seed_padding_right, &region_input);
   
   cal_seeker_input_t cal_input;
-  cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, &cal_input);
+  cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, 
+			bwt_optarg, bwt_index, &cal_input);
   
   preprocess_rna_input_t preprocess_rna;
   

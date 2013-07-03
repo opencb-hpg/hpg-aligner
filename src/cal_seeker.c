@@ -16,6 +16,11 @@
 typedef struct sw_prepare {
   int left_flank;
   int right_flank;  
+  int ref_type;
+
+  int query_len;
+  int ref_len;
+
   char *query;
   char *ref;
   seed_region_t *seed_region;
@@ -23,7 +28,7 @@ typedef struct sw_prepare {
   fastq_read_t *read;
 } sw_prepare_t;
 
-sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_flank) {
+sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_flank, int ref_type) {
   sw_prepare_t *p = (sw_prepare_t *) malloc(sizeof(sw_prepare_t));
   p->query = query;
   p->ref = ref;
@@ -32,11 +37,22 @@ sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_f
   p->seed_region = NULL;
   p->cal = NULL;
   p->read = NULL;
+  p->ref_type = ref_type;
+
+  p->query_len = strlen(query);
+  p->ref_len = strlen(ref);
+
   return p;
 }
 
 void sw_prepare_free(sw_prepare_t *p) {
   if (p) free(p);
+}
+
+int sw_prepare_sort(const void* p1, const void* p2) {
+  sw_prepare_t* prepare1 = (sw_prepare_t*) p1;
+  sw_prepare_t* prepare2 = (sw_prepare_t*) p2;
+  return (prepare2->query_len - prepare1->query_len);
 }
 
 //------------------------------------------------------------------------------------
@@ -90,6 +106,108 @@ void display_sr_lists(char *msg, mapping_batch_t *mapping_batch) {
     }
   }
 }
+
+//--------------------------------------------------------------------------
+
+int std_mismatches(char *seq1, char *seq2, int len) {
+  register int count = 0;
+  
+  for (int i = 0; i < len; i++) {
+    if (seq1[i] != seq2[i]) count++;
+  }
+
+  return count;
+}
+
+//--------------------------------------------------------------------------
+
+int std_mismatches_ex(char *seq1, char *seq2, int len, 
+		      int *first, int *last) {
+  register int count = 0;
+
+  register  int ff = -1;
+  register int ll = -1;
+
+  for (int i = 0; i < len; i++) {
+    if (seq1[i] != seq2[i]) {
+      if (ff == -1) ff = i;
+      ll = i;
+      count++;
+    }
+  }
+
+  *first = ff;
+  *last = ll;
+
+  return count;
+}
+
+//------------------------------------------------------------------------------------
+
+int sse_mismatches(char *seq1, char *seq2, int len) {
+  register int count = 0;
+  __m128i s1, s2, cmp;
+
+  char *str1 = seq1, *str2 = seq2;
+
+  for (int i = 0; i < len; i += 16) {
+    s1 = _mm_lddqu_si128((const __m128i *) str1);
+    s2 = _mm_lddqu_si128((const __m128i *) str2);
+
+    cmp = _mm_cmpistrm(s1, s2, _SIDD_UBYTE_OPS |_SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK | _SIDD_NEGATIVE_POLARITY);
+
+    count += _mm_popcnt_u32(_mm_extract_epi32(cmp, 0));
+
+    str1 += 16;
+    str2 += 16;
+  }
+
+  return count;
+}
+
+//--------------------------------------------------------------------------
+
+int sse_mismatches_ex(char *seq1, char *seq2, int len,
+		      int *first, int *last) {
+  register int count = 0;
+  __m128i s1, s2, cmp;
+
+  char *str1 = seq1, *str2 = seq2;
+
+  //  printf("sse, mismatches ex, len = %i\n", len);
+
+  register int ff = 16, prev_ll = 16, ll = 16, index_l = 0;
+
+  for (int i = 0; i < len; i += 16) {
+    s1 = _mm_lddqu_si128((const __m128i *) str1);
+    s2 = _mm_lddqu_si128((const __m128i *) str2);
+
+    if (ff == 16) {
+      ff = _mm_cmpistri(s1, s2, _SIDD_UBYTE_OPS |_SIDD_CMP_EQUAL_EACH | _SIDD_NEGATIVE_POLARITY | _SIDD_LEAST_SIGNIFICANT);
+      if (ff != 16) ff += i;
+    }
+    ll = _mm_cmpistri(s1, s2, _SIDD_UBYTE_OPS |_SIDD_CMP_EQUAL_EACH | _SIDD_NEGATIVE_POLARITY | _SIDD_MOST_SIGNIFICANT);
+    if (ll != 16) {
+      prev_ll = ll;
+      index_l = i;
+    }
+    cmp = _mm_cmpistrm(s1, s2, _SIDD_UBYTE_OPS |_SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK | _SIDD_NEGATIVE_POLARITY);
+    //  printf("first = %i, last = %i\n", ff, ll);
+    //  exit(-1);
+
+    count += _mm_popcnt_u32(_mm_extract_epi32(cmp, 0));
+
+    str1 += 16;
+    str2 += 16;
+  }
+
+  *first = (ff == 16) ? (-1) : (ff);
+  *last = (prev_ll == 16) ? (-1) : (prev_ll + index_l);
+  //  exit(-1);
+
+  return count;
+}
+
 //------------------------------------------------------------------------------------
 
 void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg, 
@@ -119,6 +237,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
   int left_flank, right_flank;
   sw_prepare_t *sw_prepare;
   array_list_t *sw_prepare_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  sw_prepare_t sw_prepare_array[num_targets * 3];
+
 
   char *query,  *ref;
   int distance, first, last;
@@ -236,11 +356,10 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	  if (!cigar_code) {
 	    // we have to try to fill this gap and get a cigar
 	    if (gap_read_len == gap_genome_len) {
-
 	      //    1) first, for from  begin -> end, and begin <- end
 	      first = -1;
 	      last = -1;
-	      ref = (char *) malloc((gap_genome_len + 1) * sizeof(char));;
+	      ref = (char *) malloc((gap_genome_len + 5) * sizeof(char));
 	      genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
 						&gap_genome_start, &gap_genome_end, genome);
 	      // handle strand -
@@ -253,14 +372,11 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	      } else {
 		query = &read->sequence[gap_read_start];
 	      }
-	      
-	      for (int k = 0; k < gap_read_len; k++) {
-		if (query[k] != ref[k]) {
-		  distance++;
-		  if (first == -1) first = k;
-		  last = k;
-		}
-	      }
+
+	      //distance = sse_mismatches_ex(query, ref, gap_read_len, &first, &last);
+	      distance = std_mismatches_ex(query, ref, gap_read_len, &first, &last);
+	      //distance = std_mismatches(query, ref, gap_read_len);
+	      //distance = sse_mismatches(query, ref, gap_read_len);
 
 	      if (distance < min_distance) {
 		cigar_code = cigar_code_new();
@@ -297,7 +413,12 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 						&genome_start, &genome_end, genome);	      
 	      ref[gap_genome_len_ex] = '\0';
 
-	      sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank);
+	      if (prev_s == NULL) {
+		sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, FIRST_SW);
+	      } else {
+		sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, MIDDLE_SW);
+	      }
+
 	      array_list_insert(sw_prepare, sw_prepare_list);
 	      
 	      // increase counter
@@ -384,14 +505,11 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	    query = &read->sequence[gap_read_start];
 	  }
 	  
-	  distance = 0;
-	  for (int k = 0; k < gap_read_len; k++) {
-	    if (query[k] != ref[k]) {
-	      distance++;
-	      if (first == -1) first = k;
-	      last = k;
-	    }
-	  }
+	  //distance = sse_mismatches_ex(query, ref, gap_read_len, &first, &last);
+	  distance = std_mismatches_ex(query, ref, gap_read_len, &first, &last);
+	  //distance = std_mismatches(query, ref, gap_read_len);
+	  //distance = sse_mismatches(query, ref, gap_read_len);
+
 	  if (distance < min_distance) {
 	    cigar_code = cigar_code_new();
 	    cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
@@ -428,7 +546,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 					      &genome_start, &genome_end, genome);
 	    query[gap_genome_len_ex] = '\0';
 
-	    sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank);
+	    sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, LAST_SW);
 	    array_list_insert(sw_prepare, sw_prepare_list);
 	    
 	    // increase counter
@@ -476,7 +594,9 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
     sw_prepare = array_list_get(i, sw_prepare_list);
     q[i] = sw_prepare->query;
     r[i] = sw_prepare->ref;
+    //    printf("%i, query-len = %i, ref-len = %i\n", i, strlen(q[i]), strlen(r[i]));
   }
+  //  printf("\n");
   sw_multi_output_t *output = sw_multi_output_new(sw_count);
 
   // run Smith-Waterman
@@ -506,7 +626,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
     cigar_code_t *cigar_c = generate_cigar_code(output->query_map_p[i], output->ref_map_p[i],
 						strlen(output->query_map_p[i]), output->query_start_p[i],
-						read_gap_len, &distance);
+						output->ref_start_p[i], read_gap_len, genome_gap_len,
+						&distance, sw_prepare->ref_type);
     LOG_DEBUG_F("\tscore : %0.2f, cigar: %s (distance = %i)\n", 
 		output->score_p[i], new_cigar_code_string(cigar_c), distance);
 
@@ -697,20 +818,13 @@ void fill_end_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
 					  &start, &end, genome);
 	ref[gap_genome_len] = '\0';
-	
-	first = -1; 
-	last = -1;
-	distance = 0;
-	for (int k = 0, k1 = gap_read_start; k < gap_read_len; k++, k1++) {
-	  if (seq[k1] != ref[k]) {
-	    distance++;
-	    if (first == -1) first = k;
-	    last = k;
-	  }
-	  //	  LOG_DEBUG_F("k = %i, k.read = %i: %c - %c : distance = %i, (first, last) = (%i, %i)\n", 
-	  //		      k, k1, seq[k1], ref[k], distance, first, last);
-	}
 
+	//distance = sse_mismatches_ex(&seq[gap_read_start], ref, gap_read_len, &first, &last);
+	distance = std_mismatches_ex(&seq[gap_read_start], ref, gap_read_len, &first, &last);
+	//distance = std_mismatches(&seq[gap_read_start], ref, gap_read_len);
+	//distance = sse_mismatches(&seq[gap_read_start], ref, gap_read_len);
+	//	  LOG_DEBUG_F("k = %i, k.read = %i: %c - %c : distance = %i, (first, last) = (%i, %i)\n", 
+	//		      k, k1, seq[k1], ref[k], distance, first, last);
 	if (distance < min_distance) {
 	  cigar_op->name = 'M';
 	  cigar_code->distance += distance;
@@ -787,56 +901,44 @@ void merge_seed_regions(mapping_batch_t *mapping_batch) {
     num_cals = array_list_size(cals_list);
     fq_read = array_list_get(mapping_batch->targets[t], mapping_batch->fq_batch);
 
-    //    LOG_DEBUG_F("Read %s\n", fq_read->id);
+    //LOG_DEBUG_F("Read %s\n", fq_read->id);
 
     for (i = 0; i < num_cals; i++) {
       cal = array_list_get(i, cals_list);
-      //      LOG_DEBUG_F("\tCAL %i:\n", i);
+      //LOG_DEBUG_F("\tCAL %i:\n", i);
       linked_list_iterator_init(cal->sr_list, &itr);
 
       s_first = linked_list_iterator_curr(&itr);      
-      if (!s_first) {
-	//	LOG_DEBUG("\t\tLINKED LIST EMPTY"); 
-	continue; 
-      }
 
-      cigar_code_prev = (cigar_code_t *)s_first->info;
-      //      LOG_DEBUG_F("\t\tpart. cigar: %s\n", new_cigar_code_string(cigar_code_prev));
-
-      s = linked_list_iterator_next(&itr);
-      while (s) {
-	//LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
-	cigar_code = (cigar_code_t *)s->info;
-	if (cigar_code) { //TODO: delete
-	  //	  LOG_DEBUG_F("\t\tpart. cigar: %s\n", new_cigar_code_string(cigar_code));
-	  num_ops = array_list_size(cigar_code->ops);
-	  for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
-	       op < num_ops;
-	       op++, cigar_op = array_list_get(op, cigar_code->ops)) {
-	    cigar_code_append_op(cigar_op, cigar_code_prev);	    
-	  }
-	  cigar_code_prev->distance += cigar_code->distance;
-	  cigar_code_free(cigar_code);
-	} else {
-	  //	  LOG_DEBUG("\t\tpart. cigar: NULL <<<<<<<");
-	} 
-
-	s_first->read_end = s->read_end;
-	s_first->genome_end = s->genome_end;
-
-	linked_list_iterator_remove(&itr);
-	s = linked_list_iterator_curr(&itr);
-      }
-
-      //      LOG_DEBUG_F("\tFusion Result %i\n", linked_list_size(cal->sr_list));
-
-      linked_list_iterator_init(cal->sr_list, &itr);
-      s = linked_list_iterator_curr(&itr);
-      while (s) {
-	cigar_code = (cigar_code_t *)s->info;	
-	//	LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: Distance(%i) %s\n", s->genome_start, s->read_start, s->read_end, s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));
+      if (s_first) {
+	cigar_code_prev = (cigar_code_t *)s_first->info;
 	s = linked_list_iterator_next(&itr);
+	while (s) {
+	  //LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
+	  cigar_code = (cigar_code_t *)s->info;
+	  if (cigar_code) { //TODO: delete
+	    num_ops = array_list_size(cigar_code->ops);
+	    for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
+		 op < num_ops;
+		 op++, cigar_op = array_list_get(op, cigar_code->ops)) {
+	      cigar_code_append_op(cigar_op, cigar_code_prev);	    
+	    }
+	    cigar_code_prev->distance += cigar_code->distance;
+	  } 
+	  
+	  s_first->read_end = s->read_end;
+	  s_first->genome_end = s->genome_end;
+	  
+	  linked_list_iterator_remove(&itr);	
+	  s = linked_list_iterator_curr(&itr);
+	}
+	cal->info = (void *)cigar_code_prev;
+      } else {
+	cal->info = NULL;
+	//LOG_DEBUG("\t\tLINKED LIST EMPTY");
       }
+      /*LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: Distance(%i) %s\n", s->genome_start, s->read_start,
+	s->read_end, s->genome_end, cigar_code->distance, new_cigar_code_string(cigar_code));*/
     }
   }
 }
@@ -845,10 +947,12 @@ void merge_seed_regions(mapping_batch_t *mapping_batch) {
 
 int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   //printf("APPLY CALING ...\n");
+
   struct timeval start, end;
   double time;
   if (time_on) { start_timer(start); }
-
+  bwt_optarg_t *bwt_optarg = input->bwt_optarg;
+  bwt_index_t *bwt_index = input->index;
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   array_list_t *allocate_cals;
   size_t num_cals, select_cals, total_cals = 0;
@@ -860,6 +964,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   size_t *targets_aux;
   size_t min_seeds, max_seeds;
   int seed_size = 16;
+  array_list_t *cal_list, *list;
+  cal_t *cal;
 
   num_targets = mapping_batch->num_targets;
   total_targets = 0;
@@ -869,26 +975,119 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
   mapping_batch->extra_stage_do = 1;
 
+  /*  int t, target;
+  for (t = 0; t < num_targets; t++) {
+    target = mapping_batch->targets[t];
+    mapping_batch->mapping_lists[target]->size = 0;
+  }
+
+  return RNA_POST_PAIR_STAGE;
+  */
+
   for (size_t i = 0; i < num_targets; i++) {
-    allocate_cals = array_list_new(1000, 
-				   1.25f, 
-				   COLLECTION_MODE_ASYNCHRONIZED);
+    list = array_list_new(1000, 
+			  1.25f, 
+			  COLLECTION_MODE_ASYNCHRONIZED);
 
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
 
-    //printf("%i mini-mappings\n", array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]));
     max_seeds = (read->length / 15)*2 + 10;
+    
     num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
 						 input->cal_optarg,
 						 &min_seeds, &max_seeds,
 						 genome->num_chromosomes + 1,
-						 allocate_cals, read->length);
+						 list, read->length);
 
-    //printf("\t Target %i: %i\n", mapping_batch->targets[i], num_cals);
-    array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
-    mapping_batch->mapping_lists[mapping_batch->targets[i]] = allocate_cals;
+    if (num_cals == 0) {
+      printf("\t #>>>New Step CAL Seeker %s\n", read->id);
+      int seed_size = 24;
+      //First, Delete old regions
+      array_list_clear(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
+      //Second, Create new regions with seed_size 24 and 1 Mismatch
+      bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
+				bwt_optarg, bwt_index, 
+				mapping_batch->mapping_lists[mapping_batch->targets[i]]);
+
+      num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
+						   input->cal_optarg,
+						   &min_seeds, &max_seeds,
+						   genome->num_chromosomes + 1,
+						   list, read->length);
+    }
+
+    //filter-incoherent CALs
+    int founds[num_cals], found = 0;
+    for (size_t j = 0; j < num_cals; j++) {
+      founds[j] = 0;
+      cal = array_list_get(j, list);
+      LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
+		  j, num_cals, cal->sr_list->size, cal->num_seeds,
+		  cal->chromosome_id, cal->start, cal->end);
+      if (cal->sr_list->size > 0) {
+	int start = 0;
+	for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	  seed_region_t *s = list_item->item;
+	  
+	  LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
+	  if (start > s->read_start) {
+	    LOG_DEBUG("\t\t\t:: remove\n");
+	    found++;
+	    founds[j] = 1;
+	  }
+	  start = s->read_end + 1;
+	}
+      } else {
+	found++;
+	founds[j] = 1;
+      }
+    }
+
+    if (found) {
+      min_seeds = 100000;
+      max_seeds = 0;
+      cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+      for (size_t j = 0; j < num_cals; j++) {
+	if (!founds[j]) {
+	  cal = array_list_get(j, list);
+	  cal->num_seeds = cal->sr_list->size;
+	  if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
+	  if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
+	  array_list_insert(cal, cal_list);
+	  array_list_set(j, NULL, list);
+	}
+      }
+      array_list_free(list, (void *) cal_free);
+      num_cals = array_list_size(cal_list);
+      list = cal_list;
+    }
+
+    mapping_batch->mapping_lists[mapping_batch->targets[i]] = list;
 
     if (num_cals > MAX_RNA_CALS) {
+      select_cals = num_cals - MAX_RNA_CALS;
+      for(int j = num_cals - 1; j >= MAX_RNA_CALS; j--) {
+	cal_free(array_list_remove_at(j, mapping_batch->mapping_lists[mapping_batch->targets[i]]));
+      }
+      mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
+    }else if (num_cals > 0) {
+      mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
+    }
+    
+    mapping_batch->num_targets = target_pos;
+
+  }
+
+  if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
+
+  return RNA_STAGE;
+
+}
+
+    //array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
+    //mapping_batch->mapping_lists[mapping_batch->targets[i]] = allocate_cals;
+
+    /*if (num_cals > MAX_RNA_CALS) {
       if (!mapping_batch->extra_stage_do) {
 	mapping_batch->extra_targets[extra_target_pos] = mapping_batch->targets[i];
 	mapping_batch->extra_stage_id[extra_target_pos++] = MAX_CALS;
@@ -907,21 +1106,9 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 	mapping_batch->extra_targets[extra_target_pos] = mapping_batch->targets[i];
 	mapping_batch->extra_stage_id[extra_target_pos++] = NO_CALS;
       }
-    }
-  }
-  
-  mapping_batch->num_targets = target_pos;
-
-
-  if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
-
+      }*/
   //printf("APPLY CAL SEEKER DONE!\n");
-
-  return RNA_STAGE;
-
-
-
-
+/*
   // this code does not offer great improvements !!!
   // should we comment it ?
   if (mapping_batch->extra_stage_do) {
@@ -943,7 +1130,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
       printf("%i,", mapping_batch->targets[i]);
     }
     printf("\n");
-    */
+    
   }else if (extra_target_pos) {
     targets_aux = mapping_batch->targets;
     mapping_batch->targets = mapping_batch->extra_targets;
@@ -960,6 +1147,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   //return RNA_PREPROCESS_STAGE;
 
 }
+*/
 
 //====================================================================================
 // apply_caling
@@ -975,6 +1163,8 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 
   fastq_read_t *read;
 
+  bwt_optarg_t *bwt_optarg = input->bwt_optarg;
+  bwt_index_t *bwt_index = input->index;
   size_t num_chromosomes = input->genome->num_chromosomes + 1;
   size_t num_targets = mapping_batch->num_targets;
   size_t *targets = mapping_batch->targets;
@@ -1012,6 +1202,21 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     LOG_DEBUG_F("read %s : num. cals = %i, min. seeds = %i, max. seeds = %i\n", 
 		read->id, num_cals, min_seeds, max_seeds);
 
+    if (num_cals == 0) {
+      int seed_size = 24;
+      //First, Delete old regions
+      array_list_clear(mapping_batch->mapping_lists[read_index], region_bwt_free);
+      //Second, Create new regions with seed_size 24 and 1 Mismatch
+      bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
+				bwt_optarg, bwt_index, 
+				mapping_batch->mapping_lists[read_index]);
+
+      num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
+						   input->cal_optarg,
+						   &min_seeds, &max_seeds,
+						   num_chromosomes,
+						   list, read->length);
+    }
     /*
     for (size_t j = 0; j < num_cals; j++) {
       cal = array_list_get(j, list);
@@ -1066,7 +1271,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       num_cals = array_list_size(cal_list);
       list = cal_list;
     }
-
+  
     //    LOG_FATAL_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
 
     // filter CALs by the number of seeds
@@ -1242,6 +1447,10 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   // free memory
   if (list) array_list_free(list, NULL);
 
+  if (batch->mapping_mode == RNA_MODE) {
+    return RNA_STAGE;
+  }
+
   if (batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
     return PRE_PAIR_STAGE;
   } else if (batch->mapping_batch->num_targets > 0) {
@@ -1258,7 +1467,8 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg, 
 			   list_t* write_list, unsigned int write_size, 
 			   list_t *sw_list, list_t *pair_list, 
-			   genome_t *genome, cal_seeker_input_t *input) {
+			   genome_t *genome, bwt_optarg_t *bwt_optarg, 
+			   bwt_index_t *index, cal_seeker_input_t *input) {
   input->regions_list = regions_list;
   input->cal_optarg = cal_optarg;
   input->batch_size = write_size;
@@ -1266,6 +1476,8 @@ void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg,
   input->pair_list = pair_list;
   input->write_list = write_list;
   input->genome = genome;
+  input->bwt_optarg = bwt_optarg;
+  input->index = index;
 }
 
 //------------------------------------------------------------------------------------

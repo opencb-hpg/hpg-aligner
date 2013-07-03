@@ -2,10 +2,13 @@
 #define BREAKPOINT_H
 
 #include "containers/array_list.h"
-
 #include "bioformats/bam/alignment.h"
 
 //--------------------------------------------------------------------------------------
+
+#define FIRST_SW 0
+#define MIDDLE_SW 1
+#define LAST_SW 2
 
 //====================================================================================
 //  Input structure for CIGAR format
@@ -36,17 +39,35 @@ void cigar_code_free(cigar_code_t* p);
 char *new_cigar_code_string(cigar_code_t* p);
 char *cigar_code_get_string(cigar_code_t *p);
 int cigar_code_get_num_ops(cigar_code_t *p);
+void cigar_code_merge(cigar_code_t *p, cigar_code_t *merge_p);
+
+//-----------------------------------------------------------------------------------
+
+cigar_op_t *cigar_code_get_first_op(cigar_code_t *p);
 cigar_op_t *cigar_code_get_op(int index, cigar_code_t *p);
 cigar_op_t *cigar_code_get_last_op(cigar_code_t *p);
+
+//-----------------------------------------------------------------------------------
+
 void cigar_code_inc_distance(int distance, cigar_code_t *p);
+void cigar_code_append_new_op(int value, char name, cigar_code_t *p);
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
 void init_cigar_string(cigar_code_t *p);
+
+int cigar_read_coverage(cigar_code_t *p);
+int cigar_genome_coverage(cigar_code_t *p);
+
 int cigar_code_nt_length(cigar_code_t *p);
 float cigar_code_get_score(int read_len, cigar_code_t *p);
 
 cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
-				  unsigned int query_start, unsigned int query_len, 
-				  int *distance);
+				  unsigned int query_start, unsigned int ref_start,
+				  unsigned int query_len, unsigned int ref_len,
+				  int *distance, int ref_type);
+
+//cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
+//				  unsigned int query_start, unsigned int query_len, 
+//				  int *distance);
 
 //====================================================================================
 //  Input structure for breakpoint definition
