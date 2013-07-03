@@ -49,7 +49,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
   mapping_batch->num_to_do = 0;
   
   //TODO: omp parallel for !!
-  if (batch->mapping_mode == RNA_MODE) {
+  /*if (batch->mapping_mode == 1000) {
     for (size_t i = 0; i < num_targets; i++) {
       //printf("Seq (i=%i)(target=%i): %s\n", i, targets[i], read->sequence);
       read = array_list_get(targets[i], mapping_batch->fq_batch);
@@ -70,43 +70,43 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	mapping_batch->num_to_do += num_mappings;
       }
     }
-  } else {
-    for (size_t i = 0; i < num_targets; i++) {
-      read = array_list_get(targets[i], mapping_batch->fq_batch);
-      //      printf("region_seeker: seeds for %s\n", read->id);
-      /*
+    } else {*/
+  for (size_t i = 0; i < num_targets; i++) {
+    read = array_list_get(targets[i], mapping_batch->fq_batch);
+    //      printf("region_seeker: seeds for %s\n", read->id);
+    /*
       num_mappings = bwt_map_exact_seeds_seq_by_num(read->sequence, num_seeds,
-						    seed_size, min_seed_size,
-						    input->bwt_optarg_p, input->bwt_index_p, 
-						    mapping_batch->mapping_lists[targets[i]]);
-      */
-      num_mappings = bwt_map_exact_seeds_seq(0,
-					     0,
-					     read->sequence,
-					     seed_size,
-					     min_seed_size,
-					     input->bwt_optarg_p, 
-					     input->bwt_index_p, 
-					     mapping_batch->mapping_lists[targets[i]],
-					     0);
+      seed_size, min_seed_size,
+      input->bwt_optarg_p, input->bwt_index_p, 
+      mapping_batch->mapping_lists[targets[i]]);
+    */
+    num_mappings = bwt_map_exact_seeds_seq(0,
+					   0,
+					   read->sequence,
+					   seed_size,
+					   min_seed_size,
+					   input->bwt_optarg_p, 
+					   input->bwt_index_p, 
+					   mapping_batch->mapping_lists[targets[i]],
+					   0);
+    
+    //      LOG_FATAL_F("num_mappings = %i\n", num_mappings);
 
-      //      LOG_FATAL_F("num_mappings = %i\n", num_mappings);
-
-      if (num_mappings > 0) {
-	array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
-	targets[new_num_targets++] = targets[i];
-	mapping_batch->num_to_do += num_mappings;
-      }
+    if (num_mappings > 0) {
+      array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
+      targets[new_num_targets++] = targets[i];
+      mapping_batch->num_to_do += num_mappings;
     }
   }
-
+  //}
+    
   // update batch targets
   mapping_batch->num_targets = new_num_targets;
 
   if (time_on) { stop_timer(start, end, time); timing_add(time, REGION_SEEKER, timing); }
 
   //printf("APPLY SEEDING DONE!\n");
-
+  
   return CAL_STAGE;
 
 }

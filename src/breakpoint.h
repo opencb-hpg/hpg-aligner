@@ -2,10 +2,13 @@
 #define BREAKPOINT_H
 
 #include "containers/array_list.h"
-
 #include "bioformats/bam/alignment.h"
 
 //--------------------------------------------------------------------------------------
+
+#define FIRST_SW 0
+#define MIDDLE_SW 1
+#define LAST_SW 2
 
 //====================================================================================
 //  Input structure for CIGAR format
@@ -57,10 +60,14 @@ int cigar_genome_coverage(cigar_code_t *p);
 int cigar_code_nt_length(cigar_code_t *p);
 float cigar_code_get_score(int read_len, cigar_code_t *p);
 
-
 cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
-				  unsigned int query_start, unsigned int query_len, 
-				  int *distance);
+				  unsigned int query_start, unsigned int ref_start,
+				  unsigned int query_len, unsigned int ref_len,
+				  int *distance, int ref_type);
+
+//cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
+//				  unsigned int query_start, unsigned int query_len, 
+//				  int *distance);
 
 //====================================================================================
 //  Input structure for breakpoint definition

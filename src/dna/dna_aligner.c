@@ -70,7 +70,8 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      
      cal_seeker_input_t cal_input;
      cal_seeker_input_init(NULL, cal_optarg, NULL, 0, 
-			   NULL, NULL, genome, &cal_input);
+			   NULL, NULL, genome, bwt_optarg, bwt_index, 
+			   &cal_input);
      
      pair_server_input_t pair_input;
      pair_server_input_init(pair_mng, report_optarg, NULL, NULL, NULL, &pair_input);

@@ -274,8 +274,9 @@ void init_cigar_string(cigar_code_t *p) {
 //--------------------------------------------------------------------------------------
 
 cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
-				  unsigned int query_start, unsigned int query_len, 
-				  int *distance) {
+				  unsigned int query_start, unsigned int ref_start,
+				  unsigned int query_len, unsigned int ref_len,
+				  int *distance, int ref_type) {
   
   cigar_code_t *p = cigar_code_new();
 
@@ -289,15 +290,41 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   char operation;
   unsigned int perfect = 0;  
   unsigned int deletions_tot = 0;
-  
+  unsigned int insertions_tot = 0;
+  unsigned int map_ref_len;
+  unsigned int map_seq_len;
+  unsigned int last_h, last_h_aux;
   int dist = 0;
 
-  //  printf("seq(%d) start::%d : %s\n", length, start_seq, str_seq_p );
-  //  printf("ref(%d): %s\n", length, str_ref_p);
+  //printf("### OrigSeqLen(%d)::startSeq::%d : %s\n", query_len, query_start, query_map);
+  //printf("### OrigRefLen(%d)::startRef::%d : %s LenMap(%d)\n", ref_len, ref_start, ref_map, map_len);
   
   // hard clipping start
-  if (query_start > 0){
-    cigar_code_append_op(cigar_op_new(query_start, 'H'), p);
+
+  if (query_start > 0) {
+    if (ref_type == FIRST_SW) {
+      //Normal Case
+      cigar_code_append_op(cigar_op_new(query_start, 'H'), p);
+    } else {
+      //Middle or last ref
+      if (ref_start == 0) {
+	cigar_code_append_op(cigar_op_new(query_start, 'I'), p);
+      } else {
+	if (ref_start == query_start) {
+	  cigar_code_append_op(cigar_op_new(query_start, 'M'), p);
+	} else {
+	  if (ref_start > query_start) {
+	    cigar_code_append_op(cigar_op_new(ref_start - query_start, 'D'), p);
+	    cigar_code_append_op(cigar_op_new(query_start, 'M'), p);
+	  } else {
+	    cigar_code_append_op(cigar_op_new(query_start - ref_start, 'I'), p);
+	    cigar_code_append_op(cigar_op_new(ref_start, 'M'), p);
+	  } 
+	}
+      }
+    }
+  } else if (ref_start > 0) {
+    cigar_code_append_op(cigar_op_new(ref_start, 'D'), p);
   }
   
   // first Status
@@ -342,6 +369,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
       }
     } else if (ref_map[i] == '-') {
       transition = CIGAR_INSERTION;
+      insertions_tot++;
       dist++;
     }
     
@@ -382,9 +410,43 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   } else {
     cigar_code_append_op(cigar_op_new(number_op, operation), p);
   }
+
   //printf("%d+%d < %d\n", length - deletions_tot, start_seq, seq_orig_len);
-  if (((map_len - deletions_tot) + query_start) < query_len) {
-    cigar_code_append_op(cigar_op_new(query_len - ((map_len - deletions_tot) + query_start), 'H'), p);
+  //last_h = ((map_len - deletions_tot) + query_start);
+  //if (last_h < query_len) {
+  //cigar_code_append_op(cigar_op_new(query_len - last_h, 'H'), p);
+  //}
+
+  map_seq_len  = ((map_len - deletions_tot) + query_start);
+  map_ref_len  = ((map_len - insertions_tot) + ref_start);
+
+  if (map_seq_len < query_len) {
+    last_h = query_len - map_seq_len;
+    if (ref_type == LAST_SW) {
+      //Normal Case
+      //cigar_code_append_op(cigar_op_new(query_start, 'H'), p);
+      cigar_code_append_op(cigar_op_new(last_h, 'H'), p);
+    } else {
+      //Middle or first ref
+      if (map_ref_len == ref_len) {
+	cigar_code_append_op(cigar_op_new(last_h, 'I'), p);
+      } else {
+	last_h_aux = ref_len - map_ref_len;
+	if (last_h_aux == last_h) {
+	  cigar_code_append_op(cigar_op_new(last_h, 'M'), p);
+	} else {	  
+	  if (last_h_aux > last_h) {
+	    cigar_code_append_op(cigar_op_new(last_h_aux - last_h, 'D'), p);
+	    cigar_code_append_op(cigar_op_new(last_h, 'M'), p);
+	  } else {
+	    cigar_code_append_op(cigar_op_new(last_h - last_h_aux, 'I'), p);
+	    cigar_code_append_op(cigar_op_new(last_h_aux, 'M'), p);
+	  } 
+	}
+      }
+    }
+  } else if (map_ref_len < ref_len) {
+    cigar_code_append_op(cigar_op_new(ref_len - map_ref_len, 'D'), p);
   }
   
   //printf("%d-%d\n", length, *number_op_tot);

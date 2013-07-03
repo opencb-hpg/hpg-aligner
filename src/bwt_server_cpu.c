@@ -37,6 +37,8 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
 				       mapping_batch->mapping_lists,
 				       &mapping_batch->num_targets, mapping_batch->targets);
   
+  //return CONSUMER_STAGE;
+
   size_t num_mapped_reads = array_list_size(mapping_batch->fq_batch) - mapping_batch->num_targets;
   mapping_batch->num_to_do = num_mapped_reads;
 
