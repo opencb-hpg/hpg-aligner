@@ -108,10 +108,10 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1,
   //workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage, 
   //     						    pre_pair_stage, sw_stage_bs, post_pair_stage};
   //workflow_stage_function_t stage_functions[] = {bwt_stage_bs};
-  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage};
-  char *stage_labels[] = {"BWT", "SEEDING", "CAL"};
-  //     char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-  workflow_set_stages(3, &stage_functions, stage_labels, wf);
+  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage_bs, sw_stage_bs};
+  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "SW"};
+  //char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
+  workflow_set_stages(4, &stage_functions, stage_labels, wf);
   
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);

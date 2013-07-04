@@ -180,11 +180,9 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     */
 
     // filter CALs by the number of seeds
-    //<<<<<<< HEAD
     //int min_limit = 0; //input->cal_optarg->min_num_seeds_in_cal;
-    //=======
     int min_limit = input->cal_optarg->min_num_seeds_in_cal;
-    //>>>>>>> 07dc5ce639a25beb4a40613781a5a65b27c5bec3
+
     if (min_limit < 0) min_limit = max_seeds;
 
     if (min_seeds == max_seeds || min_limit <= min_seeds) {
@@ -240,6 +238,201 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   if (batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
     return PRE_PAIR_STAGE;
   } else if (batch->mapping_batch->num_targets > 0) {
+    return SW_STAGE;
+  }
+  
+  return POST_PAIR_STAGE;
+}
+
+//====================================================================================
+// apply_caling
+//====================================================================================
+int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
+  mapping_batch_t *mapping_batch = batch->mapping_batch;
+  array_list_t *list = NULL;
+  size_t read_index, num_cals, min_seeds, max_seeds;
+  int min_limit;
+
+  cal_t *cal;
+  array_list_t *cal_list;
+
+  size_t num_chromosomes = input->genome->num_chromosomes + 1;
+  size_t num_targets = mapping_batch->num_targets;
+  size_t *targets = mapping_batch->targets;
+  size_t new_num_targets = 0;
+  //  size_t *new_targets = (size_t *) calloc(num_targets, sizeof(size_t));
+  
+  // new variables for bisulfite
+  size_t new_num_targets2 = 0;
+  array_list_t *list2 = NULL;
+  size_t num_cals2;
+  array_list_t *cal_list2;
+  size_t *targets2 = mapping_batch->targets2;
+
+  // set to zero
+  mapping_batch->num_to_do = 0;
+
+  for (size_t i = 0; i < num_targets; i++) {
+
+    read_index = targets[i];
+
+    // for debugging
+    //    LOG_DEBUG_F("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
+    
+    if (!list) {
+      list = array_list_new(1000, 
+			    1.25f, 
+			    COLLECTION_MODE_ASYNCHRONIZED);
+    }
+    if (!list2) {
+      list2 = array_list_new(1000, 
+			     1.25f, 
+			     COLLECTION_MODE_ASYNCHRONIZED);
+    }
+    // optimized version
+    num_cals = bwt_generate_cal_list_linkedlist(mapping_batch->mapping_lists[read_index], 
+						input->cal_optarg,
+						&min_seeds, &max_seeds,
+						num_chromosomes,
+						list);
+
+    num_cals2 = bwt_generate_cal_list_linkedlist(mapping_batch->mapping_lists2[read_index], 
+						 input->cal_optarg,
+						 &min_seeds, &max_seeds,
+						 num_chromosomes,
+						 list2);
+
+    /*
+    // for debugging
+    LOG_DEBUG_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
+    for (size_t j = 0; j < num_cals; j++) {
+      cal = array_list_get(j, list);
+      LOG_DEBUG_F("\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu, flank: (start, end) = (%lu, %lu)\n", 
+		  cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, cal->flank_start, cal->flank_end);
+    }
+    */
+
+    // filter CALs by the number of seeds
+    //int min_limit = 0; //input->cal_optarg->min_num_seeds_in_cal;
+    int min_limit = input->cal_optarg->min_num_seeds_in_cal;
+
+    if (min_limit < 0) min_limit = max_seeds;
+
+    if (min_seeds == max_seeds || min_limit <= min_seeds) {
+      cal_list = list;
+      list = NULL;
+
+      // added for bisulfite
+      cal_list2 = list2;
+      list2 = NULL;
+      // end added for bisulfite
+    } else {
+      cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+
+      // added for bisulfite
+      cal_list2 = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+      // end added for bisulfite
+
+      for (size_t j = 0; j < num_cals; j++) {
+	cal = array_list_get(j, list);
+	if (cal->num_seeds >= min_limit) {
+	  //	  LOG_DEBUG_F("\t\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu (min. limit %i seeds), flank: (start, end) = (%lu, %lu)\n", 
+	  //		      cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, min_limit, cal->flank_start, cal->flank_end);
+	  
+	  array_list_insert(cal, cal_list);
+	  array_list_set(j, NULL, list);
+	}
+      }
+      array_list_clear(list, (void *) cal_free);
+      num_cals = array_list_size(cal_list);
+
+      // added for bisulfite
+      for (size_t j = 0; j < num_cals2; j++) {
+	cal = array_list_get(j, list2);
+	if (cal->num_seeds >= min_limit) {
+	  //	  LOG_DEBUG_F("\t\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu (min. limit %i seeds), flank: (start, end) = (%lu, %lu)\n", 
+	  //		      cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, min_limit, cal->flank_start, cal->flank_end);
+	  
+	  array_list_insert(cal, cal_list2);
+	  array_list_set(j, NULL, list2);
+	}
+      }
+      array_list_clear(list2, (void *) cal_free);
+      num_cals2 = array_list_size(cal_list2);
+      // end added for bisulfite
+    }
+
+    if (num_cals > MAX_CALS) {
+      for (size_t j = num_cals - 1; j >= MAX_CALS; j--) {
+	cal = (cal_t *) array_list_remove_at(j, cal_list);
+	cal_free(cal);
+      }
+      num_cals = array_list_size(cal_list);
+    }
+
+    // added for bisulfite
+    if (num_cals2 > MAX_CALS) {
+      for (size_t j = num_cals2 - 1; j >= MAX_CALS; j--) {
+	cal = (cal_t *) array_list_remove_at(j, cal_list2);
+	cal_free(cal);
+      }
+      num_cals2 = array_list_size(cal_list2);
+    }
+    // end added for bisulfite
+
+    if (num_cals > 0 && num_cals <= MAX_CALS) {
+      array_list_set_flag(2, cal_list);
+      mapping_batch->num_to_do += num_cals;
+      targets[new_num_targets++] = read_index;
+      
+      // we have to free the region list
+      array_list_free(mapping_batch->mapping_lists[read_index], (void *) region_bwt_free);
+      mapping_batch->mapping_lists[read_index] = cal_list;
+    } else {
+      array_list_set_flag(0, mapping_batch->mapping_lists[read_index]);
+      // we have to free the region list
+      array_list_clear(mapping_batch->mapping_lists[read_index], (void *) region_bwt_free);
+      if (cal_list) array_list_free(cal_list, (void *) cal_free);
+      if (list) array_list_clear(list, (void *) cal_free);
+    }
+
+    // added for bisulfite
+    if (num_cals2 > 0 && num_cals2 <= MAX_CALS) {
+      array_list_set_flag(2, cal_list2);
+      mapping_batch->num_to_do2 += num_cals2;
+      targets2[new_num_targets2++] = read_index;
+      
+      // we have to free the region list
+      array_list_free(mapping_batch->mapping_lists2[read_index], (void *) region_bwt_free);
+      mapping_batch->mapping_lists2[read_index] = cal_list2;
+    } else {
+      array_list_set_flag(0, mapping_batch->mapping_lists2[read_index]);
+      // we have to free the region list
+      array_list_clear(mapping_batch->mapping_lists2[read_index], (void *) region_bwt_free);
+      if (cal_list2) array_list_free(cal_list2, (void *) cal_free);
+      if (list2) array_list_clear(list2, (void *) cal_free);
+    }
+    // end addition for bisulfite
+
+  } // end for 0 ... num_seqs
+
+  // update batch
+  mapping_batch->num_targets = new_num_targets;
+
+  // added for bisulfite
+  mapping_batch->num_targets2 = new_num_targets2;
+  // end added for bisulfite
+
+  // free memory
+  if (list) array_list_free(list, NULL);
+
+  // added for bisulfite
+  if (list2) array_list_free(list2, NULL);
+  // end added for bisulfite
+
+  if (batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
+    return PRE_PAIR_STAGE;
+  } else if (batch->mapping_batch->num_targets > 0 || batch->mapping_batch->num_targets2 > 0) {
     return SW_STAGE;
   }
   

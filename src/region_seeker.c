@@ -189,16 +189,23 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
 						   mapping_list2);
 
     //printf("Num mappings %i\n", num_mapps4);
+    
+    printf("Num mappings for read %lu\ns1: %lu\ns2: %lu\ns3: %lu\ns4: %lu\n\n", targets[i], num_mapps1, num_mapps2, num_mapps3, num_mapps4);
     if (num_mapps1 + num_mapps2 + num_mapps3 + num_mapps4 > 0) {
       if (num_mapps2 > 0) {
+	//printf("transform maps1\n");
 	transform_regions(mapping_list1);
+	//printf("insert maps1\n");
 	insert_regions(mapping_batch->mapping_lists[i], mapping_list1);
       }
       if (num_mapps4 > 0) {
+	//printf("trandform maps2\n");
 	transform_regions(mapping_list2);
+	//printf("insert maps2\n");
 	insert_regions(mapping_batch->mapping_lists2[i], mapping_list2);
       }
 
+      //printf("set flags\n");
       array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
       array_list_set_flag(2, mapping_batch->mapping_lists2[targets[i]]);
       targets[new_num_targets++] = targets[i];

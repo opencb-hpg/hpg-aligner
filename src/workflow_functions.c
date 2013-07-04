@@ -340,45 +340,53 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
 //--------------------------------------------------------------------
 
 int bwt_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return apply_bwt(batch->bwt_input, batch);     
+  return apply_bwt(batch->bwt_input, batch);     
 }
 
 //--------------------------------------------------------------------
 
 int bwt_stage_bs(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return apply_bwt_bs(batch->bwt_input, batch);     
+  return apply_bwt_bs(batch->bwt_input, batch);     
 }
 
 //--------------------------------------------------------------------
 
 int seeding_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return apply_seeding(batch->region_input, batch);
+  return apply_seeding(batch->region_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int seeding_stage_bs(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return apply_seeding_bs(batch->region_input, batch);
+  return apply_seeding_bs(batch->region_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int cal_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     if (batch->mapping_mode == DNA_MODE) {
-       return apply_caling(batch->cal_input, batch);
-     } else {
-       return apply_caling_rna(batch->cal_input, batch);
-     }
+  if (batch->mapping_mode == DNA_MODE) {
+    return apply_caling(batch->cal_input, batch);
+  } else {
+    return apply_caling_rna(batch->cal_input, batch);
+  }
+}
+
+//--------------------------------------------------------------------
+
+int cal_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  return apply_caling_bs(batch->cal_input, batch);
 }
 
 //--------------------------------------------------------------------
@@ -396,30 +404,47 @@ int pre_pair_stage(void *data) {
      return apply_pair(batch->pair_input, batch);
 }
 
+//---------------------------------------------------------------------
+
+int pre_pair_stage_bs(void *data) {
+     batch_t *batch = (batch_t *) data;
+     return apply_pair(batch->pair_input, batch);
+}
+
 //--------------------------------------------------------------------
 
 int sw_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
      
-     if (batch->mapping_mode == RNA_MODE) {
-       return apply_sw_rna(batch->sw_input, batch);
-     } else {
-       return apply_sw(batch->sw_input, batch);
-     }
+  if (batch->mapping_mode == RNA_MODE) {
+    return apply_sw_rna(batch->sw_input, batch);
+  } else {
+    return apply_sw(batch->sw_input, batch);
+  }
 }
 
+//--------------------------------------------------------------------
+
 int sw_stage_bs(void *data) {
-     batch_t *batch = (batch_t *) data;
-     
-     return apply_sw_bs(batch->sw_input, batch);
+  batch_t *batch = (batch_t *) data;
+
+  return apply_sw_bs(batch->sw_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int post_pair_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return prepare_alignments(batch->pair_input, batch);
+  return prepare_alignments(batch->pair_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int post_pair_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  return prepare_alignments(batch->pair_input, batch);
 }
 
 //--------------------------------------------------------------------

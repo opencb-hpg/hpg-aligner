@@ -224,6 +224,10 @@ typedef struct mapping_batch {
   unsigned char *bwt_mappings;
 
   // bs handling
+  size_t num_targets2;
+  size_t num_to_do2;
+  size_t *targets2;
+
   array_list_t **mapping_lists2;
   array_list_t *CT_fq_batch;
   array_list_t *GA_fq_batch;

@@ -16,11 +16,13 @@
 
 //====================================================================================
 
+// values for the diferent combination of nucleotides
 #define ACGT 0
 #define AGT  1
 #define ACT  2
 #define AT   3
 
+// limites to use with the histogram data of the reads
 #define LIMIT_INF   0.20
 #define LIMIT_SUP   0.30
 

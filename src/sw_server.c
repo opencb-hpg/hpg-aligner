@@ -692,6 +692,7 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
   size_t start, end;
   genome_t *genome = input->genome_p;
+  genome_t *genome2 = input->genome2_p;
      
   size_t flank_length = input->flank_length;
 

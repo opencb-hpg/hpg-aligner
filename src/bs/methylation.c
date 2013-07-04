@@ -258,7 +258,7 @@ void transform_regions(array_list_t *src){
   for (size_t j = 0; j < num_mappings; j++) {
     region_tmp  = (region_t *) array_list_get(j, src);
     // modify the strand, and make it reverse
-    //region_tmp->seq_strand = 1;
+    region_tmp->strand = 1;
   }
 }
 

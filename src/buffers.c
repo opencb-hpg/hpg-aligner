@@ -273,6 +273,11 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 					 COLLECTION_MODE_ASYNCHRONIZED); 
   }
     
+  // added by PP for bisulfite
+  p->num_targets2 = 0;
+  p->num_to_do2 = 0;
+  p->targets2 = (size_t *) calloc(num_reads, sizeof(size_t));
+
   return p;
 }
 
@@ -334,6 +339,7 @@ void mapping_batch_free(mapping_batch_t *p) {
   // added by PP
   if (p->mapping_lists2) { free(p->mapping_lists2); }
   if (p->bwt_mappings) { free(p->bwt_mappings); }
+  if (p->targets2) { free(p->targets2); }
 
   free(p);
 }
