@@ -208,6 +208,14 @@ pair_mng_t *pair_mng_new(int pair_mode, size_t min_distance,
 void pair_mng_free(pair_mng_t *p);
 
 //=====================================================================================
+typedef struct counters {
+  size_t counter1;
+  size_t counter2;
+  size_t counter3;
+  double counter4;
+  double counter5;
+  double counter6;
+} counters_t;
 
 typedef struct mapping_batch {
   int action;
@@ -222,6 +230,13 @@ typedef struct mapping_batch {
   size_t num_sws;
   size_t num_ext_sws;
 
+  counters_t reader_counters;
+  counters_t bwt_counters;
+  counters_t seeding_counters;
+  counters_t cal_counters;
+  counters_t sw_counters;
+  counters_t writer_counters;
+  
   unsigned char *extra_stage_id;
   array_list_t *fq_batch;
   size_t *targets;

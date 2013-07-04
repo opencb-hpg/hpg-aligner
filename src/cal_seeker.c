@@ -28,8 +28,7 @@ typedef struct sw_prepare {
   fastq_read_t *read;
 } sw_prepare_t;
 
-sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_flank, int ref_type) {
-  sw_prepare_t *p = (sw_prepare_t *) malloc(sizeof(sw_prepare_t));
+void sw_prepare_init(char *query, char *ref, int left_flank, int right_flank, int ref_type, sw_prepare_t* p) {
   p->query = query;
   p->ref = ref;
   p->left_flank = left_flank;
@@ -41,6 +40,12 @@ sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_f
 
   p->query_len = strlen(query);
   p->ref_len = strlen(ref);
+}
+
+sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_flank, int ref_type) {
+  sw_prepare_t *p = (sw_prepare_t *) malloc(sizeof(sw_prepare_t));
+
+  sw_prepare_init(query, ref, left_flank, right_flank, ref_type, p);
 
   return p;
 }
@@ -52,7 +57,8 @@ void sw_prepare_free(sw_prepare_t *p) {
 int sw_prepare_sort(const void* p1, const void* p2) {
   sw_prepare_t* prepare1 = (sw_prepare_t*) p1;
   sw_prepare_t* prepare2 = (sw_prepare_t*) p2;
-  return (prepare2->query_len - prepare1->query_len);
+  return (prepare1->query_len - prepare2->query_len);
+  //  return (prepare2->query_len - prepare1->query_len);
 }
 
 //------------------------------------------------------------------------------------
@@ -236,8 +242,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
   int left_flank, right_flank;
   sw_prepare_t *sw_prepare;
-  array_list_t *sw_prepare_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-  sw_prepare_t sw_prepare_array[num_targets * 3];
+  //  array_list_t *sw_prepare_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  sw_prepare_t sw_prepare_array[fq_batch->size * 30];
 
 
   char *query,  *ref;
@@ -413,13 +419,20 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 						&genome_start, &genome_end, genome);	      
 	      ref[gap_genome_len_ex] = '\0';
 
+	      /*	      
 	      if (prev_s == NULL) {
 		sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, FIRST_SW);
 	      } else {
 		sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, MIDDLE_SW);
 	      }
-
 	      array_list_insert(sw_prepare, sw_prepare_list);
+	      */
+	      sw_prepare = &sw_prepare_array[sw_count];
+	      if (prev_s == NULL) {
+		sw_prepare_init(query, ref, left_flank, right_flank, FIRST_SW, sw_prepare);
+	      } else {
+		sw_prepare_init(query, ref, left_flank, right_flank, MIDDLE_SW, sw_prepare);
+	      }
 	      
 	      // increase counter
 	      sw_count++;	  
@@ -546,9 +559,11 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 					      &genome_start, &genome_end, genome);
 	    query[gap_genome_len_ex] = '\0';
 
-	    sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, LAST_SW);
-	    array_list_insert(sw_prepare, sw_prepare_list);
-	    
+	    //sw_prepare = sw_prepare_new(query, ref, left_flank, right_flank, LAST_SW);
+	    //array_list_insert(sw_prepare, sw_prepare_list);
+	    sw_prepare = &sw_prepare_array[sw_count];
+	    sw_prepare_init(query, ref, left_flank, right_flank, LAST_SW, sw_prepare);
+
 	    // increase counter
 	    sw_count++;	  
 
@@ -586,12 +601,32 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
   //  display_sr_lists("ATER pre-process in fill_gaps", mapping_batch);
 
-  LOG_DEBUG_F("\nR U N   S W (sw_count = %i, sw_prepare_list size = %i)\n", sw_count, array_list_size(sw_prepare_list));
-  assert(sw_count == array_list_size(sw_prepare_list));
+  LOG_DEBUG_F("\nR U N   S W (sw_count = %i)\n", sw_count);
+  //  LOG_DEBUG_F("\nR U N   S W (sw_count = %i, sw_prepare_list size = %i)\n", sw_count, array_list_size(sw_prepare_list));
+  //  assert(sw_count == array_list_size(sw_prepare_list));
+
+  /*
+  for (int i = 0; i < sw_count; i++) {
+    printf("before: %i, query-len = %i, ref-len = %i\n", i, sw_prepare_array[i].query_len, sw_prepare_array[i].ref_len);
+  }
+  */
+  //struct timeval start_time, end_time;
+  //double total_time;
+  //start_timer(start_time);
+  qsort(sw_prepare_array, sw_count, sizeof(sw_prepare_t), sw_prepare_sort);
+  //stop_timer(start_time, end_time, total_time);
+  //printf("qsort time: %4.08f sec\n", total_time / 1000000.0f);
+  /*
+  for (int i = 0; i < sw_count; i++) {
+    printf("after : %i, query-len = %i, ref-len = %i\n", i, sw_prepare_array[i].query_len, sw_prepare_array[i].ref_len);
+  }
+  exit(-1);
+  */
 
   char *q[sw_count], *r[sw_count];
   for (int i = 0; i < sw_count; i++) {
-    sw_prepare = array_list_get(i, sw_prepare_list);
+    //sw_prepare = array_list_get(i, sw_prepare_list);
+    sw_prepare = &sw_prepare_array[i];
     q[i] = sw_prepare->query;
     r[i] = sw_prepare->ref;
     //    printf("%i, query-len = %i, ref-len = %i\n", i, strlen(q[i]), strlen(r[i]));
@@ -600,13 +635,17 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
   sw_multi_output_t *output = sw_multi_output_new(sw_count);
 
   // run Smith-Waterman
+  //start_timer(start_time);
   smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+  //stop_timer(start_time, end_time, total_time);
+  //printf("sw time   : %4.08f sec\n", total_time / 1000000.0f);
   
   LOG_DEBUG("P O S T   -   P R O C E S S\n");
   cigar_op_t* cigar_op;
   cigar_code_t *cigar_c;
   for (int i = 0; i < sw_count; i++) {
-    sw_prepare = array_list_get(i, sw_prepare_list);
+    //sw_prepare = array_list_get(i, sw_prepare_list);
+    sw_prepare = &sw_prepare_array[i];
     s = sw_prepare->seed_region;
 
     int read_gap_len = s->read_end - s->read_start + 1;
@@ -694,14 +733,14 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
     s->info = (void *) cigar_c;
 
     // free
-    sw_prepare_free(sw_prepare);
+    //    sw_prepare_free(sw_prepare);
   }
 
   display_sr_lists("END of fill_gaps", mapping_batch);
     
   // free memory
   sw_multi_output_free(output);
-  array_list_free(sw_prepare_list, (void *) NULL);
+  //  array_list_free(sw_prepare_list, (void *) NULL);
 }
 
 //------------------------------------------------------------------------------------

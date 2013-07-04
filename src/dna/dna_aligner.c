@@ -100,12 +100,12 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      
      workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
 						    pre_pair_stage, sw_stage, post_pair_stage};
-     char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
+     char *stage_labels[] = {"BWT         ", "SEEDING     ", "CAL         ", "PRE PAIR    ", "SW          ", "POST PAIR   "};
      workflow_set_stages(6, &stage_functions, stage_labels, wf);
      
      // optional producer and consumer functions
      workflow_set_producer(fastq_reader, "FastQ reader", wf);
-     workflow_set_consumer(bam_writer, "BAM writer", wf);
+     workflow_set_consumer(bam_writer, "BAM writer  ", wf);
      
      //if (time_on) {
      start_timer(start);
@@ -118,6 +118,8 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
        //printf("Total Time: %4.04f sec\n", time / 1000000);
        //}
      
+     workflow_display_timing(wf);
+
      // free memory
      workflow_free(wf);
      wf_input_free(wf_input);
