@@ -138,6 +138,10 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   for (size_t i = 0; i < num_reads; i++) {
     //printf("\n********** read %lu **********\n", i);
 
+    num_mapps1 = 0;
+    num_mapps2 = 0;
+    num_mapps3 = 0;
+    num_mapps4 = 0;
     array_list_set_flag(1, mapping_batch->mapping_lists[i]);
     array_list_set_flag(1, mapping_batch->mapping_lists2[i]);
 
@@ -262,67 +266,46 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
     }
     */
 
+    //////////
+    // first search the reverse of the G->A transformation
+    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
+    num_mapps2 = bwt_map_forward_inexact_seq(fq_read->sequence,
+					     input->bwt_optarg_p, input->bwt_index2_p,
+					     mapping_batch->mapping_lists[i]);
+    // transform the mappings of search 2
+    if (num_mapps2 > 0) {
+      transform_mappings(mapping_batch->mapping_lists[i]);
+    }
+    // next search the direct of the G->A transformation
     fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
-    //printf("index1 %s\n", input->bwt_index_p->nucleotides);
-    //printf("read1   %s\n", fq_read->sequence);
     num_mapps1 = bwt_map_forward_inexact_seq(fq_read->sequence,
 					     input->bwt_optarg_p, input->bwt_index_p,
 					     mapping_batch->mapping_lists[i]);
-    //printf("mapps  %lu\n", num_mapps1);
-    //printf("end    %s\n", fq_read->sequence);
 
-    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
-    //printf("index2 %s\n", input->bwt_index2_p->nucleotides);
-    //printf("read2   %s\n", fq_read->sequence);
-    num_mapps2 = bwt_map_forward_inexact_seq(fq_read->sequence,
-					     input->bwt_optarg_p, input->bwt_index2_p,
-					     mapping_list1);
-    //printf("mapps  %lu\n", num_mapps2);
-    //printf("end    %s\n", fq_read->sequence);
 
+    // first search the reverse of the C->T transformation
+    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
+    num_mapps4 = bwt_map_forward_inexact_seq(fq_read->sequence,
+					     input->bwt_optarg_p, input->bwt_index_p,
+					     mapping_batch->mapping_lists2[i]);
+    // transform the mappings of search 4
+    if (num_mapps4 > 0) {
+      transform_mappings(mapping_batch->mapping_lists2[i]);
+    }
+    // next search the direct of the C->T transformation
     fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
-    //printf("index2 %s\n", input->bwt_index2_p->nucleotides);
-    //printf("read3   %s\n", fq_read->sequence);
     num_mapps3 = bwt_map_forward_inexact_seq(fq_read->sequence,
 					     input->bwt_optarg_p, input->bwt_index2_p,
 					     mapping_batch->mapping_lists2[i]);
-    //printf("mapps  %lu\n", num_mapps3);
-    //printf("end    %s\n", fq_read->sequence);
-
-    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
-    //printf("index1 %s\n", input->bwt_index_p->nucleotides);
-    //printf("read4   %s\n", fq_read->sequence);
-    num_mapps4 = bwt_map_forward_inexact_seq(fq_read->sequence,
-					     input->bwt_optarg_p, input->bwt_index_p,
-					     mapping_list2);
-    //printf("mapps  %lu\n", num_mapps4);
-    //printf("end    %s\n", fq_read->sequence);
+    /////////////
 
 
-    if (num_mapps1 + num_mapps2 + num_mapps3 + num_mapps4 > 0) {
+    num_mapps1 = array_list_size(mapping_batch->mapping_lists[i]);
+    num_mapps3 = array_list_size(mapping_batch->mapping_lists2[i]);
+
+    if (num_mapps1 + num_mapps3 > 0) {
       array_list_set_flag(1, mapping_batch->mapping_lists[i]);
       array_list_set_flag(1, mapping_batch->mapping_lists2[i]);
-
-      // transform and unify the mappings of search 2 in the mappings of search 1
-      if (num_mapps2 > 0) {
-	transform_mappings(mapping_list1);
-	insert_mappings(mapping_batch->mapping_lists[i], mapping_list1);
-      }
-
-      // transform and unify the mappings of search 4 in the mappings of search 3
-      if (num_mapps4 > 0) {
-	transform_mappings(mapping_list2);
-	insert_mappings(mapping_batch->mapping_lists2[i], mapping_list2);
-      }
-
-      //printf("num_reads = %lu\tnum_mapps1 = %lu\tnum_mapps2 = %lu\tnum_mapps3 = %lu\tnum_mapps4 = %lu\n",
-      //     num_reads, num_mapps1, num_mapps2, num_mapps3, num_mapps4);
-
-      num_mapps1 = array_list_size(mapping_batch->mapping_lists[i]);
-      num_mapps3 = array_list_size(mapping_batch->mapping_lists2[i]);
-
-      //printf("num_reads = %lu\tnum_mapps1 = %lu\tnum_mapps2 = %lu\tnum_mapps3 = %lu\tnum_mapps4 = %lu\n\n",
-      //     num_reads, num_mapps1, num_mapps2, num_mapps3, num_mapps4);
 
       //printf("Update alignments1\n");
       for (size_t j = 0; j < num_mapps1; j++) {
@@ -354,16 +337,29 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 
     } else {
       //imprimir (o guardar) las reads no mapeadas exactas (para depuración)
-      //fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
-      //printf("read no mapp %s\n", fq_read->sequence);
-
+      /*
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+      printf("\nread no mapp (%lu)\n%s\n\t%s\n", i, fq_read->id, fq_read->sequence);
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);
+      printf("GA\t%s\n",  fq_read->sequence);
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
+      printf("GArev\t%s\n", fq_read->sequence);
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
+      printf("CT\t%s\n", fq_read->sequence);
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
+      printf("CTrev\t%s\n", fq_read->sequence);
+      */
       if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 2) {
 	mapping_batch->targets[(mapping_batch->num_targets)++] = i;
 	array_list_set_flag(0, mapping_batch->mapping_lists[i]);
 	array_list_set_flag(0, mapping_batch->mapping_lists2[i]);
+	//fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+	//printf("+read %lu not mapped\n%s\n\n", i, fq_read->sequence);
       } else {
 	array_list_set_flag(2, mapping_batch->mapping_lists[i]);
 	array_list_set_flag(2, mapping_batch->mapping_lists2[i]);
+	//fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+	//printf("-read %lu not mapped\n%s\n\n", i, fq_read->sequence);
       }
     }
     array_list_clear(mapping_list1, NULL);
@@ -389,11 +385,11 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   if (time_on) { stop_timer(start, end, time); timing_add(time, BWT_SERVER, timing); }
   
   //printf("APPLY BWT SERVER DONE!\n");
-  return CONSUMER_STAGE;
+  //return CONSUMER_STAGE;
 
   if (batch->mapping_batch->num_targets > 0) {
     //TODO: DELETE
-    printf("We have targets\n");
+    //printf("We have targets\n");
     for (int i = 0; i < batch->mapping_batch->num_targets; i++) {
       batch->mapping_batch->bwt_mappings[batch->mapping_batch->targets[i]] = 1;
     }

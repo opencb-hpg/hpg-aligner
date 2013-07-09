@@ -293,36 +293,45 @@ void update_targets_bs(size_t num_reads, size_t *unmapped_indices,
 //====================================================================================
 
 void revert_mappings_seqs(array_list_t **src1, array_list_t **src2, array_list_t *orig) {
-  size_t num_reads = array_list_size(orig);
+  //printf("+++++++++++++++ is orig NULL ? %i, size %i\n", (orig == NULL), array_list_size(orig));
+
   size_t num_mappings;
   alignment_t *align_tmp;
   fastq_read_t *fastq_orig;
+  size_t num_reads = array_list_size(orig);
 
-  //  printf("num reads = %lu\t", array_list_size(orig));
-  //  printf("num reads = %lu\t", array_list_size(src));
+  //printf("num reads = %lu\t", num_reads);
+
+  //printf("num reads = %lu\t", array_list_size(orig));
+  //printf("num reads src1 = %lu\t", array_list_size(src1));
+  //printf("num reads src2 = %lu\t", array_list_size(src2));
 
   for (size_t i = 0; i < num_reads; i++) {
     fastq_orig  = (fastq_read_t *) array_list_get(i, orig);
  
     // mappings for reads transformations 1
     num_mappings = array_list_size(src1[i]);
+    //printf("mapps to convert 1 (read %lu) = %lu\n", i, num_mappings);
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src1[i]);
       // modify the strand, and make it reverse
-      free(align_tmp->sequence);
+      if (align_tmp->sequence != NULL) free(align_tmp->sequence);
+
       align_tmp->sequence = strdup(fastq_orig->sequence);
     }
 
     // mappings for reads transformations 2
     num_mappings = array_list_size(src2[i]);
+    //printf("mapps to convert 1 (read %lu) = %lu\n", i, num_mappings);
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src2[i]);
       // modify the strand, and make it reverse
-      free(align_tmp->sequence);
+      if (align_tmp->sequence) {
+	free(align_tmp->sequence);
+      }
       align_tmp->sequence = strdup(fastq_orig->sequence);
     }
   }
-  //printf("\n");
 }
 
 //====================================================================================
