@@ -1046,7 +1046,7 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
   // go to the next stage
 
 
-  printf("END: apply_sw, (%d Smith-Waterman)\n", sw_total);
+  //printf("END: apply_sw, (%d Smith-Waterman)\n", sw_total);
   //return CONSUMER_STAGE;
   return POST_PAIR_STAGE;
 

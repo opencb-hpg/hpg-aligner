@@ -316,11 +316,13 @@ static void prepare_single_alignments_bs(pair_server_input_t *input, mapping_bat
 				  &distance,
 				  (int *) &num_cigar_ops);
 
+      /*
       printf(">>>>> %s : %s, pos = %lu\n", header_match, cigar, pos);
       printf("\tref_start = %lu, ref_len = %lu, mref_start = %lu ,mref_len = %lu\n",
 	     sw_output->ref_start, sw_output->ref_len, mref_start, sw_output->mref_len);
       printf("\tmquery = %s (start = %i)\n", sw_output->mquery, mquery_start);
       printf("\tmref   = %s (start = %i)\n", sw_output->mref, mref_start);
+      */
 
       // set optional fields
       //      optional_fields_length = 0;
@@ -432,13 +434,13 @@ static void prepare_single_alignments_bs(pair_server_input_t *input, mapping_bat
 				  sw_output->mref_len, 
 				  &distance,
 				  (int *) &num_cigar_ops);
-
+      /*
       printf(">>>>> %s : %s, pos = %lu\n", header_match, cigar, pos);
       printf("\tref_start = %lu, ref_len = %lu, mref_start = %lu ,mref_len = %lu\n",
 	     sw_output->ref_start, sw_output->ref_len, mref_start, sw_output->mref_len);
       printf("\tmquery = %s (start = %i)\n", sw_output->mquery, mquery_start);
       printf("\tmref   = %s (start = %i)\n", sw_output->mref, mref_start);
-
+      */
       // set optional fields
       //      optional_fields_length = 0;
       //      optional_fields = NULL;
@@ -485,7 +487,7 @@ static void prepare_single_alignments_bs(pair_server_input_t *input, mapping_bat
     array_list_free(sw_list, NULL);
     batch->mapping_lists2[read_index] = alignment_list;
   } // end for targets
-  printf("pair_server.c, prepare_single_alignments: Done\n");
+  //printf("pair_server.c, prepare_single_alignments: Done\n");
 }
 
 //------------------------------------------------------------------------------------
@@ -1259,8 +1261,7 @@ int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
 
 int prepare_alignments_bs(pair_server_input_t *input, batch_t *batch) {
 
-
-  printf("Prepare alignments\n");
+  //printf("Prepare alignments\n");
   if (batch->mapping_mode == BS_MODE) {
     //printf("Convert\n");
     // convert Smith-Waterman output objects to alignments
@@ -1270,7 +1271,7 @@ int prepare_alignments_bs(pair_server_input_t *input, batch_t *batch) {
   if (input->pair_mng->pair_mode == SINGLE_END_MODE) {
     //printf("single end\n");
     // filter alignments by best-alignments, n-hits, all and unpaired reads
-    /*
+
     filter_alignments_lists(input->report_optarg->all, 
 			    input->report_optarg->n_best, 
 			    input->report_optarg->n_hits,
@@ -1283,8 +1284,8 @@ int prepare_alignments_bs(pair_server_input_t *input, batch_t *batch) {
 			    input->report_optarg->best,
 			    array_list_size(batch->mapping_batch->fq_batch),
 			    batch->mapping_batch->mapping_lists2);
-    */
-    printf("***** end single end\n");
+
+    //printf("***** end single end\n");
   } else {
     // first, search for proper pairs and
     // then filter paired alignments by best-alignments, n-hits, all and unpaired reads
