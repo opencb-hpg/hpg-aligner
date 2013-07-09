@@ -678,7 +678,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
 
 int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
-  printf("START: apply_sw\n"); 
+  //printf("START: apply_sw\n"); 
   int tid = omp_get_thread_num();
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   cal_t *cal = NULL;
@@ -743,7 +743,7 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
   //  int unmapped_by_score[fq_batch->num_reads];
   //  memset(unmapped_by_score, 0, fq_batch->num_reads * sizeof(int));
 
-  printf("num of sw to do: %i\n", sw_total);
+  //printf("num of sw to do: %i\n", sw_total);
   /*
   /////////////////////////////////////
   for (size_t i = 0; i < num_targets; i++) {

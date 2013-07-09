@@ -3,7 +3,7 @@
 
 int bs_writer(void *data) {
 
-  printf("\t-----> bs_writer\n");
+  //printf("\t-----> bs_writer\n");
 
      struct timeval start, end;
      double time;
@@ -20,15 +20,15 @@ int bs_writer(void *data) {
 
      mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
 
-  printf("\t-----> bs_writer 0000\n");
+     //printf("\t-----> bs_writer 0000\n");
      // set the sequences of the mapping to the original
   {
-    size_t num_reads = array_list_size(mapping_batch->fq_batch);
-    printf("\t-----> num_reads %i\n", num_reads);
+    //size_t num_reads = array_list_size(mapping_batch->fq_batch);
+    //printf("\t-----> num_reads %i\n", num_reads);
   }
   revert_mappings_seqs(mapping_batch->mapping_lists, mapping_batch->mapping_lists2, mapping_batch->fq_batch);
 
-  printf("\t-----> bs_writer 1\n");
+  //printf("\t-----> bs_writer 1\n");
 
      batch_writer_input_t *writer_input = batch->writer_input;
      bam_file_t *bam_file = writer_input->bam_file;     
@@ -49,7 +49,7 @@ int bs_writer(void *data) {
      array_list_t **mapping_lists;
      int *found = (int *) calloc(num_reads, sizeof(int));
      
-  printf("\t-----> bs_writer 2\n");
+     //printf("\t-----> bs_writer 2\n");
 
      // process mapping_lists and mapping_lists2
      for (int k = 0; k < 2; k++) {
@@ -61,7 +61,7 @@ int bs_writer(void *data) {
 	 total_mappings += num_items;
 	 fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
 	 
-	 printf("\t-----> num_items (%i) = %i\n", k, num_items);
+	 //printf("\t-----> num_items (%i) = %i\n", k, num_items);
 
 	 // mapped or not mapped ?	 
 	 if (num_items == 0) {

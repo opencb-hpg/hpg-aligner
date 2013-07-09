@@ -284,7 +284,7 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
   bam1_t *bam1;
   for (size_t j = 0; j < num_items; j++) {
     alig = (alignment_t *) array_list_get(j, array_list);
-    printf("\t-----> %s\n", alig->cigar);
+    //printf("\t-----> %s\n", alig->cigar);
     //    alignment_print(alig);
     if (alig != NULL) {
       bam1 = convert_to_bam(alig, 33);
