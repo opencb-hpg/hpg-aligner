@@ -892,9 +892,9 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 						 &min_seeds, &max_seeds,
 						 genome->num_chromosomes + 1,
 						 list, read->length);
-
+    /*
     if (num_cals == 0) {
-      printf("\t #>>>New Step CAL Seeker %s\n", read->id);
+      printf("NO CALS\n");
       int seed_size = 24;
       //First, Delete old regions
       array_list_clear(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
@@ -903,12 +903,16 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 				bwt_optarg, bwt_index, 
 				mapping_batch->mapping_lists[mapping_batch->targets[i]]);
 
+      max_seeds = (read->length / 15)*2 + 10;
+
       num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
 						   input->cal_optarg,
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
 						   list, read->length);
-    }
+						   }
+
+    */
 
     //filter-incoherent CALs
     int founds[num_cals], found = 0;

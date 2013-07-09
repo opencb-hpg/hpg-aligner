@@ -10,6 +10,7 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 			  size_t max_intron_size, int min_intron_size, 
 			  size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, 
 			  allocate_splice_elements_t *chromosome_avls_p, 
+			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
 			  sw_server_input_t* input) {
   
   input->sw_list_p = sw_list;
@@ -64,6 +65,9 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
   // CAL
   input->flank_length = flank_length;
   input->chromosome_avls_p = chromosome_avls_p;
+
+  input->cal_optarg_p = cal_optarg_p;
+  input->bwt_index_p = bwt_index_p;
 }
 
 //====================================================================================

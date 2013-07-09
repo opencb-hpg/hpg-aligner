@@ -131,7 +131,7 @@ int bam_writer(void *data) {
 	   write_unmapped_read(fq_read, bam_file);
 	   if (mapping_batch->mapping_lists[i]) {
 	     array_list_free(mapping_batch->mapping_lists[i], NULL);
-	   }
+	   }	 
 	 } else {
 	   num_mapped_reads++;
 	   write_mapped_read(mapping_batch->mapping_lists[i], bam_file);

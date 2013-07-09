@@ -71,7 +71,10 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       }
     }
     } else {*/
+  printf("NUM TARGETS: %i\n", num_targets);
+  
   for (size_t i = 0; i < num_targets; i++) {
+    printf("\t Target %i:\n", targets[i]);
     read = array_list_get(targets[i], mapping_batch->fq_batch);
     //      printf("region_seeker: seeds for %s\n", read->id);
     /*
@@ -80,17 +83,22 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       input->bwt_optarg_p, input->bwt_index_p, 
       mapping_batch->mapping_lists[targets[i]]);
     */
-    num_mappings = bwt_map_exact_seeds_seq(0,
-					   0,
-					   read->sequence,
-					   seed_size,
-					   min_seed_size,
-					   input->bwt_optarg_p, 
-					   input->bwt_index_p, 
-					   mapping_batch->mapping_lists[targets[i]],
-					   0);
-    
-    //      LOG_FATAL_F("num_mappings = %i\n", num_mappings);
+    if (array_list_size(mapping_batch->mapping_lists[targets[i]]) > 0) { 
+      printf("Search Anchors\n");    
+    } else {
+      printf("Search Seeding\n");
+      num_mappings = bwt_map_exact_seeds_seq(0,
+					     0,
+					     read->sequence,
+					     seed_size,
+					     min_seed_size,
+					     input->bwt_optarg_p, 
+					     input->bwt_index_p, 
+					     mapping_batch->mapping_lists[targets[i]],
+					     0);
+      
+      //      LOG_FATAL_F("num_mappings = %i\n", num_mappings);
+    }
 
     if (num_mappings > 0) {
       array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
@@ -99,7 +107,6 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
     }
   }
   //}
-    
   // update batch targets
   mapping_batch->num_targets = new_num_targets;
 

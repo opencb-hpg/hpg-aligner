@@ -232,7 +232,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->mismatch,  options->gap_open, options->gap_extend,  
 		       options->min_score,  options->flank_length, genome,  
 		       options->max_intron_length, options->min_intron_length,  
-		       options->seeds_max_distance,  bwt_optarg, chromosome_avls, &sw_input);
+		       options->seeds_max_distance,  bwt_optarg, chromosome_avls, 
+		       cal_optarg, bwt_index, &sw_input);
   
 
   pair_server_input_t pair_input;
@@ -323,7 +324,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     stop_timer(start, end, time);
     timing_add(time, TOTAL_TIME, timing);
     }*/
-    
+
+  //workflow_display_timing(wf);     
+
   //closing files
   if (options->pair_mode == SINGLE_END_MODE) {
     fastq_fclose(reader_input.fq_file1);
@@ -344,7 +347,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   // end of workflow management
   //--------------------------------------------------------------------------------------
 
-
+  free(log_filename);
   free(output_filename);
   free(exact_filename);
   free(extend_filename);
