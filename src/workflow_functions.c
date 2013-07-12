@@ -283,7 +283,11 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
   alignment_t *alig;
   bam1_t *bam1;
   for (size_t j = 0; j < num_items; j++) {
-    alig = (alignment_t *) array_list_get(j, array_list);
+    //alig = (alignment_t *) array_list_get(j, array_list);
+    //printf("\t******** %i(%i)\n", j, num_items);
+    //printf("is null alig->name %i\n", (alig->query_name == NULL));
+    //printf("name = %s\n", alig->query_name);
+    //printf("read = %s\n", alig->sequence);
     //printf("\t-----> %s\n", alig->cigar);
     //    alignment_print(alig);
     if (alig != NULL) {
@@ -292,6 +296,7 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
       bam_destroy1(bam1);	 
       alignment_free(alig);
     }
+    //printf("\t**************** %i(%i)\n", j, num_items);
   }
   if (array_list) { array_list_free(array_list, NULL); }
 }

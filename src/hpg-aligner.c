@@ -199,8 +199,8 @@ int main(int argc, char* argv[]) {
   }
   else {
     // change the filter_*_mappings values for bisulfite alignments
-    options->filter_read_mappings = DEFAULT_FILTER_READ_MAPPINGS_BS;
-    options->filter_seed_mappings = DEFAULT_FILTER_SEED_MAPPINGS_BS;
+    //options->filter_read_mappings = DEFAULT_FILTER_READ_MAPPINGS_BS;
+    //options->filter_seed_mappings = DEFAULT_FILTER_SEED_MAPPINGS_BS;
 
     char bs_dir1[256];
     sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
@@ -331,6 +331,8 @@ int main(int argc, char* argv[]) {
   }
 
   basic_statistics_display(basic_st, !strcmp(command, "rna"), main_time / 1000000);
+
+  free(basic_st);
 
   if (time_on){ timing_free(timing); }
 
