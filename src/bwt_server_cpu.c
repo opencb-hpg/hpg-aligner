@@ -172,7 +172,7 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
     fastq_read_t *read = array_list_get(i, mapping_batch->fq_batch);
     //printf("%s\n", read->id);
     list = mapping_batch->mapping_lists[i];    
-    array_list_set_flag(0, list);
+    array_list_set_flag(1, list);
     num_mappings = bwt_map_inexact_read(read,
 					input->bwt_optarg_p,
 					input->bwt_index_p,
