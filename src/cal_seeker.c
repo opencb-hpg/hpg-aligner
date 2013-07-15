@@ -133,7 +133,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
     read_index = mapping_batch->targets[i];
     read = (fastq_read_t *) array_list_get(read_index, fq_batch);
-
+    
     cal_list = mapping_batch->mapping_lists[read_index];
     num_cals = array_list_size(cal_list);
     
@@ -209,6 +209,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
 	    LOG_DEBUG_F("gap (read, genome) = (%i, %i)\n", gap_read_len, gap_genome_len);
 
+	    if (gap_genome_len == 0) { printf("#@#: %s\n", read->id); }
 	    assert(gap_genome_len != 0);
 
 	    if (gap_read_len == 0) {
@@ -860,6 +861,12 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   int seed_size = 16;
   array_list_t *cal_list, *list;
   cal_t *cal;
+  array_list_t *region_list;
+  region_t *bwt_region_back, *bwt_region_forw;
+  linked_list_t *linked_list;
+  seed_region_t *seed_region_start, *seed_region_end, *seed_region;
+  int gap_nt, anchor_nt;
+  bwt_anchor_t *bwt_anchor_back, *bwt_anchor_forw;
 
   num_targets = mapping_batch->num_targets;
   total_targets = 0;
@@ -884,20 +891,79 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 			  COLLECTION_MODE_ASYNCHRONIZED);
 
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
+    //printf("From CAL Seeker %s\n", read->id);
+    region_list = mapping_batch->mapping_lists[mapping_batch->targets[i]];
 
-    max_seeds = (read->length / 15)*2 + 10;
-    
-    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						 input->cal_optarg,
-						 &min_seeds, &max_seeds,
-						 genome->num_chromosomes + 1,
-						 list, read->length);
+    if (array_list_get_flag(region_list) == 0 || 
+	array_list_get_flag(region_list) == 2) {
+      //We have normal and extend seeds (anchors)
+      max_seeds = (read->length / 15)*2 + 10;      
+      num_cals = bwt_generate_cal_list_linked_list(region_list,
+						   input->cal_optarg,
+						   &min_seeds, &max_seeds,
+						   genome->num_chromosomes + 1,
+						   list, read->length);
+    } else {
+      //We have double anchors with smaller distance between they
+      //printf("Easy case... Two anchors and same distance between read gap and genome distance\n");
+      num_cals = 0;
+      for (int a = array_list_size(region_list) - 1; a >= 0; a -= 2) {
+	bwt_anchor_back = array_list_remove_at(a, region_list);
+	bwt_anchor_forw = array_list_remove_at(a - 1, region_list);
+
+	linked_list = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+
+	
+	//Seed for the first anchor
+	anchor_nt = bwt_anchor_forw->end - bwt_anchor_forw->start;
+	//printf("\t seed0[%i-%i][%lu-%lu]\n", 0, anchor_nt - 1,
+	//     bwt_anchor_forw->start, bwt_anchor_forw->end);
+	seed_region_start = seed_region_new(0, anchor_nt - 1,
+					    bwt_anchor_forw->start, bwt_anchor_forw->end, 0);
+
+	//Seed for the first anchor
+	gap_nt = read->length - (anchor_nt + (bwt_anchor_back->end - bwt_anchor_back->start));
+	//printf("\t gap_nt = %i, anchor_nt = %i\n", gap_nt, anchor_nt);
+	//printf("\t seed1[%i-%i][%lu-%lu]\n", anchor_nt + gap_nt, read->length - 1, 
+	//     bwt_anchor_back->start + 1, bwt_anchor_back->end);
+	seed_region_end = seed_region_new(anchor_nt + gap_nt, read->length - 1,
+				      bwt_anchor_back->start + 1, bwt_anchor_back->end, 1);
+
+	//The reference distance is 0 and the read distance not
+	//The read distance is 0 and the reference distance not
+	//if (seed_region_start->genome_end > seed_region_end->genome_start || 
+	//  seed_region_start->read_end > seed_region_end->read_start) { 
+	//array_list_clear(region_list, NULL);
+	//continue;
+	if (seed_region_end->genome_start - seed_region_start->genome_end < 5 || 
+	    seed_region_end->read_start - seed_region_start->read_end < 5) {
+	  seed_region_start->genome_end -= 5;
+	  seed_region_start->read_end -= 5;
+	  seed_region_end->genome_start += 5;
+	  seed_region_end->read_start += 5;
+	}
+
+	linked_list_insert(seed_region_start, linked_list);
+	linked_list_insert_last(seed_region_end, linked_list);
+
+	cal = cal_new(bwt_anchor_forw->chromosome + 1,
+		      bwt_anchor_forw->strand,
+		      bwt_anchor_forw->start,
+		      bwt_anchor_back->end + 1,
+		      2,
+		      linked_list,
+		      linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
+	array_list_insert(cal, list);
+	num_cals++;
+      }
+    }
+
     /*
     if (num_cals == 0) {
       printf("NO CALS\n");
       int seed_size = 24;
       //First, Delete old regions
-      array_list_clear(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
+      array_list_clear(region_list, region_bwt_free);
       //Second, Create new regions with seed_size 24 and 1 Mismatch
       bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
 				bwt_optarg, bwt_index, 
@@ -910,9 +976,9 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
 						   list, read->length);
-						   }
-
+    }
     */
+
 
     //filter-incoherent CALs
     int founds[num_cals], found = 0;
@@ -961,6 +1027,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     }
 
     mapping_batch->mapping_lists[mapping_batch->targets[i]] = list;
+
 
     if (num_cals > MAX_RNA_CALS) {
       select_cals = num_cals - MAX_RNA_CALS;
@@ -1067,6 +1134,11 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   size_t num_targets = mapping_batch->num_targets;
   size_t *targets = mapping_batch->targets;
   size_t new_num_targets = 0;
+  array_list_t *region_list;
+  bwt_anchor_t *bwt_anchor_back, *bwt_anchor_forw;
+  linked_list_t *linked_list;
+  int anchor_nt, gap_nt;
+  seed_region_t *seed_region_start, *seed_region_end;
   max_seeds = input->cal_optarg->num_seeds;
   
   //  size_t *new_targets = (size_t *) calloc(num_targets, sizeof(size_t));
@@ -1078,7 +1150,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 
     read_index = targets[i];
     read = array_list_get(read_index, mapping_batch->fq_batch); 
-
+    region_list = mapping_batch->mapping_lists[read_index];
     // for debugging
     //    LOG_DEBUG_F("%s\n", ((fastq_read_t *) array_list_get(read_index, mapping_batch->fq_batch))->id);
     
@@ -1088,20 +1160,79 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 			    COLLECTION_MODE_ASYNCHRONIZED);
     }
 
-    // optimized version
-    max_seeds = (read->length / 15)*2 + 10;
-    num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[read_index], 
-						 input->cal_optarg,
-						 &min_seeds, &max_seeds,
-						 num_chromosomes,
-						 list,
-						 read->length);
+
+    if (array_list_get_flag(region_list) == 0 || 
+	array_list_get_flag(region_list) == 2) {
+      //We have normal and extend seeds (anchors)
+      max_seeds = (read->length / 15)*2 + 10;
+      num_cals = bwt_generate_cal_list_linked_list(region_list,
+						   input->cal_optarg,
+						   &min_seeds, &max_seeds,
+						   num_chromosomes,
+						   list, read->length);
+    } else {
+      //We have double anchors with smaller distance between they
+      //printf("Easy case... Two anchors and same distance between read gap and genome distance\n");
+      num_cals = 0;
+      for (int a = array_list_size(region_list) - 1; a >= 0; a -= 2) {
+	max_seeds = 2;
+	min_seeds = 2;
+	bwt_anchor_back = array_list_remove_at(a, region_list);
+	bwt_anchor_forw = array_list_remove_at(a - 1, region_list);
+
+	linked_list = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+
+	
+	//Seed for the first anchor
+	anchor_nt = bwt_anchor_forw->end - bwt_anchor_forw->start;
+	//printf("\t seed0[%i-%i][%lu-%lu]\n", 0, anchor_nt - 1,
+	//     bwt_anchor_forw->start, bwt_anchor_forw->end);
+	seed_region_start = seed_region_new(0, anchor_nt - 1,
+					    bwt_anchor_forw->start, bwt_anchor_forw->end, 0);
+
+	//Seed for the first anchor
+	gap_nt = read->length - (anchor_nt + (bwt_anchor_back->end - bwt_anchor_back->start));
+	//printf("\t gap_nt = %i, anchor_nt = %i\n", gap_nt, anchor_nt);
+	//printf("\t seed1[%i-%i][%lu-%lu]\n", anchor_nt + gap_nt, read->length - 1, 
+	//     bwt_anchor_back->start + 1, bwt_anchor_back->end);
+	seed_region_end = seed_region_new(anchor_nt + gap_nt, read->length - 1,
+					  bwt_anchor_back->start + 1, bwt_anchor_back->end, 1);
+
+	//The reference distance is 0 and the read distance not
+	//The read distance is 0 and the reference distance not
+	//if (seed_region_start->genome_end > seed_region_end->genome_start || 
+	//  seed_region_start->read_end > seed_region_end->read_start) { 
+	//array_list_clear(region_list, NULL);
+	//continue;
+	if (seed_region_end->genome_start - seed_region_start->genome_end < 5 || 
+	    seed_region_end->read_start - seed_region_start->read_end < 5) {
+	  seed_region_start->genome_end -= 5;
+	  seed_region_start->read_end -= 5;
+	  seed_region_end->genome_start += 5;
+	  seed_region_end->read_start += 5;
+	}
+
+	linked_list_insert(seed_region_start, linked_list);
+	linked_list_insert_last(seed_region_end, linked_list);
+
+	cal = cal_new(bwt_anchor_forw->chromosome + 1,
+		      bwt_anchor_forw->strand,
+		      bwt_anchor_forw->start,
+		      bwt_anchor_back->end + 1,
+		      2,
+		      linked_list,
+		      linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
+	array_list_insert(cal, list);
+	num_cals++;
+      }
+    }
+
     // for debugging
     LOG_DEBUG_F("read %s : num. cals = %i, min. seeds = %i, max. seeds = %i\n", 
 		read->id, num_cals, min_seeds, max_seeds);
 
 
-    if (num_cals == 0) {
+    /*    if (num_cals == 0) {
       int seed_size = 24;
       //First, Delete old regions
       array_list_clear(mapping_batch->mapping_lists[read_index], region_bwt_free);
@@ -1115,7 +1246,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 						   &min_seeds, &max_seeds,
 						   num_chromosomes,
 						   list, read->length);
-    }
+						   }*/
 
     /*
     for (size_t j = 0; j < num_cals; j++) {

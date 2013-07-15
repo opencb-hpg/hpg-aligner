@@ -882,11 +882,14 @@ int merge_and_filter_cals(array_list_t *cals_targets, array_list_t *cals_list,
     cal_next = (cal_t *)array_list_get(cal_pos, cals_list);      
     s_prev = linked_list_get_last(cal_prev->sr_list);
     s = linked_list_get_first(cal_next->sr_list);
+    //printf("cal_prev:[%i:%lu-%lu|%i] vs ", cal_prev->chromosome_id, cal_prev->start, cal_prev->end, s_prev->read_end);
+    //printf("cal_next:[%i:%lu-%lu|%i]\n", cal_next->chromosome_id, cal_next->start, cal_next->end, s->read_start);
     if (cal_prev->chromosome_id == cal_next->chromosome_id && 
 	cal_prev->strand == cal_next->strand && 
 	s_prev->read_end <= s->read_start &&
 	(cal_next->start <= (cal_prev->end + max_intron_size))) {
       array_list_insert(cal_next, merge_cals);
+      //printf("Merge\n");
     } else { 
       array_list_insert(merge_cals, cals_targets);
       merge_cals = array_list_new(10,
@@ -1189,7 +1192,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 					  1.25f,
 					  COLLECTION_MODE_ASYNCHRONIZED);
 
-    //printf("%s\n", fq_read->id);
+    //printf("FROM RNA SERVER: %s\n", fq_read->id);
     //array_list_clear(mapping_batch->mapping_lists[target], NULL);    
     number_of_best = merge_and_filter_cals(cals_targets[target], 
 					   mapping_batch->mapping_lists[target], 

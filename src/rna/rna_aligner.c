@@ -215,7 +215,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   region_seeker_input_init(NULL, cal_optarg, 
 			   bwt_optarg, bwt_index, NULL, 
 			   0, options->gpu_process, options->min_seed_padding_left, 
-			   options->min_seed_padding_right, &region_input);
+			   options->min_seed_padding_right, genome, &region_input);
   
   cal_seeker_input_t cal_input;
   cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, 
@@ -325,7 +325,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     timing_add(time, TOTAL_TIME, timing);
     }*/
 
-  //workflow_display_timing(wf);     
+  workflow_display_timing(wf);     
 
   //closing files
   if (options->pair_mode == SINGLE_END_MODE) {
