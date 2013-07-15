@@ -225,6 +225,9 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       //if (array_list_size(mapping_batch->mapping_lists[targets[i]]) > 2) {
       int *anchors_targets = (int *)calloc(array_list_size(mapping_batch->mapping_lists[targets[i]]), sizeof(int));
       int num = 0;
+
+      //min_intron_size = 0;
+
       //Search if one anchor is at the same distance from the reference and the read
       for (int b = 0; b < array_list_size(mapping_batch->mapping_lists[targets[i]]); b += 2) {
 	bwt_anchor_forw = array_list_get(b, mapping_batch->mapping_lists[targets[i]]);

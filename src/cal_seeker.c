@@ -98,6 +98,8 @@ void display_sr_lists(char *msg, mapping_batch_t *mapping_batch) {
 void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg, 
 	       genome_t *genome, int min_gap, int min_distance) {
 
+
+
   int sw_count = 0;
 
   fastq_read_t *read;
@@ -140,6 +142,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
     if (num_cals <= 0) continue;
 
     read_len = read->length;
+
+    min_distance = read_len*0.2;
 
     LOG_DEBUG_F(">>>>> read %s\n", read->id);
 
