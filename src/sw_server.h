@@ -50,6 +50,7 @@ struct sw_server_input {
      list_t* alignment_list_p; /**< Pointer to the list that contains the output aligned sequences. */
      genome_t* genome_p;   /**< Pointer to the genome structure to get the reference sequences. */
      genome_t* genome2_p;  /**< Pointer to the second genome structure to get the reference sequences for bisulfite. */
+     genome_t* genome_or_p;  /**< Pointer to the original genome structure to get the reference sequences for bisulfite. */
      bwt_optarg_t* bwt_optarg_p;
      allocate_splice_elements_t *chromosome_avls_p;
 };

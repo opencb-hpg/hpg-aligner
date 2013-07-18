@@ -891,7 +891,7 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
 	// query sequence, revcomp if necessary
 	q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
-	if (cal->strand == 1) {
+	if (cal->strand == 0) {
 	  memcpy(q[sw_count], fq_read->sequence, read_len);
 	  //seq_reverse_complementary(q[sw_count], read_len);
 	} else {
@@ -951,6 +951,11 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
     LOG_DEBUG("\n");
   }
 
+
+  //size_t mapp = 0, mapp2 = 0;
+
+
+
   double norm_score;
   // filter alignments by min_score
   for (size_t i = 0; i < sw_count2; i++) {
@@ -970,6 +975,8 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
       if (array_list_size(mapping_list) == 0) {
 	mapping_batch->targets[new_num_targets++] = read_index;
+
+	//mapp++;
       }
 
       sw_output = sw_output_new(strands[i],
@@ -1012,6 +1019,8 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
       if (array_list_size(mapping_list) == 0) {
 	mapping_batch->targets2[new_num_targets2++] = read_index;
+
+	//mapp2++;
       }
 
       sw_output = sw_output_new(strands[i],
@@ -1045,6 +1054,12 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
   // go to the next stage
 
+  /*
+  printf("3 SW1         \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n", 
+	 num_targets, mapp, num_targets - mapp);
+  printf("3 SW2         \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n", 
+	 num_targets2, mapp2, num_targets2 - mapp2);
+  */
 
   //printf("END: apply_sw, (%d Smith-Waterman)\n", sw_total);
   //return CONSUMER_STAGE;

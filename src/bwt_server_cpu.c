@@ -115,6 +115,14 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   }
   */
 
+  ////////////////////////////////
+  /*
+  size_t reads_mapp = 0;
+  size_t reads_no_mapp = 0;
+  size_t reads_discard = 0;
+  */
+  ////////////////////////////////
+
 // make the four searches
   alignment_t *alignment;
   size_t header_len, num_mapps1 = 0, num_mapps2 = 0, num_mapps3 = 0, num_mapps4 = 0;
@@ -140,7 +148,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
     num_mapps2 = bwt_map_forward_inexact_seq(fq_read->sequence,
 					     input->bwt_optarg_p, input->bwt_index2_p,
 					     mapping_batch->mapping_lists[i]);
-    // transform the mappings of search 2
+    // transform the mappings of search 2 to the reverse strand
     if (num_mapps2 > 0) {
       transform_mappings(mapping_batch->mapping_lists[i]);
     }
@@ -156,7 +164,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
     num_mapps4 = bwt_map_forward_inexact_seq(fq_read->sequence,
 					     input->bwt_optarg_p, input->bwt_index_p,
 					     mapping_batch->mapping_lists2[i]);
-    // transform the mappings of search 4
+    // transform the mappings of search 4 to the reverse strand
     if (num_mapps4 > 0) {
       transform_mappings(mapping_batch->mapping_lists2[i]);
     }
@@ -232,7 +240,29 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 	//printf("-read %lu not mapped\n%s\n\n", i, fq_read->sequence);
       }
     }
+
+  ////////////////////////////////
+    /*
+    if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 0 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 0) {
+      reads_mapp++;
+    } else {
+      if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 1 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 1) {
+	reads_no_mapp++;
+      } else {
+	if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 2) {
+	  reads_discard++;
+	}	
+      }
+    }
+    */
+  ////////////////////////////////
+
   }
+
+  /*
+  printf("1 BWT_inexact \t%3lu\tmapp               \t%3lu\tno mapp (to seed)\t%3lu\tdiscard (many mapps)\t%3lu\n", 
+	 num_reads, reads_mapp, reads_no_mapp, reads_discard);
+  */
 
   //printf("End postprocess\n");
 

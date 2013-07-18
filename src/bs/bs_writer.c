@@ -3,7 +3,8 @@
 
 int bs_writer(void *data) {
 
-  //printf("-----> bs_writer\n");
+  //size_t reads_mapp = 0;
+  //size_t reads_no_mapp = 0;
 
   struct timeval start, end;
   double time;
@@ -20,15 +21,8 @@ int bs_writer(void *data) {
   
   mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
   
-  //printf("\t-----> bs_writer 0000\n");
   // set the sequences of the mapping to the original
-  {
-    //size_t num_reads = array_list_size(mapping_batch->fq_batch);
-    //printf("\t-----> num_reads %i\n", num_reads);
-  }
   revert_mappings_seqs(mapping_batch->mapping_lists, mapping_batch->mapping_lists2, mapping_batch->fq_batch);
-  
-  //printf("\t-----> bs_writer 1\n");
   
   batch_writer_input_t *writer_input = batch->writer_input;
   bam_file_t *bam_file = writer_input->bam_file;     
@@ -49,8 +43,6 @@ int bs_writer(void *data) {
   array_list_t **mapping_lists;
   int *found = (int *) calloc(num_reads, sizeof(int));
   
-  //printf("\t-----> bs_writer 2\n");
-  
   // process mapping_lists and mapping_lists2
   for (int k = 0; k < 2; k++) {
     //printf("\t-----> mapping_lists %i\n", k);
@@ -62,40 +54,21 @@ int bs_writer(void *data) {
       total_mappings += num_items;
       fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
       
-      //printf("\t-----> read %i(%i), mappings = %i\n", i, num_reads, num_items);
-      
       // mapped or not mapped ?	 
       if (num_items == 0) {
 	//total_mappings++;
-	//	   write_unmapped_read(fq_read, bam_file); //
-	/*
-	{
-	  printf("\t+++++++++\n");
-	  printf("\tid %s\n\tseq %s\n",fq_read->id, fq_read->sequence);
-	  printf("\t+++++++++\n");
-	}
-	*/
+	//write_unmapped_read(fq_read, bam_file); //
 	if (mapping_lists[i]) {
 	  array_list_free(mapping_lists[i], NULL);
 	}
       } else {
 	found[i] = 1;
 	//	   num_mapped_reads++; //
-	/*
-	printf("\t-----> pre write\n");
-	if (array_list_size(mapping_lists[i]) == 6) {
-	  printf("\t---------\n");
-	}
-	*/
 	write_mapped_read(mapping_lists[i], bam_file);
-	//printf("\t-----> post write\n");
       }
     }
-    //printf("\t-----> mapping_lists %i done\n", k);
   }
   
-  //printf("\t-----> bs_writer 3\n");
-
   for (size_t i = 0; i < num_reads; i++) {
     if (found[i]) {
       num_mapped_reads++; //
@@ -105,6 +78,11 @@ int bs_writer(void *data) {
       write_unmapped_read(fq_read, bam_file);
     }
   }
+
+  /*
+  printf("4 FINAL       \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n",
+	 num_reads, num_mapped_reads, num_reads - num_mapped_reads);
+  */
   
   if (basic_st->total_reads >= writer_input->limit_print) {
     LOG_DEBUG_F("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);

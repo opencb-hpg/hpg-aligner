@@ -283,7 +283,7 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
   alignment_t *alig;
   bam1_t *bam1;
   for (size_t j = 0; j < num_items; j++) {
-    //alig = (alignment_t *) array_list_get(j, array_list);
+    alig = (alignment_t *) array_list_get(j, array_list);
     //printf("\t******** %i(%i)\n", j, num_items);
     //printf("is null alig->name %i\n", (alig->query_name == NULL));
     //printf("name = %s\n", alig->query_name);

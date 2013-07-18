@@ -158,6 +158,18 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
   }
   */
 
+
+  ////////////////////////////////
+  /*
+  size_t reads_mapp = 0;
+  size_t reads_mapp2 = 0;
+  size_t reads_no_mapp = 0;
+  size_t reads_no_mapp2 = 0;
+  size_t reads_discard = 0;
+  */
+  ////////////////////////////////
+
+
   //TODO: omp parallel for !!
   //if (batch->mapping_mode == BS_MODE) {
   for (size_t i = 0; i < num_targets; i++) {
@@ -185,6 +197,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
 						   seed_size, min_seed_size,
 						   input->bwt_optarg_p, input->bwt_index2_p, 
 						   mapping_batch->mapping_lists[targets[i]]);
+    // transform the reads from the search 2 to the reverse strand
     if (num_mapps2 > 0) {
       //printf("transform maps1\n");
       transform_regions(mapping_batch->mapping_lists[targets[i]]);
@@ -216,6 +229,7 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
 						   input->bwt_optarg_p, input->bwt_index_p, 
 						   mapping_batch->mapping_lists2[targets[i]]);
 
+    // transform the reads from the search 4 to the reverse strand
     if (num_mapps4 > 0) {
       //printf("transform maps2\n");
       transform_regions(mapping_batch->mapping_lists2[targets[i]]);
@@ -240,20 +254,40 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
 
     if (num_mapps1 > 0) {
       //printf("set flags\n");
+      // si hay semillas en la read, se marca como elemento a procesar y se guarda la lista
       array_list_set_flag(2, mapping_batch->mapping_lists[targets[i]]);
       targets[new_num_targets++] = targets[i];
       mapping_batch->num_to_do += num_mapps1;
+
+      //////////////
+      //reads_mapp++;
+      //////////////
     } else {
+      // si no hay semillas en la read, se borra la lista
       array_list_clear(mapping_batch->mapping_lists[targets[i]], NULL);
+
+      //////////////
+      //reads_no_mapp++;
+      //////////////
     }
 
     if (num_mapps3 > 0) {
       //printf("set flags\n");
+      // si hay semillas en la read, se marca como elemento a procesar y se guarda la lista
       array_list_set_flag(2, mapping_batch->mapping_lists2[targets[i]]);
       targets2[new_num_targets2++] = targets[i];
       mapping_batch->num_to_do2 += num_mapps3;
+
+      //////////////
+      //reads_mapp2++;
+      //////////////
     } else {
+      // si no hay semillas en la read, se borra la lista
       array_list_clear(mapping_batch->mapping_lists2[targets[i]], NULL);
+
+      //////////////
+      //reads_no_mapp2++;
+      //////////////
     }
 
   }
@@ -262,6 +296,13 @@ int apply_seeding_bs(region_seeker_input_t* input, batch_t *batch) {
   // update batch targets
   mapping_batch->num_targets = new_num_targets;
   mapping_batch->num_targets2 = new_num_targets2;
+
+  /*
+  printf("BWT_exact1  \t%3lu\thave seeds (to CAL)\t%3lu\thave no seed     \t%3lu\n", 
+	 num_targets, reads_mapp, reads_no_mapp);
+  printf("BWT_exact2  \t%3lu\thave seeds (to CAL)\t%3lu\thave no seed     \t%3lu\n", 
+	 num_targets, reads_mapp2, reads_no_mapp2);
+  */
 
   if (time_on) { stop_timer(start, end, time); timing_add(time, REGION_SEEKER, timing); }
 

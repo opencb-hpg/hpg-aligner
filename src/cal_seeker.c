@@ -278,6 +278,22 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
   mapping_batch->num_to_do = 0;
   mapping_batch->num_to_do2 = 0;
 
+
+  ////////////////////////////////
+  /*
+  size_t reads_mapp  = 0;
+  size_t reads_mapp2 = 0;
+  size_t reads_no_mapp  = 0;
+  size_t reads_no_mapp2 = 0;
+  size_t reads_discard  = 0;
+  size_t reads_discard2 = 0;
+
+  size_t reads_cals = 0;
+  size_t reads_cals_acum = 0;
+  */
+  ////////////////////////////////
+
+
   //printf("targets 1 %lu\ntargets 2 %lu\n", num_targets, num_targets2);
 
   //printf("----->primera lista\n");
@@ -324,9 +340,23 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     } else {
       cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
 
+      /////////////////
+      /*
+      if (num_cals > 0)
+	reads_cals++;
+      */
+      /////////////////
+
       for (size_t j = 0; j < num_cals; j++) {
 	cal = array_list_get(j, list);
+	//filter cals with few seeds
 	if (cal->num_seeds >= min_limit) {
+
+	  /////////////////
+	  //reads_cals_acum++;
+	  /////////////////
+
+
 	  //	  LOG_DEBUG_F("\t\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu (min. limit %i seeds), flank: (start, end) = (%lu, %lu)\n", 
 	  //		      cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, min_limit, cal->flank_start, cal->flank_end);
 	  
@@ -346,7 +376,11 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
       num_cals = array_list_size(cal_list);
     }
 
-    if (num_cals > 0 && num_cals <= MAX_CALS) {
+    if (num_cals > 0 && num_cals <= MAX_CALS) {  
+      /////////////
+      //reads_mapp++;
+      /////////////
+
       array_list_set_flag(2, cal_list);
       mapping_batch->num_to_do += num_cals;
       targets[new_num_targets++] = read_index;
@@ -355,6 +389,9 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
       array_list_free(mapping_batch->mapping_lists[read_index], (void *) region_bwt_free);
       mapping_batch->mapping_lists[read_index] = cal_list;
     } else {
+      /////////////
+      //reads_discard++;
+      /////////////
       array_list_set_flag(0, mapping_batch->mapping_lists[read_index]);
       // we have to free the region list
       array_list_clear(mapping_batch->mapping_lists[read_index], (void *) region_bwt_free);
@@ -415,10 +452,23 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
       //printf("read %lu\t1recortar lista\n", read_index2);
       cal_list2 = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
 
+      /////////////////
+      /*
+      if (num_cals2 > 0)
+	reads_cals++;
+      */
+      /////////////////
+
       for (size_t j = 0; j < num_cals2; j++) {
 	cal = array_list_get(j, list2);
 	//printf("read %lu\tnum_seeds %lu\tmin_limit %i\n", read_index2, cal->num_seeds, min_limit);
+	//filter cals with few seeds
 	if (cal->num_seeds >= min_limit) {
+
+	  /////////////////
+	  //reads_cals_acum++;
+	  /////////////////
+
 	  //printf("keep cal %lu, with %lu seed (of %lu needed)\n", j, cal->num_seeds, min_limit);
 	  //	  LOG_DEBUG_F("\t\tchr: %i, strand: %i, start: %lu, end: %lu, num. seeds = %lu (min. limit %i seeds), flank: (start, end) = (%lu, %lu)\n", 
 	  //		      cal->chromosome_id, cal->strand, cal->start, cal->end, cal->num_seeds, min_limit, cal->flank_start, cal->flank_end);
@@ -448,6 +498,10 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     //printf("read %lu\tcals2 = %lu\n", read_index2, num_cals2);
 
     if (num_cals2 > 0 && num_cals2 <= MAX_CALS) {
+      /////////////
+      //reads_mapp2++;
+      /////////////
+
       //printf("read %lu\tactualizar lista\n", read_index2);
       array_list_set_flag(2, cal_list2);
       mapping_batch->num_to_do2 += num_cals2;
@@ -458,6 +512,10 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
       mapping_batch->mapping_lists2[read_index2] = cal_list2;
       //printf("read %lu\tactualizar lista\n", read_index2);
     } else {
+      /////////////
+      //reads_discard2++;
+      /////////////
+
       //printf("read %lu\tdescartar lista\n", read_index2);
       array_list_set_flag(0, mapping_batch->mapping_lists2[read_index2]);
       // we have to free the region list
@@ -476,6 +534,16 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
   } // end for 0 ... num_seqs
   // end add for bisulfite
 
+  /*
+  printf("CAL_seek1   \t%3lu\thave CAL (to SW)\t%3lu\thave no CALs     \t%3lu\n", 
+	 num_targets, reads_mapp, reads_discard);
+  printf("CAL_seek2   \t%3lu\thave CAL (to SW)\t%3lu\thave no CALs     \t%3lu\n", 
+	 num_targets2, reads_mapp2, reads_discard2);
+  */
+  /*
+  printf("2 reads CAL   \t%3lu\ttotal CALs      \t%3lu\tCALs promedio    \t%6.2f\n", 
+	 reads_cals, reads_cals_acum, 1.0 * reads_cals_acum / reads_cals);
+  */
 
   //printf("new targets1 = %lu, new targets2 = %lu\n", new_num_targets, new_num_targets2);
 
