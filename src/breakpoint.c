@@ -182,7 +182,7 @@ int cigar_match_coverage(cigar_code_t *p) {
     size_t num_ops = array_list_size(p->ops);
     for (size_t i = 0; i < num_ops; i++) {
       cigar_op_t *cigar_op = array_list_get(i, p->ops);
-      if (cigar_op->name == 'M') {
+      if (cigar_op->name == 'M' || cigar_op->name == '=') {
 	coverage += cigar_op->number;
       }
     }
@@ -257,7 +257,13 @@ float cigar_code_get_score(int read_len, cigar_code_t *p) {
   //    LOG_FATAL_F("score is negative %0.2f (distance = %i)\n", ret, p->distance);
   //}
   
-  int match_counts = cigar_match_coverage(p);
+  
+  int match_counts = 0;
+  
+  if (p) {
+    match_counts = cigar_match_coverage(p);    
+    match_counts -= p->distance; 
+  }
 
   return (match_counts*100)/read_len;
 

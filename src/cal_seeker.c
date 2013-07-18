@@ -907,6 +907,26 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
 						   list, read->length);
+      
+      if (num_cals == 0) {
+	//printf("NO CALS\n");
+	int seed_size = 24;
+	//First, Delete old regions
+	array_list_clear(region_list, region_bwt_free);
+	//Second, Create new regions with seed_size 24 and 1 Mismatch
+	bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
+				  bwt_optarg, bwt_index, 
+				  region_list);
+	
+	max_seeds = (read->length / 15)*2 + 10;
+	
+	num_cals = bwt_generate_cal_list_linked_list(region_list,
+						     input->cal_optarg,
+						     &min_seeds, &max_seeds,
+						     genome->num_chromosomes + 1,
+						     list, read->length);
+      }
+
     } else {
       //We have double anchors with smaller distance between they
       //printf("Easy case... Two anchors and same distance between read gap and genome distance\n");
@@ -962,26 +982,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
       }
     }
 
-    /*
-    if (num_cals == 0) {
-      printf("NO CALS\n");
-      int seed_size = 24;
-      //First, Delete old regions
-      array_list_clear(region_list, region_bwt_free);
-      //Second, Create new regions with seed_size 24 and 1 Mismatch
-      bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
-				bwt_optarg, bwt_index, 
-				mapping_batch->mapping_lists[mapping_batch->targets[i]]);
-
-      max_seeds = (read->length / 15)*2 + 10;
-
-      num_cals = bwt_generate_cal_list_linked_list(mapping_batch->mapping_lists[mapping_batch->targets[i]], 
-						   input->cal_optarg,
-						   &min_seeds, &max_seeds,
-						   genome->num_chromosomes + 1,
-						   list, read->length);
-    }
-    */
+    
+        
 
 
     //filter-incoherent CALs

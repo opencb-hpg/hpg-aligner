@@ -32,7 +32,7 @@ size_t bwt_search_pair_anchors(array_list_t *anchor_list) {
   const int MIN_ANCHOR = 16;
   const int MIN_DOUBLE_ANCHOR = MIN_ANCHOR*2;
   const int MAX_BWT_REGIONS = 50;
-  const int MAX_BWT_ANCHOR_DISTANCE = 1000000;
+  const int MAX_BWT_ANCHOR_DISTANCE = 500000;
 
   array_list_t *anchor_list_tmp, *forward_anchor_list, *backward_anchor_list;
   array_list_t *backward_anchor_list_0 = array_list_new(MAX_BWT_REGIONS + 1, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
@@ -116,7 +116,7 @@ size_t bwt_search_pair_anchors(array_list_t *anchor_list) {
 	  //max_forward = bwt_anchor_forw;
 	  //max_double_anchor = anchor_tmp;
 	  found_double_anchor = 1;
-	  //printf("\t Found!\n");
+	  //printf("\t Found Double anchor!\n");
 	}                                                                                                                      
       }         
     }

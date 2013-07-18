@@ -211,7 +211,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       targets[new_num_targets++] = targets[i];
     } else {
       //Flag 2 Case, Pair of anchors found
-      //printf("Case 2. Double anchor found!\n");
+      printf("Case 2. Double anchor found!\n");
       bwt_anchor_t *bwt_anchor;
       bwt_anchor_t *bwt_anchor_forw, *bwt_anchor_back;
       bwt_anchor_t *best_anchor_forw, *best_anchor_back;
@@ -332,14 +332,21 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	  anchor_nt = bwt_anchor_forw->end - bwt_anchor_forw->start;
 	  gap_nt = read->length - (anchor_nt + (bwt_anchor_back->end - bwt_anchor_back->start));
 
-	  //printf("\t --> Big Seed: %i, gap_nt: %i\n", a, gap_nt);
+	  //printf("\t --> Big Seed: %i, gap_nt: %i, anchor_nt = %i\n", a, gap_nt, anchor_nt);
 	  if (gap_nt < 0) {
 	    //gap_nt = 0;
 	    bwt_anchor_forw->end   += gap_nt;
 	    bwt_anchor_back->start -= gap_nt;
 	    anchor_nt += gap_nt;
 	    gap_nt = 0;
+	  } else if (gap_nt == 0) {
+	    bwt_anchor_forw->end -= 1;
+	    bwt_anchor_back->start += 1;
+	    anchor_nt -= 1;
+	    gap_nt = 1;	    
 	  }
+
+
 	  region = region_bwt_new(bwt_anchor_forw->chromosome + 1,
 				  bwt_anchor_forw->strand,
 				  bwt_anchor_forw->start,
@@ -348,7 +355,9 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 				  anchor_nt,
 				  read->length,
 				  0);
+	  //printf("Region: %i-%i\n", region->seq_start, region->seq_end);
 	  array_list_insert(region, mapping_batch->mapping_lists[targets[i]]);
+
 	  region = region_bwt_new(bwt_anchor_back->chromosome + 1,
 				  bwt_anchor_back->strand,
 				  bwt_anchor_back->start,
@@ -357,6 +366,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 				  read->length - 1,
 				  read->length,
 				  seed_id + 1);
+	  //printf("Region: %i-%i\n", region->seq_start, region->seq_end);
 	  array_list_insert(region, mapping_batch->mapping_lists[targets[i]]);
 
 	  //printf("\tMaking seeds anchors end, %i seeds\n", array_list_size(mapping_batch->mapping_lists[targets[i]]));
