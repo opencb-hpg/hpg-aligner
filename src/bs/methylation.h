@@ -28,6 +28,16 @@
 
 //====================================================================================
 
+typedef struct metil_file {
+  char* filenameCpG;                     /**< Metilation file name for CpG regions. */
+  char* filenameCpH;                     /**< Metilation file name for CpG regions. */
+  char* filenameCHH;                     /**< Metilation file name for CpG regions. */
+  char* mode;                            /**< Open mode ("r", "w"). */
+  
+} metil_file_t;
+
+//====================================================================================
+
 /**
  * @brief  Transfor the sequence to the metilation case
  * @param  refs sequence of reference
@@ -238,6 +248,17 @@ void rev_comp_array(array_list_t *dest, array_list_t *src);
  * Return true if the number of certain base is greater than the filter
  */
 int histogram_seq(char *seq, size_t len, int type);
+
+//====================================================================================
+
+/**
+ * @brief  Write the metilation status of each Cytosine
+ * @param  array_list 
+ * @param  metil_file 
+ * 
+ * 
+ */
+void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file);
 
 //====================================================================================
 

@@ -9,7 +9,7 @@ bin/*
 .sconsign.dblite
 hpg-aligner
 hpg-aligner.log
-launch_bs_*
+launch*
 new_launch*
 *.old
 *.txt

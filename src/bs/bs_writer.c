@@ -42,6 +42,7 @@ int bs_writer(void *data) {
   
   array_list_t **mapping_lists;
   int *found = (int *) calloc(num_reads, sizeof(int));
+  metil_file_t *metil_file = writer_input->metil_file;
   
   // process mapping_lists and mapping_lists2
   for (int k = 0; k < 2; k++) {
@@ -53,7 +54,7 @@ int bs_writer(void *data) {
       num_items = array_list_size(mapping_lists[i]);
       total_mappings += num_items;
       fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
-      
+
       // mapped or not mapped ?	 
       if (num_items == 0) {
 	//total_mappings++;
@@ -64,6 +65,15 @@ int bs_writer(void *data) {
       } else {
 	found[i] = 1;
 	//	   num_mapped_reads++; //
+	write_metilation_status(mapping_lists[i], metil_file);
+	/*
+	{
+	  //if (strcmp(fq_read->id, "4_134503506_1_1_0_0_0_0:2:0_0:0:0_9685") == 0) {
+	    printf("read %lu\tlist %i\t%s found\n",
+		   i, k, fq_read->id);
+	    //}
+	}
+	*/
 	write_mapped_read(mapping_lists[i], bam_file);
       }
     }

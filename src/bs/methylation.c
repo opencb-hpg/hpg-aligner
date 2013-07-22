@@ -158,6 +158,12 @@ void cpy_transform_array_bs(array_list_t *src, array_list_t *dest_ct, array_list
     replace(fq_read_dest->sequence, fq_read_dest->length, AGT);
     array_list_insert(fq_read_dest, dest_ct);
 
+    /*
+    if (strcmp(fq_read_src->id, fq_read_dest->id)) {
+      printf("read %lu\n");
+    }
+    */
+
     fq_read_tmp = fastq_read_dup(fq_read_src);
     rev_comp(fq_read_dest->sequence, fq_read_tmp->sequence, fq_read_dest->length);
     array_list_insert(fq_read_tmp, dest_ct_rev);
@@ -336,3 +342,25 @@ void revert_mappings_seqs(array_list_t **src1, array_list_t **src2, array_list_t
 
 //====================================================================================
 
+void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file) {
+  size_t num_items = array_list_size(array_list);
+  alignment_t *alig;
+
+  for (size_t j = 0; j < num_items; j++) {
+    alig = (alignment_t *) array_list_get(j, array_list);
+    if (alig != NULL) {
+
+      printf("alignment %lu\n", j);
+      printf("query_name %s\n", alig->query_name);
+      printf("sequence   %s\n", alig->sequence);
+      printf("quality    %s\n", alig->quality);
+      printf("cigar      %s\n", alig->cigar);
+      ;
+      //alignment_free(alig);
+    }
+  }
+  printf("\n");
+  //if (array_list) { array_list_free(array_list, NULL); }
+}
+
+//====================================================================================

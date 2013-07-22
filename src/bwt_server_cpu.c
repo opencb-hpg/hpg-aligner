@@ -243,13 +243,13 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 
   ////////////////////////////////
     /*
-    if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 0 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 0) {
+    if (array_list_get_flag(mapping_batch->mapping_lists[i]) == 1 && array_list_get_flag(mapping_batch->mapping_lists2[i]) == 1) {
       reads_mapp++;
     } else {
-      if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 1 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 1) {
+      if (array_list_get_flag(mapping_batch->mapping_lists[i]) == 0 && array_list_get_flag(mapping_batch->mapping_lists2[i]) == 0) {
 	reads_no_mapp++;
       } else {
-	if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2 && array_list_get_flag(mapping_batch->mapping_lists2[i]) != 2) {
+	if (array_list_get_flag(mapping_batch->mapping_lists[i]) == 2 && array_list_get_flag(mapping_batch->mapping_lists2[i]) == 2) {
 	  reads_discard++;
 	}	
       }
