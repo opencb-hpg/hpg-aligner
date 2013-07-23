@@ -5,7 +5,7 @@
 //--------------------------------------------------------------------
 
 //void run_bs_aligner(genome_t *genome, genome_t *genome1, genome_t *genome2,
-void run_bs_aligner(genome_t *genome2, genome_t *genome1,
+void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
 		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1, 
 		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		    pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
@@ -57,6 +57,13 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1,
   // preparing output BAM file
   batch_writer_input_t writer_input;
   batch_writer_input_init(output_filename, NULL, NULL, NULL, genome1, &writer_input);
+
+  metil_file_t *metil_file = calloc(1, sizeof(metil_file_t));
+  metil_file_init(metil_file, "/genome/results/tmp/CpG.txt", "/genome/results/tmp/CHG.txt", 
+		  "/genome/results/tmp/CHH.txt", "/genome/results/tmp/MUT.txt", genome);
+  //metil_file->genome = genome;
+  
+  writer_input.metil_file = metil_file;
   
   bam_header_t *bam_header = create_bam_header_by_genome(genome1);
   writer_input.bam_file = bam_fopen_mode(output_filename, bam_header, "w");

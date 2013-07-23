@@ -61,7 +61,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 
 
 //void run_bs_aligner(genome_t *genome, genome_t *genome1, genome_t *genome2, 
-void run_bs_aligner(genome_t *genome2, genome_t *genome1,
+void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
 		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1,
 		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg,
 		    pair_mng_t *pair_mng, report_optarg_t *report_optarg,
@@ -133,6 +133,7 @@ int main(int argc, char* argv[]) {
        * 										*
        * ***************************************************************************	*/
 
+      run_index_builder(options->genome_filename, options->bwt_dirname, options->index_ratio);
       // generate binary code for original genome
       char binary_filename[strlen(options->bwt_dirname) + 128];
       sprintf(binary_filename, "%s/dna_compression.bin", options->bwt_dirname);
@@ -206,19 +207,29 @@ int main(int argc, char* argv[]) {
     sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
     char bs_dir2[256];
     sprintf(bs_dir2, "%s/ACT_index", options->bwt_dirname);
-
     // genome parameters
     LOG_DEBUG("Reading genomes...");
-    //genome  = genome_new("dna_compression.bin", options->bwt_dirname);
+
+    ////////////////////////
+    //descomentar la siguiente linea para probar con el alfabeto de 4 letras
+    ////////////////////////
+    //printf("dir %s\n", options->bwt_dirname);
+    genome  = genome_new("dna_compression.bin", options->bwt_dirname);
+    //genome = genome_new("dna_compression.bin", bs_dir1);
     genome1 = genome_new("dna_compression.bin", bs_dir1);
     genome2 = genome_new("dna_compression.bin", bs_dir2);
+    //printf("    gen0 %lu\n", genome->chr_size[0]);
+    //printf("    gen1 %lu\n", genome1->chr_size[0]);
+    //printf("    gen2 %lu\n", genome2->chr_size[0]);
     LOG_DEBUG("Done !!");
     
     // BWT index
     //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
 
+    //printf("Load index1 (%s)\n", bs_dir1);
     LOG_DEBUG("Loading AGT index...");
     bwt_index1 = bwt_index_new(bs_dir1);
+    //printf("Load index1 done\n");
     /*
     printf("+++bwt_index1 -> %s\n" ,bwt_index1->nucleotides);
     bwt_index1->nucleotides = strdup(readNucleotide(bs_dir1, "Nucleotide"));
@@ -227,8 +238,10 @@ int main(int argc, char* argv[]) {
     */
     LOG_DEBUG("Loading AGT index done !!");
 
+    //printf("Load index2 (%s)\n", bs_dir2);
     LOG_DEBUG("Loading ACT index...");
     bwt_index2 = bwt_index_new(bs_dir2);
+    //printf("Load index2 done\n");
     /*
     printf("+++bwt_index2 -> %s\n", bwt_index2->nucleotides);
     bwt_index2->nucleotides = strdup(readNucleotide(bs_dir2, "Nucleotide"));
@@ -262,29 +275,7 @@ int main(int argc, char* argv[]) {
 						     options->report_n_hits, 
 						     options->report_only_paired,
 						     options->report_best);
-  /*
-  //*********************************
-  {
-    char *seq = strdup("CCTAACCAACATAATAAAACCCCATCTCTACTAAAAATACAAAAAAATTAACAAAACATAATAACAAATACCTATAATCCCAACTACTCAAAAAACTAAA");
-    alignment_t *alig;
-    array_list_t *mapping_list = array_list_new(100000, 1.25f, 
-						COLLECTION_MODE_SYNCHRONIZED);
-    
-    size_t num_mappings;
-    
-    num_mappings = bwt_map_forward_inexact_seq(seq, bwt_optarg, 
-					       bwt_index2, mapping_list);
-    printf("aux seq: %s\n", seq);
-    printf("num_mappings = %lu\n", num_mappings);
-    for (size_t i = 0; i < num_mappings; i++) {
-      alig = array_list_get(i, mapping_list);
-      printf("%lu\t---------------------\n", i);
-      printf("\tstrand = %i, chromosome = %i, position = %i\n", 
-	     alig->seq_strand, alig->chromosome, alig->position);
-    }
-  }
-  //*********************************
-  */
+
 
   if (!strcmp(command, "rna")) {
     LOG_DEBUG("init table...");
@@ -300,7 +291,7 @@ int main(int argc, char* argv[]) {
     run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   } else { // if (!strcmp(command, "bs")) {
     // BS version
-    run_bs_aligner(genome1, genome2, bwt_index1, bwt_index2,
+    run_bs_aligner(genome1, genome2, genome, bwt_index1, bwt_index2,
     //run_bs_aligner(genome, genome1, genome2, bwt_index1, bwt_index2,
 		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   }

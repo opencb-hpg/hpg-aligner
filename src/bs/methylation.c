@@ -342,25 +342,372 @@ void revert_mappings_seqs(array_list_t **src1, array_list_t **src2, array_list_t
 
 //====================================================================================
 
-void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file) {
-  size_t num_items = array_list_size(array_list);
-  alignment_t *alig;
-
-  for (size_t j = 0; j < num_items; j++) {
-    alig = (alignment_t *) array_list_get(j, array_list);
-    if (alig != NULL) {
-
-      printf("alignment %lu\n", j);
-      printf("query_name %s\n", alig->query_name);
-      printf("sequence   %s\n", alig->sequence);
-      printf("quality    %s\n", alig->quality);
-      printf("cigar      %s\n", alig->cigar);
-      ;
-      //alignment_free(alig);
+char *obtain_seq(alignment_t *alig) {
+  char *read = alig->sequence;
+  char *cigar = strdup(alig->cigar);
+  //char *cigar = strdup("100M1D");
+  int num;
+  char car;
+  int cont, pos, pos_read;
+  int operations;
+  int len = strlen(cigar) - 1;
+  char *seq = (char *)calloc(1024, sizeof(char));
+  //printf("cigar %s\n", cigar);
+  //printf("read  %s\n", read);
+  
+  pos = 0;
+  pos_read = 0;
+  
+  for (operations = 0; operations < alig->num_cigar_operations; operations++) {
+    sscanf(cigar, "%i%c%s", &num, &car, cigar);
+    //printf("%3i %c %s\n",  num, car, cigar);
+    if (car == 'M' || car == '=') {
+      for (cont = 0; cont < num; cont++, pos++, pos_read++) {
+	seq[pos] = read[pos_read];
+      }
+    }
+    else {
+      if (car == 'D') {
+	pos_read += num - 1;
+      }
+      else {
+	if (car == 'I') {
+	  for (cont = 0; cont < num; cont++, pos++) {
+	    seq[pos] = 'N';
+	  }
+	}
+      }
     }
   }
-  printf("\n");
-  //if (array_list) { array_list_free(array_list, NULL); }
+  seq[pos] = '\0';
+
+  //printf("seq   %s\n", seq);
+
+  free(cigar);
+  return seq;
 }
 
 //====================================================================================
+
+void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file) {
+
+  //printf("Init metilation status\n");
+  
+  size_t num_items = array_list_size(array_list);
+  alignment_t *alig;
+  genome_t *genome = metil_file->genome;
+  hash_table_t *table_bs = metil_file->table_isles;
+  char *seq, *gen, *read;
+  size_t len, end, start;
+  char *key = (char *)malloc(3 * sizeof(char));
+  int data;
+
+  char *cigar;
+  int num;
+  char car;
+  int cont, pos, pos_read;
+
+  for (size_t j = 0; j < num_items; j++) {
+    alig = (alignment_t *) array_list_get(j, array_list);
+    if (alig != NULL && alig->is_seq_mapped) {
+      /*
+      printf("alignment %lu\n", j);
+      printf("query_name %s\n", alig->query_name);
+      printf("sequence   %s\n", alig->sequence);
+      printf("cigar      %s\n", alig->cigar);
+      printf("position   %i\n", alig->position);
+      printf("mate pos   %i\n", alig->mate_position);
+      printf("temp len   %i\n", alig->template_length);
+      printf("chromo     %i\n", alig->chromosome);
+      printf("strand     %i\n", alig->seq_strand);
+      printf("mate  chro %i\n", alig->mate_chromosome);
+      printf("map qual   %i\n", alig->map_quality);
+      printf("n cigar    %i\n", alig->num_cigar_operations);
+      */      
+      
+      //seq = obtain_seq(alig);
+      //len = strlen(seq);
+      len = strlen(alig->sequence);
+      gen = (char *)calloc(len + len + 2, sizeof(char));
+
+      start = alig->position + 1;
+      end = start + len - 1;
+      if (end >= genome->chr_size[alig->chromosome]) {
+        end = genome->chr_size[alig->chromosome] - 1;
+      }
+
+      genome_read_sequence_by_chr_index(gen, alig->seq_strand, alig->chromosome, &start, &end, genome);
+
+      //printf("\nseq %s\ngen %s\n", seq, gen);
+
+      read = alig->sequence;
+      cigar = strdup(alig->cigar);
+      for (int operations = 0; operations < alig->num_cigar_operations; operations++) {
+	sscanf(cigar, "%i%c%s", &num, &car, cigar);
+	//printf("%3i %c %s\n",  num, car, cigar);
+	if (car == 'M' || car == '=') {
+	  for (cont = 0; cont < num; cont++, pos++, pos_read++) {
+	    //seq[pos] = read[pos_read];
+	    if (read[pos_read] == 'C') {
+	      if (gen[pos] == 'C') {
+		// methylated cytosine
+		if (gen[pos + 1] == 'G') {
+		  // CpG zone
+		  ;
+		  //printf("%s\t+\t%i %i\t%lu\tZ\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		  //fprintf(metil_file->CpG, "%s\t+\t%i %i\t%lu\tZ\n",
+		  //	  alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		}
+		else {
+		  if (gen[pos + 2] == 'G') {
+		    // CHG zone
+		    ;
+		    //printf("%s\t+\t%i %i\t%lu\tX\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		    //fprintf(metil_file->CHG, "%s\t+\t%i %i\t%lu\tX\n",
+		    //	    alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		  }
+		  else {
+		    // CHH zone
+		    ;
+		    //printf("%s\t+\t%i %i\t%lu\tH\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		    //fprintf(metil_file->CHH, "%s\t+\t%i %i\t%lu\tH\n",
+		    //	    alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		  }
+		}
+	      }
+	      else {
+		// mutated cytosine
+		;
+		//printf("%s\t+\t%i %i\t%lu\tM\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		//fprintf(metil_file->MUT, "%s\t+\t%i %i\t%lu\tM\n",
+		//	alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+	      }
+	    }
+	  }
+	}
+	else {
+	  if (car == 'D') {
+	    pos_read += num - 1;
+	  }
+	  else {
+	    if (car == 'I') {
+	      for (cont = 0; cont < num; cont++, pos++) {
+		//seq[pos] = 'N';
+	      }
+	    }
+	  }
+	}
+      }
+
+      if (seq) free(seq);
+      if (gen) free(gen);
+    }
+  }
+  if (key) free(key);
+  //printf("end status\n");
+}
+
+//====================================================================================
+
+void metil_file_init(metil_file_t *metil_file, char *CpG, char *CHG, char *CHH, char *MUT, genome_t *genome) {
+  metil_file->filenameCpG = strdup(CpG);
+  metil_file->filenameCHG = strdup(CHG);
+  metil_file->filenameCHH = strdup(CHH);
+  metil_file->filenameMUT = strdup(MUT);
+
+  metil_file->genome = genome;
+
+  metil_file->CpG = fopen(metil_file->filenameCpG, "w");
+  metil_file->CHG = fopen(metil_file->filenameCHG, "w");
+  metil_file->CHH = fopen(metil_file->filenameCHH, "w");
+  metil_file->MUT = fopen(metil_file->filenameMUT, "w");
+
+  metil_file->table_isles = hash_create(jenkins_one_at_a_time_hash,
+					scmp,
+					destr_key,
+					nulldes,
+					200);
+  hash_init(metil_file->table_isles, "ACGTN-");
+}
+
+//====================================================================================
+
+void metil_file_free(metil_file_t *metil_file) {
+  free(metil_file->filenameCpG);
+  free(metil_file->filenameCHG);
+  free(metil_file->filenameCHH);
+  free(metil_file->filenameMUT);
+
+  fclose(metil_file->CpG);
+  fclose(metil_file->CHG);
+  fclose(metil_file->CHH);
+  fclose(metil_file->MUT);
+
+  hash_destroy(metil_file->table_isles);
+
+  free(metil_file);
+}
+
+//====================================================================================
+
+void write_metilation_status_old(array_list_t *array_list, metil_file_t *metil_file) {
+
+  printf("Init metilation status\n");
+  
+  size_t num_items = array_list_size(array_list);
+  alignment_t *alig;
+  genome_t *genome = metil_file->genome;
+  hash_table_t *table_bs = metil_file->table_isles;
+  char *seq, *gen;
+  size_t len, end, start;
+  char *key = (char *)malloc(3 * sizeof(char));
+  int data;
+
+  for (size_t j = 0; j < num_items; j++) {
+    alig = (alignment_t *) array_list_get(j, array_list);
+    if (alig != NULL && alig->is_seq_mapped) {
+      /*
+      printf("alignment %lu\n", j);
+      printf("query_name %s\n", alig->query_name);
+      printf("sequence   %s\n", alig->sequence);
+      printf("cigar      %s\n", alig->cigar);
+      printf("position   %i\n", alig->position);
+      printf("mate pos   %i\n", alig->mate_position);
+      printf("temp len   %i\n", alig->template_length);
+      printf("chromo     %i\n", alig->chromosome);
+      printf("strand     %i\n", alig->seq_strand);
+      printf("mate  chro %i\n", alig->mate_chromosome);
+      printf("map qual   %i\n", alig->map_quality);
+      printf("n cigar    %i\n", alig->num_cigar_operations);
+      */      
+      
+      seq = obtain_seq(alig);
+      //printf("seq %s\n", seq);
+
+      len = strlen(seq);
+      gen = (char *)calloc(len + 2, sizeof(char));
+
+      start = alig->position;
+      end = start + len - 1;
+      if (end >= genome->chr_size[alig->chromosome]) {
+	//printf("    end %lu\n", end);
+	//printf("    gen %lu\n", genome->chr_size[alig->chromosome]);
+        end = genome->chr_size[alig->chromosome] - 1;
+	//printf("new end %lu\n", end);
+      }
+
+
+      //printf("seq %s\n", seq);
+      //printf("chromo %i, strand %i, begin %lu, end %lu\n",
+      //     alig->chromosome, alig->seq_strand, alig->position, end);
+      
+      genome_read_sequence_by_chr_index(gen, alig->seq_strand, alig->chromosome, &start, &end, genome);
+
+      printf("\nseq %s\ngen %s\n", seq, gen);
+
+      for (size_t i = 0; i < len - 2; i++) {
+	if (gen[i] == 'C') {
+	  if (seq[i] == 'C' || seq[i] == 'T') {
+	    key[0] = gen[i];
+	    key[1] = gen[i + 1];
+	    key[2] = gen[i + 2];
+	    data = (int)hash_find_data(table_bs, key);
+	    
+	    //printf("Candidata (%i) en %lu\n", data, start + i);
+
+	    switch (data) {
+	    case ZONE_CpG:
+	      if (seq[i] == 'C') {
+		printf("%s\t+\t%i %i\t%lu\tZ\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      } else {
+		printf("%s\t-\t%i %i\t%lu\tz\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      }
+	      break;
+	    case ZONE_CHG:
+	      if (seq[i] == 'C') {
+		printf("%s\t+\t%i %i\t%lu\tX\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      } else {
+		printf("%s\t-\t%i %i\t%lu\tx\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      }
+	      break;
+	    case ZONE_CHH:
+	      if (seq[i] == 'C') {
+		printf("%s\t+\t%i %i\t%lu\tH\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      } else {
+		printf("%s\t-\t%i %i\t%lu\th\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      }
+	      break;
+	    case ZONE_OTHER:
+	      if (seq[i] == 'C') {
+		printf("%s\t+\t%i %i\t%lu\tM\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      } else {
+		printf("%s\t-\t%i %i\t%lu\tm\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      }
+	      break;
+	    default:
+	      printf("%s\t-\t%i %i\t%lu\t???\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	    }
+	  }
+	  else {
+	    printf("%s\t-\t%i %i\t%lu\tm\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	    //printf("Mutacion en %lu\n", start + i);
+	  }
+	}
+	;
+      }
+
+      if (seq) free(seq);
+      if (gen) free(gen);
+    }
+  }
+  free(key);
+}
+
+//====================================================================================
+
+char *obtain_seq_old(alignment_t *alig) {
+  char *read = alig->sequence;
+  char *cigar = strdup(alig->cigar);
+  //char *cigar = strdup("100M1D");
+  int num;
+  char car;
+  int cont, pos, pos_read;
+  int len = strlen(cigar) - 1;
+  char *seq = (char *)calloc(1024, sizeof(char));
+  //printf("cigar %s\n", cigar);
+  //printf("read  %s\n", read);
+  
+  pos = 0;
+  pos_read = 0;
+  while(strlen(cigar) > 0 && strlen(cigar) != len) {
+    len = strlen(cigar);
+    sscanf(cigar, "%i%c%s", &num, &car, cigar);
+    //printf("%3i %c %s\n",  num, car, cigar);
+    if (car == 'M' || car == '=') {
+      for (cont = 0; cont < num; cont++, pos++, pos_read++) {
+	seq[pos] = read[pos_read];
+      }
+    }
+    else {
+      if (car == 'D') {
+	pos_read += num - 1;
+      }
+      else {
+	if (car == 'I') {
+	  for (cont = 0; cont < num; cont++, pos++) {
+	    seq[pos] = 'N';
+	  }
+	}
+      }
+    }
+  }
+  seq[pos] = '\0';
+
+  //printf("seq   %s\n", seq);
+
+  free(cigar);
+  return seq;
+}
+
+//====================================================================================
+

@@ -14,6 +14,8 @@
 #include "containers/array_list.h"
 #include "containers/list.h"
 
+#include "hash_table.h"
+
 //====================================================================================
 
 // values for the diferent combination of nucleotides
@@ -30,11 +32,23 @@
 
 typedef struct metil_file {
   char* filenameCpG;                     /**< Metilation file name for CpG regions. */
-  char* filenameCpH;                     /**< Metilation file name for CpG regions. */
+  char* filenameCHG;                     /**< Metilation file name for CpG regions. */
   char* filenameCHH;                     /**< Metilation file name for CpG regions. */
-  char* mode;                            /**< Open mode ("r", "w"). */
-  
+  char* filenameMUT;                     /**< Metilation file name for Mutations.   */
+  char* mode;                            /**< Open mode ("r", "w").                 */
+  genome_t *genome;                      /**< Reference to the genome.              */
+
+  FILE *CpG;
+  FILE *CHG;
+  FILE *CHH;
+  FILE *MUT;
+
+  hash_table_t *table_isles;
 } metil_file_t;
+
+void metil_file_init(metil_file_t *metil_file, char *CpG, char *CHG, char *CHH, char *MUT, genome_t *genome);
+
+void metil_file_free(metil_file_t *metil_file);
 
 //====================================================================================
 
