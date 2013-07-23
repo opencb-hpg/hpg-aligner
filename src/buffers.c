@@ -182,7 +182,9 @@ void cal_batch_free(cal_batch_t *cal_batch){
 
 //====================================================================================
 
-unsigned int pack_junction(unsigned int chromosome, unsigned int strand, size_t start, size_t end, size_t junction_id, size_t num_reads, char* buffer_p){
+unsigned int pack_junction(unsigned int chromosome, unsigned int strand, 
+			   size_t start, size_t end, size_t junction_id,
+			   size_t num_reads, char *type, char* buffer_p){
   int len;
   char str[1024];
   char *chr_p, *p = buffer_p;
@@ -229,9 +231,14 @@ unsigned int pack_junction(unsigned int chromosome, unsigned int strand, size_t 
   
   *p = strand_char[strand]; 
   p++;
-  *p = '\n'; 
+  *p = '\t'; 
   p++;
   
+  len = strlen(type);
+  memcpy(p, type, len);
+  p += len;
+  *p = '\n';
+  p++;
 
   return (p - buffer_p);
 }

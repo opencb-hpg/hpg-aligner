@@ -186,8 +186,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   options_display(options);
 
   //============================= INPUT INITIALIZATIONS =========================
-  allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
-  init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
+  //allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
+  //init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
+  avls_list_t* avls_list = avls_list_new(genome->num_chromosomes);
   //load_intron_file(genome, options->intron_filename, chromosome_avls);
 
 
@@ -232,7 +233,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->mismatch,  options->gap_open, options->gap_extend,  
 		       options->min_score,  options->flank_length, genome,  
 		       options->max_intron_length, options->min_intron_length,  
-		       options->seeds_max_distance,  bwt_optarg, chromosome_avls, 
+		       options->seeds_max_distance,  bwt_optarg, avls_list, 
 		       cal_optarg, bwt_index, &sw_input);
   
 
@@ -309,10 +310,13 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   pthread_cond_signal(&cond_sp);
 
   //Write chromosome avls
-  write_chromosome_avls(chromosome_avls, NULL,  
+  /*  write_chromosome_avls(chromosome_avls, NULL,  
 			extend_filename, 
 			exact_filename,
 			options->write_size, genome->num_chromosomes);
+  */
+  write_chromosome_avls(extend_filename,
+                        exact_filename, genome->num_chromosomes, avls_list);
   /*  pthread_attr_destroy(&attr);
   if (ret = pthread_join(thread, &status)) {
     printf("ERROR; return code from pthread_join() is %d\n", ret);

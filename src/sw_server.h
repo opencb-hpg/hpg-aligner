@@ -52,6 +52,7 @@ struct sw_server_input {
      genome_t* genome_p;   /**< Pointer to the genome structure to get the reference sequences. */
      bwt_optarg_t* bwt_optarg_p;
      allocate_splice_elements_t *chromosome_avls_p;
+     avls_list_t *avls_list;
      cal_optarg_t *cal_optarg_p;     /**< cal seeker configuration values */
      bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
 
@@ -80,7 +81,7 @@ void sw_server_input_init(list_t* sw_list_p, list_t* write_list_p, unsigned int 
 			  float match, float mismatch, float gap_open, float gap_extend, 
 			  float min_score, unsigned int flank_length, genome_t* genome_p,
 			  size_t max_intron_size, int min_intron_size, size_t seed_max_distance, 
-			  bwt_optarg_t* bwt_optarg_p, allocate_splice_elements_t *chromosome_avls_p,
+			  bwt_optarg_t* bwt_optarg_p, avls_list_t *avls_list,
 			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
 			  sw_server_input_t* input_p);
 

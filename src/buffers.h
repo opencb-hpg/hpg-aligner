@@ -114,6 +114,41 @@
 #define PAIR_ACTION    4
 #define SW_ACTION      5
 
+#define NUM_STRANDS 2
+
+//====================================================================================
+//  SPLICE JUNCTION TYPE
+//====================================================================================
+
+//--------------------------------------------//
+//            Not found splice junction       //
+//--------------------------------------------//
+
+#define NOT_SPLICE	-1
+
+//--------------------------------------------//
+//      No Cannonical Splice junction         //
+//--------------------------------------------//
+
+#define UNKNOWN_SPLICE	0
+                                            
+//--------------------------------------------//
+//        Cannonical Splice Junction          //
+//--------------------------------------------//
+
+#define GT_AG_SPLICE  	1 //+
+#define CT_AC_SPLICE  	2 //-
+  
+//--------------------------------------------//
+//      Semi-Cannonical Splice Junction       //
+//--------------------------------------------//
+
+#define AT_AC_SPLICE  	3 //+
+#define GT_AT_SPLICE  	4 //-
+#define GC_AG_SPLICE  	5 //+
+#define CT_GC_SPLICE  	6 //-
+
+//===============================================
 
 //====================================================================================
 //  structures and prototypes
@@ -330,7 +365,7 @@ void sw_batch_free(sw_batch_t *sw_batch_p);
 unsigned int pack_junction(unsigned int chromosome, unsigned int strand, 
 			   size_t start, size_t end, 
 			   size_t junction_id, size_t num_reads, 
-			   char* buffer_p);
+			   char *type, char* buffer_p);
 
 
 

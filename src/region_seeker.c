@@ -129,9 +129,21 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
   for (size_t i = 0; i < num_targets; i++) {
     read = array_list_get(targets[i], mapping_batch->fq_batch);    
     //printf("Read Region %s: \n", read->id);
-    if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 0) {
+    /* if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 0 ||
+	array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 1) {
+      array_list_clear(mapping_batch->mapping_lists[targets[i]], bwt_anchor_free);
+      continue;
+      }
+    */
+    if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 0){// ||
+	//array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 1) {
       //Flag 0 Case, Not anchors found, Make normal seeds      
       //printf("Normal Case 0. Not anchors found!\n");
+      /*      for (int j = array_list_size(mapping_batch->mapping_lists[targets[i]]) - 1; j >= 0; j--) {
+	bwt_anchor = array_list_remove_at(j, mapping_batch->mapping_lists[targets[i]]);
+	array_list_insert(bwt_anchor, array_list_aux);
+	}*/
+
       num_mappings = bwt_map_exact_seeds_seq(0,
 					     0,
 					     read->sequence,
@@ -141,7 +153,17 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 					     input->bwt_index_p, 
 					     mapping_batch->mapping_lists[targets[i]],
 					     0);
-
+					     /*
+      num_mappings = bwt_map_seeds_IA(0,
+				      0,
+				      read->sequence,
+				      seed_size,
+				      min_seed_size,
+				      input->bwt_optarg_p, 
+				      input->bwt_index_p, 
+				      mapping_batch->mapping_lists[targets[i]],
+				      0);
+       */
       if (num_mappings > 0) {
 	array_list_set_flag(0, mapping_batch->mapping_lists[targets[i]]);
 	targets[new_num_targets++] = targets[i];
@@ -211,7 +233,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       targets[new_num_targets++] = targets[i];
     } else {
       //Flag 2 Case, Pair of anchors found
-      printf("Case 2. Double anchor found!\n");
+      //printf("Case 2. Double anchor found!\n");
       bwt_anchor_t *bwt_anchor;
       bwt_anchor_t *bwt_anchor_forw, *bwt_anchor_back;
       bwt_anchor_t *best_anchor_forw, *best_anchor_back;
