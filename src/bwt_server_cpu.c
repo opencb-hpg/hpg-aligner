@@ -21,7 +21,7 @@ void bwt_server_input_init(list_t* read_list_p, unsigned int batch_size, bwt_opt
 // apply_bwt
 //====================================================================================
 
-size_t bwt_search_pair_anchors(array_list_t *anchor_list) {
+size_t bwt_search_pair_anchors(array_list_t *anchor_list, int single_anchors) {
   bwt_anchor_t *bwt_anchor;
   int max_double_anchor = 0, max_anchor = 0;
   bwt_anchor_t *max_backward = NULL, *max_forward = NULL;                                                                                                         
@@ -124,10 +124,8 @@ size_t bwt_search_pair_anchors(array_list_t *anchor_list) {
     }
   }
 
-  /*
   //found_anchor = 0;
-  if (!found_double_anchor && 
-      found_anchor) { 
+  if (single_anchors && !found_double_anchor && found_anchor) { 
     //Not Double anchor found but one Yes!!
     if (strand == 1) {
       if (type == FORWARD_ANCHOR) {
@@ -149,7 +147,6 @@ size_t bwt_search_pair_anchors(array_list_t *anchor_list) {
       array_list_set_flag(1, anchor_list);
     }
   }
-  */
 
   array_list_free(forward_anchor_list_1, bwt_anchor_free);
   array_list_free(backward_anchor_list_1, bwt_anchor_free);
@@ -185,7 +182,7 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
     if (array_list_get_flag(list) != 2) { //If flag 2, the read exceded the max number of mappings
       if (array_list_get_flag(list) == 1) {
 	if (num_mappings > 0) {
-	  num_anchors = bwt_search_pair_anchors(list);	
+	  num_anchors = bwt_search_pair_anchors(list, (batch->mapping_mode == RNA_MODE ? 1 : 0));
 	  if (num_anchors == 0) {
 	    array_list_set_flag(0, list);
 	  }
