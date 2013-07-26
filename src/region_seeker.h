@@ -31,6 +31,7 @@ struct region_seeker_input{
   bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
   int padding_left;
   int padding_right;
+  genome_t *genome;
   #ifdef HPG_GPU
     gpu_context_t *gpu_context;
   #endif
@@ -52,6 +53,7 @@ void region_seeker_input_init(list_t *unmapped_read_list_p, cal_optarg_t *cal_op
 			      bwt_optarg_t *bwt_optarg_p, bwt_index_t *bwt_index_p, 
 			      list_t* region_list_p, unsigned int region_threads, 
 			      unsigned int gpu_enable, int padding_left, int padding_right, 
+			      genome_t *genome,
 			      region_seeker_input_t *input_p);
 //--------------------------------------------------------------------------------------
 

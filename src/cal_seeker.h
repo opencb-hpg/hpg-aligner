@@ -28,6 +28,8 @@ struct cal_seeker_input {
   list_t *pair_list;
   cal_optarg_t *cal_optarg;      /**< cal seeker configuration values */
   genome_t *genome;
+  bwt_optarg_t *bwt_optarg;
+  bwt_index_t *index;
 };
 
 /**
@@ -45,7 +47,8 @@ struct cal_seeker_input {
 void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg, 
 			   list_t* write_list, unsigned int write_size, 
 			   list_t *sw_list, list_t *pair_list,
-			   genome_t *genome, cal_seeker_input_t *input);
+			   genome_t *genome, bwt_optarg_t *bwt_optarg, 
+			   bwt_index_t *index, cal_seeker_input_t *input);
 
 //--------------------------------------------------------------------------------------
 
@@ -67,6 +70,10 @@ void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg,
 int apply_caling(cal_seeker_input_t* input, batch_t *batch);
 
 int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch);
+
+//--------------------------------------------------------------------------------------
+
+void merge_seed_regions(mapping_batch_t *mapping_batch);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

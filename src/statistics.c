@@ -151,7 +151,7 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, floa
   printf(" Reads Unmapped: %-14llu  %6.2f", total_reads - num_mapped_reads, (total_reads - num_mapped_reads) * 100.0 / total_reads);
   printf("%  |\n");
   if (rna_mode) {
-    printf("========================================================================================\n");
+    /*  printf("========================================================================================\n");
     printf("| Total Splice Junctions: %-61llu", total_sp);
     printf("|\n");
     printf("+--------------------------------------------------------------------------------------+\n");
@@ -160,7 +160,7 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, floa
     printf("+-------------------------------------------+------------------------------------------+\n");
     printf("| Cannonical: %-20llu  %6.2f", uniq_sp, 100.0);
     printf("%  | Semi-Cannonical: %-14llu  %6.2f", 0, 0);
-    printf("%  |\n");
+    printf("%  |\n");*/
     printf("+-------------------------------------------+------------------------------------------+\n");
   } else {
     printf("+-------------------------------------------+------------------------------------------+\n");

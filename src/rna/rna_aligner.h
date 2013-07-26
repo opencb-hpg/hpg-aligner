@@ -30,7 +30,7 @@
 #include "options.h"
 #include "statistics.h"
 #include "workflow_functions.h"
-
+#include "rna_server.h"
 
 typedef struct extra_stage {
   workflow_t *workflow;

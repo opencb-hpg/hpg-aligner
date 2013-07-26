@@ -182,7 +182,9 @@ void cal_batch_free(cal_batch_t *cal_batch){
 
 //====================================================================================
 
-unsigned int pack_junction(unsigned int chromosome, unsigned int strand, size_t start, size_t end, size_t junction_id, size_t num_reads, char* buffer_p){
+unsigned int pack_junction(unsigned int chromosome, unsigned int strand, 
+			   size_t start, size_t end, size_t junction_id,
+			   size_t num_reads, char *type, char* buffer_p){
   int len;
   char str[1024];
   char *chr_p, *p = buffer_p;
@@ -229,9 +231,14 @@ unsigned int pack_junction(unsigned int chromosome, unsigned int strand, size_t 
   
   *p = strand_char[strand]; 
   p++;
-  *p = '\n'; 
+  *p = '\t'; 
   p++;
   
+  len = strlen(type);
+  memcpy(p, type, len);
+  p += len;
+  *p = '\n';
+  p++;
 
   return (p - buffer_p);
 }
@@ -257,6 +264,10 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 			       pair_mng->max_distance, pair_mng->report_only_paired); 
   }
 
+  p->num_gaps = 0;
+  p->num_sws = 0;
+  p->num_ext_sws = 0;
+
   p->num_to_do = 0;
   p->fq_batch = fq_batch;
   p->targets = (size_t *) calloc(num_reads, sizeof(size_t));
@@ -273,6 +284,9 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 					 COLLECTION_MODE_ASYNCHRONIZED); 
   }
     
+
+  p->histogram_sw = (size_t *)calloc(1024, sizeof(size_t));
+
   return p;
 }
 
@@ -323,9 +337,8 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p->pair_mng) { free(p->pair_mng); }
   if (p->extra_stage_id) { free(p->extra_stage_id); }
   if (p->extra_targets) { free(p->extra_targets); }
-  if (p->old_mapping_lists) {
-    free(p->old_mapping_lists);
-  }
+  if (p->old_mapping_lists) { free(p->old_mapping_lists); }
+  if (p->bwt_mappings) free(p->bwt_mappings);
 
   free(p);
 }

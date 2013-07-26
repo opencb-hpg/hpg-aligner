@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------
 // run dna aligner
 //--------------------------------------------------------------------
+extern int num_sws, num_ext_sws, num_gaps;
 
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
@@ -65,11 +66,12 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      region_seeker_input_t region_input;
      region_seeker_input_init(NULL, cal_optarg, bwt_optarg, 
 			      bwt_index, NULL, 0, options->gpu_process, 0, 0, 
-			      &region_input);
+			      genome, &region_input);
      
      cal_seeker_input_t cal_input;
      cal_seeker_input_init(NULL, cal_optarg, NULL, 0, 
-			   NULL, NULL, genome, &cal_input);
+			   NULL, NULL, genome, bwt_optarg, bwt_index, 
+			   &cal_input);
      
      pair_server_input_t pair_input;
      pair_server_input_init(pair_mng, report_optarg, NULL, NULL, NULL, &pair_input);
@@ -77,7 +79,8 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      sw_server_input_t sw_input;
      sw_server_input_init(NULL, NULL, 0, options->match, options->mismatch, 
 			  options->gap_open, options->gap_extend, options->min_score, 
-			  options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
+			  options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, 
+			  cal_optarg, bwt_index, &sw_input);
 
 
      //--------------------------------------------------------------------------------------
@@ -125,6 +128,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      // end of workflow management
      //--------------------------------------------------------------------------------------
 
+     //     printf("***** (num_sws, num_ext_sws, num_gaps) = (%i, %i, %i)\n", num_sws, num_ext_sws, num_gaps);
 
      //closing files
      if (options->pair_mode == SINGLE_END_MODE) {

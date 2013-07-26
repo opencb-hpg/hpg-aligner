@@ -70,6 +70,10 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file);
 
 //--------------------------------------------------------------------
 
+int num_sws = 0;
+int num_ext_sws = 0;
+int num_gaps = 0;
+
 int bam_writer(void *data) {
      struct timeval start, end;
      double time;
@@ -85,6 +89,10 @@ int bam_writer(void *data) {
      //alignment_t *alig;
 
      mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
+
+     num_sws += mapping_batch->num_sws;
+     num_ext_sws += mapping_batch->num_ext_sws;
+     num_gaps += mapping_batch->num_gaps;
 
      batch_writer_input_t *writer_input = batch->writer_input;
      bam_file_t *bam_file = writer_input->bam_file;     
@@ -102,7 +110,13 @@ int bam_writer(void *data) {
 
      writer_input->total_batches++;
 
+     extern size_t *histogram_sw;
+
      if (batch->mapping_mode == DNA_MODE || batch->mapping_mode == RNA_MODE) {
+       //for (int i = 0; i < 1024; i++) {
+       //histogram_sw[i] += mapping_batch->histogram_sw[i];
+       //}
+       free(mapping_batch->histogram_sw);
        //
        // DNA mode
        //
@@ -111,67 +125,13 @@ int bam_writer(void *data) {
 	 total_mappings += num_items;
 	 fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
 
-	 //-----------------------------
-	 //TODO: delete
-	 /*char *token;
-	 char *string;
-	 char *tofree;
-	 int tt = 0;
-	 unsigned char chr;
-	 size_t start, end;
-	 string = strdup(fq_read->id);
-	 
-	 if (string != NULL) {
-	   tofree = string;
-	   while ((token = strsep(&string, "@")) != NULL)
-	     {
-	       tt++;
-	       if (tt == 5) {
-		 if (strcmp(token, "X") == 0) chr = 22;
-		 else if (strcmp(token, "Y") == 0) chr = 23;
-		 else if (strcmp(token, "MT") == 0) chr = 24;
-		 else { chr = atoi(token); chr--;}
-	       }
-	       else if (tt == 6)
-		 start = atof(token);
-	       else if (tt == 7)
-		 end = atof(token);
-	       
-	     }
-	   free(tofree);
-	 }
-	 if (!mapping_batch->bwt_mappings[i]) {
-	   int is_correct = 0;
-	   //Is the read correct mapped?	     
-	   for (int j = 0; j < array_list_size(mapping_batch->mapping_lists[i]); j++) {
-	     alignment_t *alig = array_list_get(j, mapping_batch->mapping_lists[i]);
-	     //printf("%s\n", fq_read->id);
-	     //printf("%i - %i - %i :: Mapping %i - %i\n", chr, start, end, alig->chromosome, alig->position);
-	     if (alig->chromosome == chr && alig->position >= start && alig->position <= end) {
-	       is_correct = 1;
-	       break;
-	     }
-	   }
-
-	   pthread_mutex_lock(&bwt_mutex);
-	   if (is_correct) 	       
-	     bwt_correct++;
-	   else {
-	     bwt_error++;
-	     //printf("%s\n%s\n+\n%s\n", fq_read->id, fq_read->sequence, fq_read->sequence);
-	   }
-	   pthread_mutex_unlock(&bwt_mutex);
-	   //exit(-1);
-	   }*/	   
-	 //------------------------
-	 
 	 // mapped or not mapped ?	 
 	 if (num_items == 0) {
 	   total_mappings++;
 	   write_unmapped_read(fq_read, bam_file);
 	   if (mapping_batch->mapping_lists[i]) {
 	     array_list_free(mapping_batch->mapping_lists[i], NULL);
-	   }
+	   }	 
 	 } else {
 	   num_mapped_reads++;
 	   write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
@@ -284,13 +244,14 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
   bam1_t *bam1;
   for (size_t j = 0; j < num_items; j++) {
     alig = (alignment_t *) array_list_get(j, array_list);
-    //printf("\t%s\n", alig->cigar);
-    //alignment_print(alig);
+
     if (alig != NULL) {
       bam1 = convert_to_bam(alig, 33);
       bam_fwrite(bam1, bam_file);
       bam_destroy1(bam1);	 
       alignment_free(alig);
+    } else {
+      LOG_FATAL_F("alig is NULL, num_items = %lu\n", num_items)
     }
   }
   if (array_list) { array_list_free(array_list, NULL); }
@@ -315,18 +276,10 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
   alignment_init_single_end(id, fq_read->sequence, fq_read->quality, 
 			    0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, 0, alig);
 
-  //  for debugging
-  //  if (strstr(fq_read->id, "rand") == NULL) {
-  //    printf("%s\n%s\n+\n%s\n", fq_read->id, fq_read->sequence, fq_read->quality);
-  //  }
-
   bam1 = convert_to_bam(alig, 33);
   bam_fwrite(bam1, bam_file);
   bam_destroy1(bam1);
 	       
-  // some cosmetic stuff before freeing the alignment,
-  // (in order to not free twice some fields)
-  //alig->query_name = NULL;
   alig->sequence = NULL;
   alig->quality = NULL;
   alig->cigar = NULL;

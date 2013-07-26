@@ -186,8 +186,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   options_display(options);
 
   //============================= INPUT INITIALIZATIONS =========================
-  allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
-  init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
+  //allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
+  //init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
+  avls_list_t* avls_list = avls_list_new(genome->num_chromosomes);
   //load_intron_file(genome, options->intron_filename, chromosome_avls);
 
 
@@ -215,10 +216,11 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   region_seeker_input_init(NULL, cal_optarg, 
 			   bwt_optarg, bwt_index, NULL, 
 			   0, options->gpu_process, options->min_seed_padding_left, 
-			   options->min_seed_padding_right, &region_input);
+			   options->min_seed_padding_right, genome, &region_input);
   
   cal_seeker_input_t cal_input;
-  cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, &cal_input);
+  cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, 
+			bwt_optarg, bwt_index, &cal_input);
   
   preprocess_rna_input_t preprocess_rna;
   
@@ -231,7 +233,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->mismatch,  options->gap_open, options->gap_extend,  
 		       options->min_score,  options->flank_length, genome,  
 		       options->max_intron_length, options->min_intron_length,  
-		       options->seeds_max_distance,  bwt_optarg, chromosome_avls, &sw_input);
+		       options->seeds_max_distance,  bwt_optarg, avls_list, 
+		       cal_optarg, bwt_index, &sw_input);
   
 
   pair_server_input_t pair_input;
@@ -267,10 +270,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   workflow_t *wf = workflow_new();
      
   workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
-						 rna_preprocess_stage, sw_stage, post_pair_stage};
+						 sw_stage, post_pair_stage};
 
-  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-  workflow_set_stages(6, &stage_functions, stage_labels, wf);
+  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "SW", "POST PAIR"};
+  workflow_set_stages(5, &stage_functions, stage_labels, wf);
      
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);
@@ -307,10 +310,13 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   pthread_cond_signal(&cond_sp);
 
   //Write chromosome avls
-  write_chromosome_avls(chromosome_avls, NULL,  
+  /*  write_chromosome_avls(chromosome_avls, NULL,  
 			extend_filename, 
 			exact_filename,
 			options->write_size, genome->num_chromosomes);
+  */
+  write_chromosome_avls(extend_filename,
+                        exact_filename, genome->num_chromosomes, avls_list);
   /*  pthread_attr_destroy(&attr);
   if (ret = pthread_join(thread, &status)) {
     printf("ERROR; return code from pthread_join() is %d\n", ret);
@@ -322,7 +328,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     stop_timer(start, end, time);
     timing_add(time, TOTAL_TIME, timing);
     }*/
-    
+
+  workflow_display_timing(wf);     
+
   //closing files
   if (options->pair_mode == SINGLE_END_MODE) {
     fastq_fclose(reader_input.fq_file1);
@@ -343,7 +351,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   // end of workflow management
   //--------------------------------------------------------------------------------------
 
-
+  free(log_filename);
   free(output_filename);
   free(exact_filename);
   free(extend_filename);

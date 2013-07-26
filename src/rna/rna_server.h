@@ -2,10 +2,9 @@
 #ifndef RNA_SERVER_H
 #define RNA_SERVER_H
 
+#include "breakpoint.h"
 #include "sw_server.h"
-//#include "rna_splice.h"
 #include "buffers.h"
-//#include "timing.h"
 #include "sw.h"
 #include "cal_seeker.h"
 #include  "preprocess_rna.h"
@@ -105,7 +104,7 @@ typedef struct cigar_data{
  * 
  * Return the description of the cigar operation input.
  */
-char* cigar_automata_status(unsigned char status);
+//char* cigar_automata_status(unsigned char status);
 
 /**
  * @brief  Insert new cigar operation to @a cigar_data_t.

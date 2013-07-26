@@ -20,10 +20,18 @@
 #define BWT_STAGE               0
 #define SEEDING_STAGE           1
 #define CAL_STAGE               2
+
 #define PRE_PAIR_STAGE          3
-#define RNA_PREPROCESS_STAGE    3
+
+//#define RNA_PREPROCESS_STAGE    3
+//#define SW_STAGE                4
+//#define POST_PAIR_STAGE         5
+
+#define RNA_STAGE               3
 #define SW_STAGE                4
-#define POST_PAIR_STAGE         5
+#define DNA_POST_PAIR_STAGE     5
+#define RNA_POST_PAIR_STAGE     4
+
 #define CONSUMER_STAGE         -1
 
 //------------------------------------------------------------------------------------
@@ -106,6 +114,41 @@
 #define PAIR_ACTION    4
 #define SW_ACTION      5
 
+#define NUM_STRANDS 2
+
+//====================================================================================
+//  SPLICE JUNCTION TYPE
+//====================================================================================
+
+//--------------------------------------------//
+//            Not found splice junction       //
+//--------------------------------------------//
+
+#define NOT_SPLICE	-1
+
+//--------------------------------------------//
+//      No Cannonical Splice junction         //
+//--------------------------------------------//
+
+#define UNKNOWN_SPLICE	0
+                                            
+//--------------------------------------------//
+//        Cannonical Splice Junction          //
+//--------------------------------------------//
+
+#define GT_AG_SPLICE  	1 //+
+#define CT_AC_SPLICE  	2 //-
+  
+//--------------------------------------------//
+//      Semi-Cannonical Splice Junction       //
+//--------------------------------------------//
+
+#define AT_AC_SPLICE  	3 //+
+#define GT_AT_SPLICE  	4 //-
+#define GC_AG_SPLICE  	5 //+
+#define CT_GC_SPLICE  	6 //-
+
+//===============================================
 
 //====================================================================================
 //  structures and prototypes
@@ -209,6 +252,11 @@ typedef struct mapping_batch {
   size_t num_to_do;
   unsigned char extra_stage_do;
   unsigned char was_process;
+
+  size_t num_gaps;
+  size_t num_sws;
+  size_t num_ext_sws;
+
   unsigned char *extra_stage_id;
   array_list_t *fq_batch;
   size_t *targets;
@@ -218,6 +266,8 @@ typedef struct mapping_batch {
   pair_mng_t *pair_mng;
   array_list_t **old_mapping_lists;
   unsigned char *bwt_mappings;
+
+  size_t *histogram_sw;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);
@@ -315,7 +365,7 @@ void sw_batch_free(sw_batch_t *sw_batch_p);
 unsigned int pack_junction(unsigned int chromosome, unsigned int strand, 
 			   size_t start, size_t end, 
 			   size_t junction_id, size_t num_reads, 
-			   char* buffer_p);
+			   char *type, char* buffer_p);
 
 
 
