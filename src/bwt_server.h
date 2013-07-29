@@ -25,7 +25,10 @@ struct bwt_server_input {
   list_t* read_list_p;            /**< list for read batches of reads */
   list_t* unmapped_read_list_p;   /**< list for store batches with the reads no mapped */
   bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
+  metaexons_t *metaexons;
   report_optarg_t *report_optarg;
+  sw_optarg_t *sw_optarg;
+  genome_t *genome;
 };
 
 //------------------------------------------------------------------------------------
@@ -44,7 +47,8 @@ struct bwt_server_input {
  */
 void bwt_server_input_init(list_t* read_list_p, unsigned int batch_size, bwt_optarg_t *bwt_optarg_p, 
 			   bwt_index_t *bwt_index_p, list_t* write_list_p, unsigned int write_size, 
-			   list_t* unmapped_read_list_p, bwt_server_input_t* input_p);
+			   list_t* unmapped_read_list_p, metaexons_t *metaexons, sw_optarg_t *sw_optarg,
+			   genome_t *genome, bwt_server_input_t* input_p);
 
 //------------------------------------------------------------------------------------
 // main function
@@ -67,6 +71,10 @@ void bwt_server_cpu(bwt_server_input_t* input, pair_mng_t *pair_mng);
 //====================================================================================
 
 int apply_bwt(bwt_server_input_t* input, batch_t *batch_p);
+int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch);
+
+
+//int first_phase(bwt_server_input_t* input, batch_t *batch);
 
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------

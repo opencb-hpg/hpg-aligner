@@ -107,7 +107,7 @@ void thread_function(extra_stage_t *extra_stage_input) {
 */
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
-		     report_optarg_t *report_optarg, options_t *options) {
+		     report_optarg_t *report_optarg, metaexons_t *metaexons, options_t *options) {
   int path_length = strlen(options->output_name);
   int prefix_length = 0;
 
@@ -207,25 +207,31 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   linked_list_t *alignments_list = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
   linked_list_set_flag(options->pair_mode, alignments_list);
 
+  sw_optarg_t sw_optarg;
+  sw_optartg_init(options->gap_open, options->gap_extend, 
+		  options->match, options->mismatch, &sw_optarg);
+
   bwt_server_input_t bwt_input;
   bwt_server_input_init(NULL,  0,  bwt_optarg, 
 			bwt_index, NULL,  0, 
-			NULL, &bwt_input);
+			NULL, metaexons, &sw_optarg, 
+			genome, &bwt_input);
       
   region_seeker_input_t region_input;
   region_seeker_input_init(NULL, cal_optarg, 
 			   bwt_optarg, bwt_index, NULL, 
 			   0, options->gpu_process, options->min_seed_padding_left, 
-			   options->min_seed_padding_right, genome, &region_input);
+			   options->min_seed_padding_right, genome, metaexons, &region_input);
   
   cal_seeker_input_t cal_input;
   cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, 
-			bwt_optarg, bwt_index, &cal_input);
+			bwt_optarg, bwt_index, metaexons, &cal_input);
   
   preprocess_rna_input_t preprocess_rna;
   
   preprocess_rna_input_init(options->max_intron_length, options->flank_length, 
-			    options->seeds_max_distance, options->seed_size, genome, &preprocess_rna);
+			    options->seeds_max_distance, options->seed_size, genome, 
+			    &preprocess_rna);
 
   
   sw_server_input_t sw_input;
@@ -234,7 +240,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->min_score,  options->flank_length, genome,  
 		       options->max_intron_length, options->min_intron_length,  
 		       options->seeds_max_distance,  bwt_optarg, avls_list, 
-		       cal_optarg, bwt_index, &sw_input);
+		       cal_optarg, bwt_index, metaexons, &sw_input);
   
 
   pair_server_input_t pair_input;
@@ -269,12 +275,20 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //create and initialize workflow
   workflow_t *wf = workflow_new();
      
-  workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
+  
+  workflow_stage_function_t stage_functions[] = {bwt_stage, cal_stage, 
 						 sw_stage, post_pair_stage};
 
-  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "SW", "POST PAIR"};
-  workflow_set_stages(5, &stage_functions, stage_labels, wf);
-     
+  char *stage_labels[] = {"BWT", "CAL", "SW", "POST PAIR"};
+  workflow_set_stages(4, &stage_functions, stage_labels, wf);
+  
+  /*
+  workflow_stage_function_t stage_functions[] = {bwt_stage};
+
+  char *stage_labels[] = {"BWT"};
+  workflow_set_stages(1, &stage_functions, stage_labels, wf);
+  */
+ 
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);
   workflow_set_consumer(bam_writer, "BAM writer", wf);

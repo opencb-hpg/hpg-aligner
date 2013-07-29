@@ -295,7 +295,11 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
 int bwt_stage(void *data) {
      batch_t *batch = (batch_t *) data;
 
-     return apply_bwt(batch->bwt_input, batch);     
+     if (batch->mapping_mode == DNA_MODE) {
+       return apply_bwt(batch->bwt_input, batch);     
+     } else {
+       return apply_bwt_rna(batch->bwt_input, batch);     
+     }
 }
 
 //--------------------------------------------------------------------

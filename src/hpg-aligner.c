@@ -50,7 +50,7 @@ double main_time;
 size_t total_sw = 0;
 pthread_mutex_t sw_mutex;
 size_t *histogram_sw;
-
+/*
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     pair_mng_t *pair_mng, report_optarg_t *report_optarg,
@@ -60,12 +60,12 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg,
 		     report_optarg_t *report_optarg, options_t *options);
-
+*/
 //--------------------------------------------------------------------
 // main parameters support
 //--------------------------------------------------------------------
 int main(int argc, char* argv[]) {
-
+  
   histogram_sw = (size_t *)calloc(1024, sizeof(size_t));
 
   pthread_mutex_init(&cal_st.mutex, NULL);
@@ -117,18 +117,20 @@ int main(int argc, char* argv[]) {
        exit(0);
   }
 
-
   time_on =  (unsigned int) options->timming;
   statistics_on =  (unsigned int) options->statistics;
 
-  // genome parameters
+  // Genome parameters
   LOG_DEBUG("Reading genome...");
   genome_t* genome = genome_new("dna_compression.bin", options->bwt_dirname);
   LOG_DEBUG("Done !!");
   
+  // Metaexons structure
+  metaexons_t *metaexons = metaexons_new(genome);
+
   // BWT index
   LOG_DEBUG("Reading bwt index...");
-  //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
+
   bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname);
   LOG_DEBUG("Reading bwt index done !!");
   
@@ -153,15 +155,17 @@ int main(int argc, char* argv[]) {
 						     options->report_n_hits, 
 						     options->report_only_paired,
 						     options->report_best);
+
+  
   LOG_DEBUG("init table...");
   initTable();
   LOG_DEBUG("init table done !!");
   
   if (!strcmp(command, "rna")) {
-    run_rna_aligner(genome, bwt_index, pair_mng, bwt_optarg, cal_optarg, report_optarg, options);
+    run_rna_aligner(genome, bwt_index, pair_mng, bwt_optarg, cal_optarg, report_optarg, metaexons, options);
   } else {
     // DNA version
-    run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
+    run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, metaexons, options);
   }
 
   LOG_DEBUG("main done !!");

@@ -5,7 +5,7 @@ void region_seeker_input_init(list_t *unmapped_read_list, cal_optarg_t *cal_opta
 			      bwt_optarg_t *bwt_optarg, bwt_index_t *bwt_index, 
 			      list_t* region_list, unsigned int region_threads, 
 			      unsigned int gpu_enable, int padding_left, int padding_right,
-			      genome_t *genome,
+			      genome_t *genome, metaexons_t *metaexons,
 			      region_seeker_input_t *input_p) {
 
   input_p->unmapped_read_list_p = unmapped_read_list;
@@ -18,6 +18,7 @@ void region_seeker_input_init(list_t *unmapped_read_list, cal_optarg_t *cal_opta
   input_p->padding_left = padding_left;
   input_p->padding_right = padding_right;
   input_p->genome = genome;
+  input_p->metaexons = metaexons;
 }
 
 //Return distance from the read_gap to the reference_gap
@@ -65,6 +66,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
   double time;
   if (time_on) { start_timer(start); }
 
+  metaexons_t *metaexons = input->metaexons;
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   array_list_t *list = NULL;
   size_t read_index, num_mappings;
@@ -135,15 +137,16 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       continue;
       }
     */
-    if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 0){// ||
-	//array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 1) {
+    if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 0 || 
+	array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 1) {
       //Flag 0 Case, Not anchors found, Make normal seeds      
       //printf("Normal Case 0. Not anchors found!\n");
-      /*      for (int j = array_list_size(mapping_batch->mapping_lists[targets[i]]) - 1; j >= 0; j--) {
+      for (int j = array_list_size(mapping_batch->mapping_lists[targets[i]]) - 1; j >= 0; j--) {
 	bwt_anchor = array_list_remove_at(j, mapping_batch->mapping_lists[targets[i]]);
 	array_list_insert(bwt_anchor, array_list_aux);
-	}*/
-
+      }
+      num_mappings = 0;
+      /*
       num_mappings = bwt_map_exact_seeds_seq(0,
 					     0,
 					     read->sequence,
@@ -152,18 +155,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 					     input->bwt_optarg_p, 
 					     input->bwt_index_p, 
 					     mapping_batch->mapping_lists[targets[i]],
-					     0);
-					     /*
-      num_mappings = bwt_map_seeds_IA(0,
-				      0,
-				      read->sequence,
-				      seed_size,
-				      min_seed_size,
-				      input->bwt_optarg_p, 
-				      input->bwt_index_p, 
-				      mapping_batch->mapping_lists[targets[i]],
-				      0);
-       */
+					     0);*/
       if (num_mappings > 0) {
 	array_list_set_flag(0, mapping_batch->mapping_lists[targets[i]]);
 	targets[new_num_targets++] = targets[i];
@@ -194,14 +186,14 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       }
 
       if (end_search - start_search >= seed_size) {
-	num_mappings = bwt_map_exact_seeds_between_coords(start_search,
+	/*num_mappings = bwt_map_exact_seeds_between_coords(start_search,
 							  end_search,
 							  read->sequence, 
 							  seed_size, min_seed_size,
 							  input->bwt_optarg_p, 
 							  input->bwt_index_p, 
 							  mapping_batch->mapping_lists[targets[i]],
-							  extra_seed, &seed_id);
+							  extra_seed, &seed_id);*/
       }
 
       if (bwt_anchor->type == FORWARD_ANCHOR) {
@@ -278,14 +270,6 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	  bwt_anchor = array_list_remove_at(target, mapping_batch->mapping_lists[targets[i]]);
 	  bwt_anchor_free(bwt_anchor);
 	}
-	/*
-	for (int t = 0; t < array_list_size(mapping_batch->mapping_lists[targets[i]]); t += 2) {
-	  bwt_anchor = array_list_get(t, mapping_batch->mapping_lists[targets[i]]);
-	  printf("BWT_ANCHOR[%lu|%i|%lu] - ", bwt_anchor->start, bwt_anchor->end - bwt_anchor->start, bwt_anchor->end);
-	  bwt_anchor = array_list_get(t + 1, mapping_batch->mapping_lists[targets[i]]);
-	  printf("BWT_ANCHOR[%lu|%i|%lu]\n", bwt_anchor->start, bwt_anchor->end - bwt_anchor->start, bwt_anchor->end);
-	}
-	*/
 	array_list_set_flag(1, mapping_batch->mapping_lists[targets[i]]);
       } else {
 	//Seeding between anchors
@@ -335,14 +319,14 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	    //}
 	  
 	    //printf("Seeding between anchors... gap=%i\n", big_gap);
-	  num_mappings = bwt_map_exact_seeds_between_coords(start_search,
+	    /*	  num_mappings = bwt_map_exact_seeds_between_coords(start_search,
 							    end_search,
 							    read->sequence, seed_size, min_seed_size,
 							    input->bwt_optarg_p, 
 							    input->bwt_index_p, 
 							    mapping_batch->mapping_lists[targets[i]],
 							    EXTRA_SEED_NONE,
-							    &seed_id);
+							    &seed_id);*/
 	}
 
 	//printf("Making seeds anchors...\n");

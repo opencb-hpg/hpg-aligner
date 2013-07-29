@@ -54,6 +54,7 @@ typedef struct buffer_pair_item {
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
-		     report_optarg_t *report_optarg, options_t *options);
+		     report_optarg_t *report_optarg, metaexons_t *metaexons, 
+		     options_t *options);
 
 #endif

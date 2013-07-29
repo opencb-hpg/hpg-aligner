@@ -36,6 +36,11 @@
 
 //------------------------------------------------------------------------------------
 
+#define NOT_ANCHORS         0
+#define SINGLE_ANCHORS      1
+#define DOUBLE_ANCHORS      2
+#define ALIGNMENTS_FOUND    3
+#define ALIGNMENTS_EXCEEDED 4
 
 //====================================================================================
 //  globals

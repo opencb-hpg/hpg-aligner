@@ -8,7 +8,7 @@ extern int num_sws, num_ext_sws, num_gaps;
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
-		     options_t *options) {
+		     metaexons_t *metaexons, options_t *options) {
 
      int path_length = strlen(options->output_name);
      int prefix_length = 0;
@@ -61,17 +61,17 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      // preparing workflow stage input
      bwt_server_input_t bwt_input;
      bwt_server_input_init(NULL, 0, bwt_optarg, bwt_index, 
-			   NULL, 0, NULL, &bwt_input);
+			   NULL, 0, NULL, metaexons, NULL, NULL, &bwt_input);
      
      region_seeker_input_t region_input;
      region_seeker_input_init(NULL, cal_optarg, bwt_optarg, 
 			      bwt_index, NULL, 0, options->gpu_process, 0, 0, 
-			      genome, &region_input);
+			      genome, metaexons, &region_input);
      
      cal_seeker_input_t cal_input;
      cal_seeker_input_init(NULL, cal_optarg, NULL, 0, 
 			   NULL, NULL, genome, bwt_optarg, bwt_index, 
-			   &cal_input);
+			   metaexons, &cal_input);
      
      pair_server_input_t pair_input;
      pair_server_input_init(pair_mng, report_optarg, NULL, NULL, NULL, &pair_input);
@@ -80,7 +80,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      sw_server_input_init(NULL, NULL, 0, options->match, options->mismatch, 
 			  options->gap_open, options->gap_extend, options->min_score, 
 			  options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, 
-			  cal_optarg, bwt_index, &sw_input);
+			  cal_optarg, bwt_index, metaexons, &sw_input);
 
 
      //--------------------------------------------------------------------------------------

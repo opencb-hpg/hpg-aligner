@@ -3,6 +3,43 @@
 //====================================================================================
 //  Input structure for Smith-Waterman server
 //====================================================================================
+void sw_optartg_init(float gap_open, float gap_extend, 
+		     float match, float mismatch, sw_optarg_t *sw_optarg) {
+  sw_optarg->gap_open = gap_open;
+  sw_optarg->gap_extend = gap_extend;
+
+  sw_optarg->subst_matrix['A']['A'] = match;
+  sw_optarg->subst_matrix['C']['A'] = mismatch;
+  sw_optarg->subst_matrix['T']['A'] = mismatch;
+  sw_optarg->subst_matrix['G']['A'] = mismatch;
+  sw_optarg->subst_matrix['N']['A'] = mismatch;
+
+  sw_optarg->subst_matrix['A']['C'] = mismatch;
+  sw_optarg->subst_matrix['C']['C'] = match;
+  sw_optarg->subst_matrix['T']['C'] = mismatch;
+  sw_optarg->subst_matrix['G']['C'] = mismatch;
+  sw_optarg->subst_matrix['N']['C'] = mismatch;
+
+  sw_optarg->subst_matrix['A']['T'] = mismatch;
+  sw_optarg->subst_matrix['C']['T'] = mismatch;
+  sw_optarg->subst_matrix['T']['T'] = match;
+  sw_optarg->subst_matrix['G']['T'] = mismatch;
+  sw_optarg->subst_matrix['N']['T'] = mismatch;
+
+  sw_optarg->subst_matrix['A']['G'] = mismatch;
+  sw_optarg->subst_matrix['C']['G'] = mismatch;
+  sw_optarg->subst_matrix['T']['G'] = mismatch;
+  sw_optarg->subst_matrix['G']['G'] = match;
+  sw_optarg->subst_matrix['N']['G'] = mismatch;
+
+  sw_optarg->subst_matrix['A']['N'] = mismatch;
+  sw_optarg->subst_matrix['C']['N'] = mismatch;
+  sw_optarg->subst_matrix['T']['N'] = mismatch;
+  sw_optarg->subst_matrix['G']['N'] = mismatch;
+  sw_optarg->subst_matrix['N']['N'] = match;
+
+}
+
 
 void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int write_size, 
 			  float match, float mismatch, float gap_open, float gap_extend, 
@@ -11,7 +48,7 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 			  size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, 
 			  avls_list_t *avls_list,
 			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
-			  sw_server_input_t* input) {
+			  metaexons_t *metaexons, sw_server_input_t* input) {
   
   input->sw_list_p = sw_list;
   input->alignment_list_p = alignment_list;
@@ -23,44 +60,14 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
   input->bwt_optarg_p =  bwt_optarg_p; 
 
   // Smith-Waterman parameters
+  sw_optartg_init(gap_open, gap_extend, 
+		  match, mismatch, &input->sw_optarg);
   input->match = match;
   input->mismatch = mismatch;
   input->gap_open = gap_open;
   input->gap_extend = gap_extend;
   input->min_score = min_score;
 
-  input->sw_optarg.gap_open = gap_open;
-  input->sw_optarg.gap_extend = gap_extend;
-
-  input->sw_optarg.subst_matrix['A']['A'] = input->match;
-  input->sw_optarg.subst_matrix['C']['A'] = input->mismatch;
-  input->sw_optarg.subst_matrix['T']['A'] = input->mismatch;
-  input->sw_optarg.subst_matrix['G']['A'] = input->mismatch;
-  input->sw_optarg.subst_matrix['N']['A'] = input->mismatch;
-
-  input->sw_optarg.subst_matrix['A']['C'] = input->mismatch;
-  input->sw_optarg.subst_matrix['C']['C'] = input->match;
-  input->sw_optarg.subst_matrix['T']['C'] = input->mismatch;
-  input->sw_optarg.subst_matrix['G']['C'] = input->mismatch;
-  input->sw_optarg.subst_matrix['N']['C'] = input->mismatch;
-
-  input->sw_optarg.subst_matrix['A']['T'] = input->mismatch;
-  input->sw_optarg.subst_matrix['C']['T'] = input->mismatch;
-  input->sw_optarg.subst_matrix['T']['T'] = input->match;
-  input->sw_optarg.subst_matrix['G']['T'] = input->mismatch;
-  input->sw_optarg.subst_matrix['N']['T'] = input->mismatch;
-
-  input->sw_optarg.subst_matrix['A']['G'] = input->mismatch;
-  input->sw_optarg.subst_matrix['C']['G'] = input->mismatch;
-  input->sw_optarg.subst_matrix['T']['G'] = input->mismatch;
-  input->sw_optarg.subst_matrix['G']['G'] = input->match;
-  input->sw_optarg.subst_matrix['N']['G'] = input->mismatch;
-
-  input->sw_optarg.subst_matrix['A']['N'] = input->mismatch;
-  input->sw_optarg.subst_matrix['C']['N'] = input->mismatch;
-  input->sw_optarg.subst_matrix['T']['N'] = input->mismatch;
-  input->sw_optarg.subst_matrix['G']['N'] = input->mismatch;
-  input->sw_optarg.subst_matrix['N']['N'] = input->match;
 
   // CAL
   input->flank_length = flank_length;
@@ -68,6 +75,7 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 
   input->cal_optarg_p = cal_optarg_p;
   input->bwt_index_p = bwt_index_p;
+  input->metaexons = metaexons;
 }
 
 //====================================================================================

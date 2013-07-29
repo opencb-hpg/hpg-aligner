@@ -30,6 +30,7 @@ struct cal_seeker_input {
   genome_t *genome;
   bwt_optarg_t *bwt_optarg;
   bwt_index_t *index;
+  metaexons_t *metaexons;
 };
 
 /**
@@ -48,7 +49,8 @@ void cal_seeker_input_init(list_t *regions_list, cal_optarg_t *cal_optarg,
 			   list_t* write_list, unsigned int write_size, 
 			   list_t *sw_list, list_t *pair_list,
 			   genome_t *genome, bwt_optarg_t *bwt_optarg, 
-			   bwt_index_t *index, cal_seeker_input_t *input);
+			   bwt_index_t *index, metaexons_t *metaexons, 
+			   cal_seeker_input_t *input);
 
 //--------------------------------------------------------------------------------------
 

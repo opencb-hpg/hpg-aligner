@@ -2,6 +2,9 @@
 #define BREAKPOINT_H
 
 #include "containers/array_list.h"
+#include "containers/linked_list.h"
+
+#include "aligners/bwt/genome.h"
 #include "bioformats/bam/alignment.h"
 
 //--------------------------------------------------------------------------------------
@@ -9,6 +12,12 @@
 #define FIRST_SW 0
 #define MIDDLE_SW 1
 #define LAST_SW 2
+
+//--------------------------------------------------------------------------------------
+//Metaexon constants
+#define METAEXON_NORMAL 1
+#define METAEXON_LEFT_END 2
+#define METAEXON_RIGHT_END 3
 
 //====================================================================================
 //  Input structure for CIGAR format
@@ -52,6 +61,7 @@ cigar_op_t *cigar_code_get_last_op(cigar_code_t *p);
 void cigar_code_inc_distance(int distance, cigar_code_t *p);
 void cigar_code_append_new_op(int value, char name, cigar_code_t *p);
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
+void cigar_code_insert_first_op(cigar_op_t *op, cigar_code_t *p);
 void init_cigar_string(cigar_code_t *p);
 
 int cigar_read_coverage(cigar_code_t *p);
@@ -64,7 +74,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
 				  unsigned int query_start, unsigned int ref_start,
 				  unsigned int query_len, unsigned int ref_len,
 				  int *distance, int ref_type);
-
+int cigar_code_validate(int read_length, cigar_code_t *p);
 //cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
 //				  unsigned int query_start, unsigned int query_len, 
 //				  int *distance);
@@ -114,5 +124,51 @@ extern array_list_t *breakpoint_list;
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------
+
+
+//====================================================================================
+//  Main structure for metaexons
+//====================================================================================
+
+typedef struct metaexon {
+  size_t start;
+  size_t end;
+  unsigned char left_closed; //Is the left extrem metaexon closed? True or False
+  unsigned char right_closed; //Is the left extrem metaexon closed? True or False
+  array_list_t *left_breaks;
+  array_list_t *right_breaks;
+} metaexon_t;
+
+metaexon_t *metaexon_new(size_t start, size_t end);
+
+void metaexon_free(metaexon_t *metaexon);
+
+//--------------------------------------------------------------------------------------
+
+typedef struct metaexons {
+  unsigned int chunk_size;
+  unsigned int num_chromosomes;
+  size_t *num_chunks;
+  linked_list_t ****metaexons_table;  
+} metaexons_t;
+
+metaexons_t *metaexons_new(genome_t *genome);
+
+void metaexons_free(metaexons_t *metaexons);
+
+void metaexon_insert(unsigned int strand, unsigned int chromosome,
+                     size_t metaexon_start, size_t metaexon_end, int min_intron_size,
+                     unsigned char type, void *info_break, metaexons_t *metaexons);
+
+//Return if the position is between metaexon coords
+int metaexon_search(unsigned int strand, unsigned int chromosome,
+		    size_t start, size_t end, metaexon_t **metaexon_found,
+		    metaexons_t *metaexons);
+
+void show_metaexons(metaexons_t *metaexons);
+
+//--------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------
+
 
 #endif  // SW_SERVER_H
