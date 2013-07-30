@@ -89,6 +89,29 @@ void cigar_code_merge(cigar_code_t *p, cigar_code_t *merge_p) {
 }
 
 //--------------------------------------------------------------------------------------
+
+void cigar_code_update(cigar_code_t *p) {
+  cigar_op_t *prev_op, *curr_op;
+  size_t j, num_ops = array_list_size(p->ops);
+  prev_op = array_list_get(0, p->ops);
+  j = 0;
+  for (size_t i = 1; i < num_ops; i++) {
+    curr_op = array_list_get(i, p->ops);
+    if (prev_op->name == curr_op->name) {
+      prev_op->number += curr_op->number;
+    } else {
+      j++;
+      prev_op = array_list_get(j, p->ops);
+      prev_op->name = curr_op->name;
+      prev_op->number = curr_op->number;
+    }
+  }
+  for (size_t i = num_ops - 1; i > j; i--) {
+    array_list_remove_at(i, p->ops);
+  }
+}
+
+//--------------------------------------------------------------------------------------
 int cigar_code_get_num_ops(cigar_code_t *p) {
   int num = 0;
   if (p && p->ops) { 
@@ -176,12 +199,13 @@ char *new_cigar_code_string(cigar_code_t *p) {
   }
 
   int num_ops = cigar_code_get_num_ops(p);
-  if (!num_ops) { return NULL; }
+  if (num_ops == 0) { return NULL; }
 
   char *str = malloc(num_ops * 5 * sizeof(char));
   *str = 0;
 
   cigar_op_t *op;
+  
   for (int i = 0; i < num_ops; i++) {
     op = array_list_get(i, p->ops);
     sprintf(str, "%s%i%c", str, op->number, op->name);
@@ -290,8 +314,7 @@ float cigar_code_get_score(int read_len, cigar_code_t *p) {
   //if (ret < 0.0f) {
   //ret = 0;
   //    LOG_FATAL_F("score is negative %0.2f (distance = %i)\n", ret, p->distance);
-  //}
-  
+  //}  
   
   int match_counts = 0;
   
@@ -300,8 +323,7 @@ float cigar_code_get_score(int read_len, cigar_code_t *p) {
     match_counts -= p->distance; 
   }
 
-  return (match_counts*100)/read_len;
-
+  return 1.0f * match_counts / read_len;
 }
 
 //--------------------------------------------------------------------------------------
@@ -740,7 +762,7 @@ int metaexon_search(unsigned int strand, unsigned int chromosome,
   
   metaexon = (metaexon_t *)linked_list_iterator_curr(&itr);
   while (metaexon != NULL) {
-    printf("%lu >= %lu && %lu <= %lu\n", start, metaexon->start, start, metaexon->end);
+    //printf("%lu >= %lu && %lu <= %lu\n", start, metaexon->start, start, metaexon->end);
     if (start <= metaexon->end && end <= metaexon->start) {
       *metaexon_found = metaexon;
       return 1;
@@ -762,7 +784,9 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
   //Chromosome must be start by 0  
   size_t chunk_start = start / metaexons->chunk_size;
   size_t chunk_end = end / metaexons->chunk_size;
-
+  
+  //printf(" METAEXON INSERT %i:%lu-%lu\n", chromosome, start, end);
+  
   linked_list_t *list;
   metaexon_t *metaexon;
   
@@ -802,16 +826,20 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
       }
     */
   
-    //This section is for large reads ( > 1000nt)
+  //This section is for large reads ( > 1000nt)
   for (int chk = chunk_start; chk <= chunk_end; chk++) {
     if (!metaexons->metaexons_table[chromosome][chk]) {
       metaexons->metaexons_table[chromosome][chk] = (linked_list_t **)calloc(2, sizeof(linked_list_t *));
       metaexons->metaexons_table[chromosome][chk][0] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
       metaexons->metaexons_table[chromosome][chk][1] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
     }
+
     list = metaexons->metaexons_table[chromosome][chk][strand];
+    if (!list) { exit(-1); }
+
     metaexon = __metaexon_insert(list, start, end, min_intron_size);
     if (info_break != NULL) {
+      printf("Insert break!!\n");
       metaexon_insert_break(info_break, type, metaexon);
     }
   }

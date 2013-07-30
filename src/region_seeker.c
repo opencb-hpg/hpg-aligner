@@ -176,17 +176,18 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 
       if (bwt_anchor->type == FORWARD_ANCHOR && bwt_anchor->strand == 0 || 
 	  bwt_anchor->type == BACKWARD_ANCHOR && bwt_anchor->strand == 1 ) {
-	start_search = anchor_nt;
+	start_search = anchor_nt + 1;
 	end_search = read->length - 1;
 	extra_seed = EXTRA_SEED_END;
       } else {
 	start_search = 0;
-	end_search = read->length - anchor_nt - 1;
+	end_search = read->length - anchor_nt - 2;
 	extra_seed = EXTRA_SEED_START;
       }
 
       if (end_search - start_search >= seed_size) {
-	/*num_mappings = bwt_map_exact_seeds_between_coords(start_search,
+	//	LOG_DEBUG_F("00 --> searching from %i to %i\n", start_search, end_search);
+	/*	num_mappings = bwt_map_exact_seeds_between_coords(start_search,
 							  end_search,
 							  read->sequence, 
 							  seed_size, min_seed_size,
@@ -202,14 +203,14 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	seed_end = anchor_nt;
       } else {
 	seed_id += 1;
-	seed_start = read->length - anchor_nt;
+	seed_start = read->length - anchor_nt - 1;
 	seed_end = read->length - 1;
       }
 
       for (int j = 0; j < array_list_size(array_list_aux); j++) {
 	bwt_anchor_t *bwt_anchor = array_list_get(j, array_list_aux);
-	//printf("\tCreate seed Anchor [%i:%lu|%i-%i|%lu]\n", bwt_anchor->chromosome + 1, bwt_anchor->start, 
-	//     seed_start,seed_end,bwt_anchor->end);
+	//	printf("\tCreate seed Anchor [%i:%lu|%i-%i|%lu]\n", bwt_anchor->chromosome + 1, bwt_anchor->start, 
+	//	       seed_start,seed_end,bwt_anchor->end);
 	region = region_bwt_new(bwt_anchor->chromosome + 1,
 				bwt_anchor->strand,
 				bwt_anchor->start,
@@ -319,14 +320,15 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	    //}
 	  
 	    //printf("Seeding between anchors... gap=%i\n", big_gap);
-	    /*	  num_mappings = bwt_map_exact_seeds_between_coords(start_search,
-							    end_search,
-							    read->sequence, seed_size, min_seed_size,
-							    input->bwt_optarg_p, 
-							    input->bwt_index_p, 
-							    mapping_batch->mapping_lists[targets[i]],
-							    EXTRA_SEED_NONE,
-							    &seed_id);*/
+	    //	    LOG_DEBUG_F("11 --> searching from %li to %li\n", start_search, end_search);
+	    /*num_mappings = bwt_map_exact_seeds_between_coords(start_search,
+							      end_search,
+							      read->sequence, seed_size, min_seed_size,
+							      input->bwt_optarg_p, 
+							      input->bwt_index_p, 
+							      mapping_batch->mapping_lists[targets[i]],
+							      EXTRA_SEED_NONE,
+							      &seed_id);*/
 	}
 
 	//printf("Making seeds anchors...\n");

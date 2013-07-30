@@ -118,6 +118,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
   cigar_code_t *cigar_code;
 
+  size_t start, end;
   size_t gap_read_start, gap_read_end, gap_read_len;
   size_t gap_genome_start, gap_genome_end, gap_genome_len;
 
@@ -159,8 +160,19 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
       itr = linked_list_iterator_new(cal->sr_list);
       s = (seed_region_t *) linked_list_iterator_curr(itr);
       while (s != NULL) {
-	LOG_DEBUG_F("\tseed: [%i|%i - %i|%i]\n", 
-		    s->genome_start, s->read_start, s->read_end, s->genome_end);
+	{
+	  size_t start = s->genome_start;// + 1;
+	  size_t end = s->genome_end;// + 1;
+	  size_t len = end - start + 1;
+	  char *ref = (char *) malloc((len + 1) * sizeof(char));
+	  genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
+					    &start, &end, genome);
+	  ref[len] = '\0';
+	  //
+	  LOG_DEBUG_F("\tseed: [%i|%i - %i|%i] %s (len = %i)\n", 
+		      s->genome_start, s->read_start, s->read_end, s->genome_end, ref, len);
+	  free(ref);
+	}
 
 	// set the cigar for the current region
 	gap_read_len = s->read_end - s->read_start + 1;
@@ -245,11 +257,13 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	    // we have to try to fill this gap and get a cigar
 	    if (gap_read_len == gap_genome_len) {
 	      //    1) first, for from  begin -> end, and begin <- end
+	      start = gap_genome_start;// + 1;
+	      end = gap_genome_end;// + 1;
 	      first = -1;
 	      last = -1;
 	      ref = (char *) malloc((gap_genome_len + 5) * sizeof(char));
 	      genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
-						&gap_genome_start, &gap_genome_end, genome);
+						&start, &end, genome);
 	      // handle strand -
 	      if (cal->strand) {
 		if (revcomp_seq == NULL) {
@@ -296,8 +310,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	      query[gap_read_len_ex] = '\0';
 	      
 	      // get ref. sequence
-	      size_t genome_start = gap_genome_start - left_flank;
-	      size_t genome_end = gap_genome_end + right_flank;
+	      size_t genome_start = gap_genome_start - left_flank;// + 1;
+	      size_t genome_end = gap_genome_end + right_flank;// + 1;
 	      int gap_genome_len_ex = genome_end - genome_start + 1;
 	      ref = (char *) malloc((gap_genome_len_ex + 1) * sizeof(char));;
 	      genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
@@ -380,11 +394,13 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	  // we have to try to fill this gap and get a cigar
 	  
 	  //    1) first, for from  begin -> end, and begin <- end
+	  start = gap_genome_start;// + 1;
+	  end = gap_genome_end;// + 1;
 	  first = -1;
 	  last = -1;
 	  ref = (char *) malloc((gap_genome_len + 1) * sizeof(char));;
 	  genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
-					    &gap_genome_start, &gap_genome_end, genome);
+					    &start, &end, genome);
 	  // handle strand -
 	  if (cal->strand) {
 	    if (revcomp_seq == NULL) {
@@ -432,8 +448,8 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	    query[gap_read_len_ex] = '\0';
 	    
 	    // get ref. sequence
-	    size_t genome_start = gap_genome_start - left_flank;
-	    size_t genome_end = gap_genome_end + right_flank;
+	    size_t genome_start = gap_genome_start - left_flank;// + 1;
+	    size_t genome_end = gap_genome_end + right_flank;// + 1;
 	    int gap_genome_len_ex = genome_end - genome_start + 1;
 	    ref = (char *) malloc((gap_genome_len_ex + 1) * sizeof(char));;
 	    genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
@@ -703,8 +719,8 @@ void fill_end_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	*/
 
 	// get ref. sequence
-	start = gap_genome_start;
-	end = gap_genome_end;
+	start = gap_genome_start;// + 1;
+	end = gap_genome_end;// + 1;
 	gap_genome_len = end - start + 1;
 	ref = (char *) malloc((gap_genome_len + 1) * sizeof(char));
 	genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
@@ -845,7 +861,8 @@ void merge_seed_regions(mapping_batch_t *mapping_batch) {
 
 
 int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
-  //printf("APPLY CALING ...\n");
+
+  LOG_DEBUG("========= APPLY CALING RNA =========\n");
 
   struct timeval start, end;
   double time;
@@ -890,16 +907,22 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
   return RNA_POST_PAIR_STAGE;
   */
+  region_list = array_list_new(1000, 
+			       1.25f, 
+			       COLLECTION_MODE_ASYNCHRONIZED);
+
+  extern pthread_mutex_t bwt_mutex;
+  extern size_t seeding_reads;
+
+  pthread_mutex_lock(&bwt_mutex);
+  seeding_reads += num_targets;
+  pthread_mutex_unlock(&bwt_mutex);
 
   for (size_t i = 0; i < num_targets; i++) {
-    list = array_list_new(1000, 
-			  1.25f, 
-			  COLLECTION_MODE_ASYNCHRONIZED);
-
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
     
     //printf("From CAL Seeker %s\n", read->id);
-    //region_list = mapping_batch->mapping_lists[mapping_batch->targets[i]];
+    list = mapping_batch->mapping_lists[mapping_batch->targets[i]];
     
     //if (array_list_get_flag(region_list) == 0 || 
     //	array_list_get_flag(region_list) == 2) {
@@ -908,11 +931,13 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     num_cals = bwt_generate_cals(read->sequence, seed_size, bwt_optarg,
 				 bwt_index, list);
     
-    if (num_cals == 0) {
+    /*if (num_cals == 0) {
       //printf("NO CALS\n");
       int seed_size = 24;
       //First, Delete old regions
       array_list_clear(region_list, region_bwt_free);
+      
+
       //Second, Create new regions with seed_size 24 and 1 Mismatch
 
       bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
@@ -926,7 +951,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
 						   list, read->length);
-    }
+						   }*/
     
     /*} else {
       //We have double anchors with smaller distance between they
@@ -1047,6 +1072,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   }
 
   if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
+
+  LOG_DEBUG("========= APPLY CALING RNA END =========\n");
 
   return RNA_STAGE;
 
@@ -1307,8 +1334,10 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
     }
   
     //    LOG_FATAL_F("num. cals = %i, min. seeds = %i, max. seeds = %i\n", num_cals, min_seeds, max_seeds);
-
     // filter CALs by the number of seeds
+    cal_list = list;
+    list = NULL;
+    /*
     int min_limit = input->cal_optarg->min_num_seeds_in_cal;
     if (min_limit < 0) min_limit = max_seeds;
     //    min_limit -= 3;
@@ -1328,7 +1357,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
       array_list_clear(list, (void *) cal_free);
       num_cals = array_list_size(cal_list);
     }
-
+    */
     if (num_cals > MAX_CALS) {
       for (size_t j = num_cals - 1; j >= MAX_CALS; j--) {
 	cal = (cal_t *) array_list_remove_at(j, cal_list);

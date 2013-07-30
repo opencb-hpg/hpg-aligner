@@ -43,6 +43,7 @@ pthread_mutex_t mutex_sp;
 
 size_t bwt_correct = 0;
 size_t bwt_error = 0;
+size_t seeding_reads = 0;
 pthread_mutex_t bwt_mutex;
 
 // timing
@@ -170,6 +171,7 @@ int main(int argc, char* argv[]) {
 
   LOG_DEBUG("main done !!");
 
+  //show_metaexons(metaexons);
   // Free memory
   
   bwt_index_free(bwt_index);
@@ -205,7 +207,7 @@ int main(int argc, char* argv[]) {
     printf(" %i; %i\n", i, histogram_sw[i]);
   }
   */
-
+  printf("TOTAL READS SEEDING %i\n", seeding_reads);
   return 0;
 }
 

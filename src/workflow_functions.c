@@ -200,11 +200,17 @@ int bam_writer(void *data) {
      }
      
      if (basic_st->total_reads >= writer_input->limit_print) {
-       LOG_DEBUG_F("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
-       LOG_DEBUG_F("\tTotal Reads Mapped: %lu(%.2f%)\n", 
+       //LOG_DEBUG_F("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
+       //LOG_DEBUG_F("\tTotal Reads Mapped: %lu(%.2f%)\n", 
+       //	   basic_st->num_mapped_reads, 
+       //	   (float) (basic_st->num_mapped_reads*100)/(float)(basic_st->total_reads));
+       //writer_input->limit_print += 1000000;
+       printf("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
+       printf("\tTotal Reads Mapped: %lu(%.2f%)\n", 
 		   basic_st->num_mapped_reads, 
 		   (float) (basic_st->num_mapped_reads*100)/(float)(basic_st->total_reads));
-       writer_input->limit_print += 1000000;
+       
+       writer_input->limit_print += 100000;
      }
      
      //printf("Batch Write OK!\n");     

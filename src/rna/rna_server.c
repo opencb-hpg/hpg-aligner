@@ -1256,12 +1256,14 @@ array_list_t *fusion_regions (array_list_t *regions_list, int max_distance) {
 
 //NEW FUNCTION!
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {  
-  //printf("RNA SW\n");
+  
+  LOG_DEBUG("========= SPLICE JUNCTION SEARCH =========\n");
+
   size_t max_intron_size = 500000;  
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   sw_optarg_t *sw_optarg = &input_p->sw_optarg;
   genome_t *genome = input_p->genome_p;
-  size_t num_reads = array_list_size(batch->fq_batch);
+  size_t num_reads = array_list_size(mapping_batch->fq_batch);
   size_t num_targets = mapping_batch->num_targets;
   
   //allocate_splice_elements_t *chromosome_avls = input_p->chromosome_avls_p;
@@ -1307,6 +1309,11 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   float *cals_score;
   char cigar_str[1024];
 
+  cigar_op_t *first_op;
+  char *match_seq, *match_qual, *optional_fields, *p;
+  int match_start, match_len, optional_fields_length, AS;
+  float norm_score;
+
   int delete_not_cigar;
   int padding_left, padding_right, len_query;  
   int num_sw = 0;
@@ -1339,41 +1346,129 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   int lim_start, lim_end;
 
   int min_intron_size = 40;
+  array_list_t *alignments_list;
 
-  register size_t num_cals;
+  size_t num_cals;
   register size_t t;
-  register int i, j, r;
+  register int i, j;
 
   // array_list flag: 0 -> Not  BWT Anchors found (NOT_ANCHORS)        *
   //                  1 -> One  BWT Anchors found (SINGLE_ANCHORS)     *
   //                  2 -> Pair BWT Anchors found (DOUBLE_ANCHORS)     *
   //                  3 -> Alignments found       (ALIGNMENTS_FOUND)
   //                  4 -> Alignments exceded     (ALIGNMENTS_EXCEEDED)
-  for (r = 0; r < num_reads; r++) {
-    target = mapping_batch->targets[r];
-    cals_list = mapping_batch->mapping_lists[target];
+  int flag;
+  for (i = 0; i < num_reads; i++) {
+    cals_list = mapping_batch->mapping_lists[i];
+    flag = array_list_get_flag(cals_list);
     num_cals = array_list_size(cals_list);
-    if (array_list_get_flag(cals_list) == ALIGNMENTS_FOUND || 
-	array_list_get_flag(cals_list) == ALIGNMENTS_EXCEEDED) {
+    fq_read = array_list_get(i, mapping_batch->fq_batch);
+
+    //printf("(%i)Read %s: with CALs %i and FLAG %i \n", i, fq_read->id, num_cals, array_list_get_flag(cals_list));
+
+    if (flag == ALIGNMENTS_FOUND || 
+	flag == ALIGNMENTS_EXCEEDED) {
       continue;
     } 
 
-    fq_read = array_list_get(target, mapping_batch->fq_batch);
-    if (array_list_flag(cals_list) == DOUBLE_ANCHORS) {
+    if (flag == DOUBLE_ANCHORS) {
       if (num_cals == 1) {
-	new_targets[num_new_targets++] = r;
+	//Fill gaps resolve internal gaps
+	mapping_batch->targets[num_new_targets++] = i;
       } else {
-	array_list_clear(mapping_batch->mapping_lists[target], cal_free);
+	//1st- Search in Metaexon
+	/*int metaexon_search(unsigned int strand, unsigned int chromosome,
+			    size_t start, size_t end, metaexon_t **metaexon_found,
+			    metaexons_t *metaexons);
+	*/
+	//2st-1 If double anchor in close metaexon
+	
+	//2st-2 If double anchor NOT in metaexon mount SW
+	
+	array_list_clear(mapping_batch->mapping_lists[i], cal_free);
 	continue;
       }
     } else {
-      array_list_clear(mapping_batch->mapping_lists[target], cal_free);
+      array_list_clear(mapping_batch->mapping_lists[i], cal_free);
       continue;
     }
   }
+  
+  mapping_batch->num_targets = num_new_targets;
 
   fill_gaps(mapping_batch, sw_optarg, genome, 20, 5);
   merge_seed_regions(batch->mapping_batch); 
+
+  
+  //Merge Cigars
+  for (t = 0; t < num_new_targets; t++) {
+    target = mapping_batch->targets[t];
+    cals_list = mapping_batch->mapping_lists[target];
+    fq_read = array_list_get(target, mapping_batch->fq_batch);
+
+    num_cals = array_list_size(cals_list);
+    alignments_list = array_list_new(num_cals, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+
+    for (int c = 0; c < num_cals; c++) {
+      cal = array_list_get(c, cals_list);
+      s = (seed_region_t *) linked_list_get_first(cal->sr_list);
+      cigar_code = (cigar_code_t *) s->info;
+      cigar_code_update(cigar_code);
+
+      norm_score = cigar_code_get_score(fq_read->length, cigar_code);
+      score = norm_score * 100;
+
+      match_start = 0;
+      match_len = cigar_code_nt_length(cigar_code);
+      first_op = cigar_code_get_first_op(cigar_code);
+      match_start = (first_op && first_op->name == 'H' ? first_op->number : 0);
+
+      match_seq = (char *) malloc((match_len + 1)* sizeof(char));
+      memcpy(match_seq, &fq_read->sequence[match_start], match_len);
+      match_seq[match_len] = 0;
+
+      match_qual = (char *) malloc((match_len + 1)* sizeof(char));
+      memcpy(match_qual, &fq_read->quality[match_start], match_len);
+      match_qual[match_len] = 0;
+
+      // set optional fields                                                                                                                                                                                 
+      optional_fields_length = 100;
+      optional_fields = (char *) calloc(optional_fields_length, sizeof(char));
+
+      p = optional_fields;
+      AS = (int) norm_score * 100;
+
+      sprintf(p, "ASi");
+      p += 3;
+      memcpy(p, &AS, sizeof(int));
+      p += sizeof(int);
+
+      sprintf(p, "NHi");
+      p += 3;
+      memcpy(p, &num_cals, sizeof(int));
+      p += sizeof(int);
+
+      sprintf(p, "NMi");
+      p += 3;
+      memcpy(p, &cigar_code->distance, sizeof(int));
+      p += sizeof(int);
+
+      alignment = alignment_new();
+      alignment_init_single_end(strdup(&fq_read->id[1]), match_seq, match_qual,
+				cal->strand, cal->chromosome_id - 1, cal->start - 1,
+				new_cigar_code_string(cigar_code),
+				cigar_code_get_num_ops(cigar_code),
+				norm_score * 254, 1, (num_cals >= 1),
+				optional_fields_length, optional_fields, 0, alignment);
+
+      array_list_insert(alignment, alignments_list);
+
+    }
+    array_list_free(cals_list, (void *) cal_free);
+    mapping_batch->mapping_lists[target] = alignments_list;
+  }
+  
+  LOG_DEBUG("========= SPLICE JUNCTION SEARCH END =========\n");
 
   return RNA_POST_PAIR_STAGE;
 

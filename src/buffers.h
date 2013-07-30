@@ -17,24 +17,30 @@
 //  Workflow Vars
 //====================================================================================
 
+//-------- DEFINE WORKFLOW COMMON VARS -----------
+
 #define BWT_STAGE               0
-#define SEEDING_STAGE           1
-#define CAL_STAGE               2
-
-#define PRE_PAIR_STAGE          3
-
-//#define RNA_PREPROCESS_STAGE    3
-//#define SW_STAGE                4
-//#define POST_PAIR_STAGE         5
-
-#define RNA_STAGE               3
-#define SW_STAGE                4
-#define DNA_POST_PAIR_STAGE     5
-#define RNA_POST_PAIR_STAGE     4
-
 #define CONSUMER_STAGE         -1
 
-//------------------------------------------------------------------------------------
+//--------  DEFINE WORKFLOW DNA VARS  -----------
+
+
+#define SEEDING_STAGE           1
+#define CAL_STAGE               2
+#define PRE_PAIR_STAGE          3
+#define SW_STAGE                4
+#define DNA_POST_PAIR_STAGE     5
+
+
+//--------  DEFINE WORKFLOW RNA VARS   -----------
+
+#define RNA_CAL_STAGE           1
+#define RNA_STAGE               2
+#define RNA_POST_PAIR_STAGE     3
+
+//====================================================================================
+//  globals
+//====================================================================================
 
 #define NOT_ANCHORS         0
 #define SINGLE_ANCHORS      1
@@ -42,9 +48,7 @@
 #define ALIGNMENTS_FOUND    3
 #define ALIGNMENTS_EXCEEDED 4
 
-//====================================================================================
-//  globals
-//====================================================================================
+//------------------------------------------------------------------------------------
 
 #define DNA_MODE           0
 #define RNA_MODE           1

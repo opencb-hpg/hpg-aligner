@@ -148,7 +148,8 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   fastq_read_t *read;
   array_list_t *fq_batch = mapping_batch->fq_batch;
   
-  size_t read_index, read_len;
+  char *match_seq, *match_qual;
+  size_t read_index, read_len, match_len, match_start;
   
   cal_t *cal;
   array_list_t *cal_list = NULL;
@@ -156,6 +157,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
   
   seed_region_t *s;
   cigar_code_t *cigar_code;
+  cigar_op_t *first_op;
 
   float score, norm_score, min_score = input->min_score;
 
@@ -189,19 +191,34 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
       cigar_code = (cigar_code_t *) s->info;
 
       norm_score = cigar_code_get_score(read_len, cigar_code);
-      score = norm_score * read_len;
+      score = norm_score * 100; //read_len;
+      LOG_DEBUG_F("score = %0.2f\n", norm_score);
 
       // filter by SW score
-      //      score = 800.0f;
-      //      norm_score = NORM_SCORE(score, read_len, input->match);
-
       if (norm_score > min_score) {
+
+	// update cigar and sequence and quality strings
+	cigar_code_update(cigar_code);
+	LOG_DEBUG_F("\tcigar code = %s\n", new_cigar_code_string(cigar_code));
+	match_start = 0;
+	match_len = cigar_code_nt_length(cigar_code); 
+	first_op = cigar_code_get_first_op(cigar_code);
+	match_start = (first_op && first_op->name == 'H' ? first_op->number : 0);
+
+	match_seq = (char *) malloc((match_len + 1)* sizeof(char));
+	memcpy(match_seq, &read->sequence[match_start], match_len);
+	match_seq[match_len] = 0;
+
+	match_qual = (char *) malloc((match_len + 1)* sizeof(char));
+	memcpy(match_qual, &read->quality[match_start], match_len);
+	match_qual[match_len] = 0;
+
 	// set optional fields
 	optional_fields_length = 100;
 	optional_fields = (char *) calloc(optional_fields_length, sizeof(char));
       
 	p = optional_fields;
-	AS = (int) score;
+	AS = (int) norm_score * 100;
 	
 	sprintf(p, "ASi");
 	p += 3;
@@ -223,20 +240,13 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
 	// create an alignment and insert it into the list
 	alignment = alignment_new();
 
-	alignment_init_single_end(strdup(&read->id[1]), strdup(read->sequence), strdup(read->quality), 
+	alignment_init_single_end(strdup(&read->id[1]), match_seq, match_qual, 
 				  cal->strand, cal->chromosome_id - 1, cal->start - 1,
-				  strdup("400M"), 1, 
+				  new_cigar_code_string(cigar_code), 
+				  cigar_code_get_num_ops(cigar_code), 
 				  norm_score * 254, 1, (num_cals > 1),
 				  optional_fields_length, optional_fields, 0, alignment);
 
-	/*
-	LOG_DEBUG_F("read->id = %s\n", &(read->id[1]));
-	alignment_init_single_end(strdup(&(read->id[1])), strdup(read->sequence), strdup(read->quality), 
-				  cal->strand, cal->chromosome_id - 1, cal->start - 1,
-				  new_cigar_code_string(cigar_code), cigar_code_get_num_ops(cigar_code), 
-				  norm_score * 254, 1, (num_cals > 1),
-				  optional_fields_length, optional_fields, 0, alignment);
-	*/
 	array_list_insert(alignment, alignment_list);
       }
     }
