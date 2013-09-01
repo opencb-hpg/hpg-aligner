@@ -10,12 +10,26 @@
 #include "timing.h"
 #include "statistics.h"
 #include "commons/log.h"
-
+#include "breakpoint.h"
 //#include "bwt_server.h"
+
+//====================================================================================
+//  Buffer RNA Vars
+//====================================================================================
+
+#define BITEM_NO_CALS          0
+#define BITEM_SINGLE_ANCHORS   1
+#define BITEM_CALS             2
+#define BITEM_META_ALIGNMENTS  3
+
+//====================================================================================
+
 
 //====================================================================================
 //  Workflow Vars
 //====================================================================================
+
+//================================= NORMAL WORKFLOW ==================================
 
 //-------- DEFINE WORKFLOW COMMON VARS -----------
 
@@ -37,6 +51,10 @@
 #define RNA_CAL_STAGE           1
 #define RNA_STAGE               2
 #define RNA_POST_PAIR_STAGE     3
+
+//================================= LAST WORKFLOW ==================================
+
+#define LAST_RNA_POST_PAIR_STAGE     1
 
 //====================================================================================
 //  globals
@@ -279,6 +297,7 @@ typedef struct mapping_batch {
   size_t *histogram_sw;
 } mapping_batch_t;
 
+mapping_batch_t *mapping_batch_new_2(size_t num_reads, array_list_t *fq_batch, pair_mng_t *pair_mng);
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);
 mapping_batch_t *mapping_batch_new_by_num(size_t num_reads, pair_mng_t *pair_mng);
 void mapping_batch_free(mapping_batch_t *p);
@@ -414,5 +433,32 @@ batch_t *batch_new(bwt_server_input_t *bwt_input,
 void batch_free(batch_t *b);
 
 //======================================================================================
+
+typedef struct buffer_item {
+  fastq_read_t *read;
+  array_list_t *items_list;
+  void *aux_data;
+} buffer_item_t;
+
+buffer_item_t *buffer_item_new();
+buffer_item_t *buffer_item_complete_new(fastq_read_t *read, array_list_t *cals_list, void *aux_data);
+void buffer_item_free(buffer_item_t *buffer_item);
+
+//======================================================================================
+
+typedef struct meta_alignment {
+  int status;
+  int sp_sw;
+  int num_cigars;
+  int type;
+  int type_cigars[10];
+  int score;
+  int flag;
+  array_list_t *cals_list;
+  cigar_code_t *middle_cigars[10];
+  cigar_code_t *cigar_left;
+  cigar_code_t *cigar_right;
+  cigar_code_t *cigar_code;
+} meta_alignment_t;
 
 #endif // BUFFERS_H

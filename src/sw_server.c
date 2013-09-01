@@ -48,7 +48,8 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 			  size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, 
 			  avls_list_t *avls_list,
 			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
-			  metaexons_t *metaexons, sw_server_input_t* input) {
+			  metaexons_t *metaexons, linked_list_t *buffer, 
+			  linked_list_t *buffer_hc, sw_server_input_t* input) {
   
   input->sw_list_p = sw_list;
   input->alignment_list_p = alignment_list;
@@ -76,6 +77,9 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
   input->cal_optarg_p = cal_optarg_p;
   input->bwt_index_p = bwt_index_p;
   input->metaexons = metaexons;
+
+  input->buffer = buffer;
+  input->buffer_hc = buffer_hc;
 }
 
 //====================================================================================

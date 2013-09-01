@@ -56,6 +56,8 @@ struct sw_server_input {
      cal_optarg_t *cal_optarg_p;     /**< cal seeker configuration values */
      bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
      metaexons_t *metaexons;
+     linked_list_t *buffer;
+     linked_list_t *buffer_hc;
 };
 
 //------------------------------------------------------------------------------------
@@ -85,7 +87,8 @@ void sw_server_input_init(list_t* sw_list_p, list_t* write_list_p, unsigned int 
 			  size_t max_intron_size, int min_intron_size, size_t seed_max_distance, 
 			  bwt_optarg_t* bwt_optarg_p, avls_list_t *avls_list,
 			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
-			  metaexons_t *metaexons, sw_server_input_t* input_p);
+			  metaexons_t *metaexons, linked_list_t *buffer, 
+			  linked_list_t *buffer_hc, sw_server_input_t* input_p);
 
 //====================================================================================
 //  Smith-Waterman channel for SIMD implementation

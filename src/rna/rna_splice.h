@@ -30,11 +30,12 @@ array_list_t *search_candidate_sp_avl(unsigned char strand, size_t lim_start,
 
 //Intron Marks
 typedef struct intron {
+  unsigned char strand;
+  unsigned int chromosome;
   size_t start;
   size_t end;
-  unsigned char strand;
 } intron_t;
-intron_t *intron_new(size_t start, size_t end, unsigned char strand);
+intron_t *intron_new(unsigned char strand, unsigned int chromosome, size_t start, size_t end);
 void intron_free(intron_t *intron);
 
 //Candidate Splice Junction
@@ -125,7 +126,9 @@ typedef struct allocate_buffers {
 void allocate_start_node(unsigned int chromosome, unsigned char strand, 
 			 size_t start_extend, size_t end_extend, 
 			 size_t start, size_t end, unsigned char type_orig,
-			 char type_sp, char *splice_nt, avls_list_t *avls_list);
+			 char type_sp, char *splice_nt, 
+			 avl_node_t **ref_node_start, avl_node_t **ref_node_end,
+			 avls_list_t *avls_list);
 
 
 void write_chromosome_avls(char *extend_sp, char *exact_sp, 

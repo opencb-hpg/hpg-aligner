@@ -98,8 +98,6 @@ void display_sr_lists(char *msg, mapping_batch_t *mapping_batch) {
 void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg, 
 	       genome_t *genome, int min_gap, int min_distance) {
 
-
-
   int sw_count = 0;
 
   fastq_read_t *read;
@@ -147,6 +145,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
     min_distance = read_len*0.2;
 
     LOG_DEBUG_F(">>>>> read %s\n", read->id);
+    printf(">>>>> read %s\n", read->id);
 
     // processing each CAL from this read
     for(size_t j = 0; j < num_cals; j++) {
@@ -164,6 +163,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	  size_t start = s->genome_start;// + 1;
 	  size_t end = s->genome_end;// + 1;
 	  size_t len = end - start + 1;
+	  printf(":::::::::: %lu - %lu = %i ::::::::::::\n", end, start, len );
 	  char *ref = (char *) malloc((len + 1) * sizeof(char));
 	  genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
 					    &start, &end, genome);
@@ -884,7 +884,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   int seed_size = 16;
   array_list_t *cal_list, *list;
   cal_t *cal;
-  array_list_t *region_list;
+  //array_list_t *region_list;
   region_t *bwt_region_back, *bwt_region_forw;
   linked_list_t *linked_list;
   seed_region_t *seed_region_start, *seed_region_end, *seed_region;
@@ -907,10 +907,10 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
   return RNA_POST_PAIR_STAGE;
   */
-  region_list = array_list_new(1000, 
-			       1.25f, 
-			       COLLECTION_MODE_ASYNCHRONIZED);
-
+  array_list_t *region_list = array_list_new(1000, 
+					     1.25f, 
+					     COLLECTION_MODE_ASYNCHRONIZED);
+  
   extern pthread_mutex_t bwt_mutex;
   extern size_t seeding_reads;
 
@@ -931,13 +931,12 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     num_cals = bwt_generate_cals(read->sequence, seed_size, bwt_optarg,
 				 bwt_index, list);
     
-    /*if (num_cals == 0) {
+    if (num_cals == 0) {
       //printf("NO CALS\n");
       int seed_size = 24;
       //First, Delete old regions
       array_list_clear(region_list, region_bwt_free);
-      
-
+            
       //Second, Create new regions with seed_size 24 and 1 Mismatch
 
       bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
@@ -951,8 +950,104 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
 						   list, read->length);
-						   }*/
+    }
     
+    //filter-incoherent CALs
+    int founds[num_cals], found = 0;
+    for (size_t j = 0; j < num_cals; j++) {
+      founds[j] = 0;
+      cal = array_list_get(j, list);
+      LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
+		  j, num_cals, cal->sr_list->size, cal->num_seeds,
+		  cal->chromosome_id, cal->start, cal->end);
+      if (cal->sr_list->size > 0) {
+	int start = 0;
+	size_t genome_start = 0;
+	int first = 1;
+	for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	  seed_region_t *s = list_item->item;
+	  
+	  LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
+	  if (start > s->read_start || s->read_start >= s->read_end) {
+	    LOG_DEBUG("\t\t\t:: remove\n");
+	    found++;
+	    founds[j] = 1;
+	  }
+
+	  if (!first && 
+	      ((s->genome_start < genome_start) || 
+	      (s->genome_start - genome_start) > 2*read->length)) {
+	    //printf("Remove (genome_start = %i s->genome_start = %i)\n", genome_start, s->genome_start);
+	    //cal_print(cal);
+	    found++;
+	    founds[j] = 1;
+	  }
+
+	  first = 0;
+	  start = s->read_end + 1;
+	  genome_start = s->genome_end + 1;
+	}
+      } else {
+	found++;
+	founds[j] = 1;
+      }
+    }
+
+    if (found) {
+      min_seeds = 100000;
+      max_seeds = 0;
+      cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+      for (size_t j = 0; j < num_cals; j++) {
+	if (!founds[j]) {
+	  cal = array_list_get(j, list);
+	  cal->num_seeds = cal->sr_list->size;
+	  if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
+	  if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
+	  array_list_insert(cal, cal_list);
+	  array_list_set(j, NULL, list);
+	}
+      }
+      array_list_free(list, (void *) cal_free);
+      num_cals = array_list_size(cal_list);
+      list = cal_list;
+    }
+
+    mapping_batch->mapping_lists[mapping_batch->targets[i]] = list;
+
+
+    //if (num_cals > MAX_RNA_CALS) {
+    //select_cals = num_cals - MAX_RNA_CALS;
+    //for(int j = num_cals - 1; j >= MAX_RNA_CALS; j--) {
+    //cal_free(array_list_remove_at(j, mapping_batch->mapping_lists[mapping_batch->targets[i]]));
+    //}
+    //mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
+    //} //else if (num_cals > 0) {
+
+    mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
+
+    
+    //printf("<<<<<===== CAL SERVER =====>>>>>\n");
+    //for (int c = 0; c < array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]); c++) {
+      //cal_t *cal_aux = array_list_get(c, mapping_batch->mapping_lists[mapping_batch->targets[i]]);
+      //cal_print(cal_aux);
+      //}
+    //printf("<<<<<===== CAL SERVER END =====>>>>>\n");
+    //}    
+  }
+
+  mapping_batch->num_targets = target_pos;
+
+  array_list_free(region_list, NULL);
+
+  if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
+
+  LOG_DEBUG("========= APPLY CALING RNA END =========\n");
+
+  return RNA_STAGE;
+
+}
+
+
     /*} else {
       //We have double anchors with smaller distance between they
       //printf("Easy case... Two anchors and same distance between read gap and genome distance\n");
@@ -1008,76 +1103,6 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
       }
       }*/
 
-    //filter-incoherent CALs
-    int founds[num_cals], found = 0;
-    for (size_t j = 0; j < num_cals; j++) {
-      founds[j] = 0;
-      cal = array_list_get(j, list);
-      LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
-		  j, num_cals, cal->sr_list->size, cal->num_seeds,
-		  cal->chromosome_id, cal->start, cal->end);
-      if (cal->sr_list->size > 0) {
-	int start = 0;
-	for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
-	  seed_region_t *s = list_item->item;
-	  
-	  LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
-	  if (start > s->read_start) {
-	    LOG_DEBUG("\t\t\t:: remove\n");
-	    found++;
-	    founds[j] = 1;
-	  }
-	  start = s->read_end + 1;
-	}
-      } else {
-	found++;
-	founds[j] = 1;
-      }
-    }
-
-    if (found) {
-      min_seeds = 100000;
-      max_seeds = 0;
-      cal_list = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-      for (size_t j = 0; j < num_cals; j++) {
-	if (!founds[j]) {
-	  cal = array_list_get(j, list);
-	  cal->num_seeds = cal->sr_list->size;
-	  if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
-	  if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
-	  array_list_insert(cal, cal_list);
-	  array_list_set(j, NULL, list);
-	}
-      }
-      array_list_free(list, (void *) cal_free);
-      num_cals = array_list_size(cal_list);
-      list = cal_list;
-    }
-
-    mapping_batch->mapping_lists[mapping_batch->targets[i]] = list;
-
-
-    if (num_cals > MAX_RNA_CALS) {
-      select_cals = num_cals - MAX_RNA_CALS;
-      for(int j = num_cals - 1; j >= MAX_RNA_CALS; j--) {
-	cal_free(array_list_remove_at(j, mapping_batch->mapping_lists[mapping_batch->targets[i]]));
-      }
-      mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
-    }else if (num_cals > 0) {
-      mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
-    }
-    
-    mapping_batch->num_targets = target_pos;
-
-  }
-
-  if (time_on) { stop_timer(start, end, time); timing_add(time, CAL_SEEKER, timing); }
-
-  LOG_DEBUG("========= APPLY CALING RNA END =========\n");
-
-  return RNA_STAGE;
-
-}
 
     //array_list_free(mapping_batch->mapping_lists[mapping_batch->targets[i]], region_bwt_free);
     //mapping_batch->mapping_lists[mapping_batch->targets[i]] = allocate_cals;

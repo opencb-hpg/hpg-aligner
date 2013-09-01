@@ -6,7 +6,7 @@
 
 #include "aligners/bwt/genome.h"
 #include "bioformats/bam/alignment.h"
-
+#include "bioformats/fastq/fastq_read.h"
 //--------------------------------------------------------------------------------------
 
 #define FIRST_SW 0
@@ -49,7 +49,11 @@ char *new_cigar_code_string(cigar_code_t* p);
 char *cigar_code_get_string(cigar_code_t *p);
 int cigar_code_get_num_ops(cigar_code_t *p);
 void cigar_code_merge(cigar_code_t *p, cigar_code_t *merge_p);
-
+cigar_code_t *cigar_code_merge_sp(cigar_code_t *cc_left,
+				  cigar_code_t *cc_middle, 
+				  cigar_code_t *cc_right,
+				  int l_flank, int r_flank);
+  
 //-----------------------------------------------------------------------------------
 
 cigar_op_t *cigar_code_get_first_op(cigar_code_t *p);
@@ -58,6 +62,8 @@ cigar_op_t *cigar_code_get_last_op(cigar_code_t *p);
 
 //-----------------------------------------------------------------------------------
 
+void cigar_code_delete_nt(int nt, int direction, cigar_code_t *cigar_code);
+void cigar_code_print(cigar_code_t *cigar_code);
 void cigar_code_inc_distance(int distance, cigar_code_t *p);
 void cigar_code_append_new_op(int value, char name, cigar_code_t *p);
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
@@ -150,6 +156,7 @@ typedef struct metaexons {
   unsigned int num_chromosomes;
   size_t *num_chunks;
   linked_list_t ****metaexons_table;  
+  pthread_mutex_t *mutex;
 } metaexons_t;
 
 metaexons_t *metaexons_new(genome_t *genome);
@@ -165,7 +172,7 @@ int metaexon_search(unsigned int strand, unsigned int chromosome,
 		    size_t start, size_t end, metaexon_t **metaexon_found,
 		    metaexons_t *metaexons);
 
-void show_metaexons(metaexons_t *metaexons);
+void metaexons_show(metaexons_t *metaexons);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

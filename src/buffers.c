@@ -292,7 +292,51 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 
 //------------------------------------------------------------------------------------
 
-mapping_batch_t *mapping_batch_new_by_num(size_t num_reads, pair_mng_t *pair_mng) {
+mapping_batch_t *mapping_batch_new_2(size_t num_reads, 
+				     array_list_t *fq_batch, 
+				     pair_mng_t *pair_mng) {
+
+  mapping_batch_t *p = (mapping_batch_t *) calloc(1, sizeof(mapping_batch_t));
+
+  p->action = BWT_ACTION;
+  p->num_targets = 0;
+  p->num_extra_targets = 0;
+  p->num_allocated_targets = num_reads;
+  p->extra_stage_do = 0;
+
+  if (!pair_mng) { 
+    p->pair_mng = pair_mng_new(SINGLE_END_MODE, 0, 0, 0); 
+  } else {
+    p->pair_mng = pair_mng_new(pair_mng->pair_mode, pair_mng->min_distance, 
+			       pair_mng->max_distance, pair_mng->report_only_paired); 
+  }
+
+  p->num_gaps = 0;
+  p->num_sws = 0;
+  p->num_ext_sws = 0;
+
+  p->num_to_do = 0;
+  p->fq_batch = fq_batch;
+  p->targets = (size_t *) calloc(num_reads, sizeof(size_t));
+  p->extra_targets = (size_t *) calloc(num_reads, sizeof(size_t));
+  p->extra_stage_id = (unsigned char *) calloc(num_reads, sizeof(unsigned char));
+  p->mapping_lists = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+
+  /*for (size_t i = 0; i < num_reads; i++) {
+    p->mapping_lists[i] = array_list_new(500, 
+					 1.25f, 
+					 COLLECTION_MODE_ASYNCHRONIZED); 
+					 }*/
+
+  //for debug. TODO:delete
+  p->bwt_mappings = (unsigned char *)calloc(num_reads, sizeof(unsigned char));
+
+  return p;
+}
+
+//------------------------------------------------------------------------------------
+
+/*mapping_batch_t *mapping_batch_new_by_num(size_t num_reads, pair_mng_t *pair_mng) {
 
   mapping_batch_t *p = (mapping_batch_t *) calloc(1, sizeof(mapping_batch_t));
 
@@ -324,7 +368,7 @@ mapping_batch_t *mapping_batch_new_by_num(size_t num_reads, pair_mng_t *pair_mng
     
   return p;
 }
-
+*/
 
 //------------------------------------------------------------------------------------
 
@@ -385,3 +429,119 @@ void rna_batch_free(rna_batch_t *p) {
 */
 
 //------------------------------------------------------------------------------------
+
+buffer_item_t *buffer_item_new() {
+  return (buffer_item_t *)malloc(sizeof(buffer_item_t));
+}
+
+
+buffer_item_t *buffer_item_complete_new(fastq_read_t *fastq_read, array_list_t *items_list, void *aux_data) {
+  buffer_item_t *buffer_item = buffer_item_new();
+  buffer_item->read = fastq_read;
+  buffer_item->items_list = array_list_new(array_list_size(items_list), 
+					   1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  
+  for (int i = 0; i < array_list_size(items_list); i++) {
+    void *item = array_list_get(i, items_list);
+    array_list_insert(item, buffer_item->items_list);
+  }
+
+  buffer_item->aux_data = aux_data;
+
+  return buffer_item;
+  
+}
+
+void buffer_item_insert_new_item(fastq_read_t *fq_read, 
+				 linked_list_t *items_list, 
+				 void *data,
+				 int type_items,
+				 linked_list_t *buffer, 
+				 linked_list_t *buffer_hc,
+				 int phase) {
+  //printf("INSERT TO BUFFER\n");
+
+  buffer_item_t *buffer_item = buffer_item_complete_new(fq_read, items_list, data);
+  array_list_set_flag(type_items, buffer_item->items_list);
+  
+  //Select list to insert
+  cal_t *cal_prev;
+  cal_t *cal_next;
+  int insert_hc = 1;
+  
+  if (phase == 1) {
+    linked_list_insert(buffer_item, buffer_hc);
+    return;
+  }
+
+  if (type_items != BITEM_META_ALIGNMENTS) {
+    for (int i = 0; i < array_list_size(items_list); i++) {
+      cal_prev = array_list_get(i, items_list);
+      if (cal_prev == NULL) {
+	//printf("CAL NULL\n");
+	insert_hc = 0;
+	break;
+      } else {
+	seed_region_t *s_first = linked_list_get_first(cal_prev->sr_list);
+	seed_region_t *s_last = linked_list_get_last(cal_prev->sr_list);
+	
+	assert(s_first);
+	assert(s_last);
+	
+	//printf("s_first->read_start = %i, fq_read->length - s_last->read_end = %i\n",
+	//     s_first->read_start, fq_read->length - s_last->read_end);
+	if (s_first->read_start > 16 ||
+	    fq_read->length - s_last->read_end > 16) {
+	  //printf("INSERT IN HC = 0\n");
+	  insert_hc = 0;
+	  break;
+	}
+      }
+    }
+  } else {
+    //printf("Insert buffer meta alignments\n");
+    for (int i = 0; i < array_list_size(items_list); i++) {
+      meta_alignment_t *meta_alignment = array_list_get(i, items_list);
+      cal_prev = array_list_get(0, meta_alignment->cals_list);
+      cal_next = array_list_get(array_list_size(meta_alignment->cals_list) - 1, 
+				meta_alignment->cals_list);
+
+      if (cal_prev == NULL || cal_next == NULL) {
+	insert_hc = 0;
+	//printf("NULL\n");
+	break;
+      }
+
+      seed_region_t *s_first = linked_list_get_first(cal_prev->sr_list);
+      seed_region_t *s_last = linked_list_get_last(cal_next->sr_list);
+
+      assert(s_first);
+      assert(s_last);
+
+      //cal_print(cal_prev);
+      //cal_print(cal_next);
+
+      if (s_first->read_start > 16 ||
+	  fq_read->length - s_last->read_end > 16) {
+	insert_hc = 0;
+	break;
+      }
+    }
+  }
+
+  if (!insert_hc) {
+    //printf("INSERT IN HC = 0\n");
+    linked_list_insert(buffer_item, buffer);
+  } else {
+    //printf("INSERT IN HC = 1\n");
+    linked_list_insert(buffer_item, buffer_hc);
+  }
+  
+}
+
+
+void buffer_item_free(buffer_item_t *buffer_item) {
+  array_list_free(buffer_item->items_list, NULL);
+  free(buffer_item);
+  
+}

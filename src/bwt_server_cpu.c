@@ -1,7 +1,5 @@
 #include "bwt_server.h"
 
-#define MAX_DEPTH 4
-
 #define SIMPLE_SW 1
 #define SP_SW 2
 
@@ -50,14 +48,16 @@ cal_t *convert_bwt_anchor_to_CAL(bwt_anchor_t *bwt_anchor, size_t read_start, si
 
 size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
   bwt_anchor_t *bwt_anchor;
-  int max_double_anchor = 0, max_anchor = 0;
-  bwt_anchor_t *max_backward = NULL, *max_forward = NULL;                                                                                                         
+  int max_double_anchor = 0, max_anchor_length = 0;
+  
+  bwt_anchor_t *max_anchor = NULL;
   bwt_anchor_t *bwt_anchor_back, *bwt_anchor_forw;
-  int anchor_tmp, anchor_back, anchor_forw;
+  int anchor_length_tmp, anchor_back, anchor_forw;
   int strand, type;
   int found_anchor = 0, found_double_anchor = 0;
-  const int MIN_ANCHOR = 20;
-  const int MIN_SINGLE_ANCHOR = 25;
+
+  const int MIN_ANCHOR = 25;
+  const int MIN_SINGLE_ANCHOR = 40;
 
   //const int MIN_DOUBLE_ANCHOR = MIN_ANCHOR*2;
   const int MAX_BWT_REGIONS = 50;
@@ -65,13 +65,16 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
 
   array_list_t *anchor_list_tmp, *forward_anchor_list, *backward_anchor_list;
   cal_t *cal;
-  
+  int seed_size, gap_read, gap_genome;
+
   array_list_t *backward_anchor_list_0 = array_list_new(MAX_BWT_REGIONS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   array_list_t *forward_anchor_list_0 = array_list_new(MAX_BWT_REGIONS, 1.25f , COLLECTION_MODE_ASYNCHRONIZED);
   array_list_t *backward_anchor_list_1 = array_list_new(MAX_BWT_REGIONS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   array_list_t *forward_anchor_list_1 = array_list_new(MAX_BWT_REGIONS, 1.25f , COLLECTION_MODE_ASYNCHRONIZED);
 
-  //printf("Tot Anchors %i\n", array_list_size(anchor_list));
+  array_list_t *big_anchor_list = array_list_new(MAX_BWT_REGIONS, 1.25f , COLLECTION_MODE_ASYNCHRONIZED);
+
+  //printf("Tot Anchors %i\n", array_list_size(list));
   for (int i = 0; i < array_list_size(list); i++) {
     bwt_anchor = array_list_get(i, list);
     if (bwt_anchor->strand == 1) {
@@ -91,18 +94,43 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
       } else {
 	array_list_insert(bwt_anchor, backward_anchor_list_0);
 	//printf("BACK\n");
-      }      
+      }
     }
-    anchor_tmp = bwt_anchor->end - bwt_anchor->start + 1;
-    if (anchor_tmp > MIN_SINGLE_ANCHOR && anchor_tmp > max_anchor) {
-      max_anchor = anchor_tmp;
+
+    anchor_length_tmp = bwt_anchor->end - bwt_anchor->start + 1;
+    if (anchor_length_tmp > MIN_SINGLE_ANCHOR && anchor_length_tmp > max_anchor_length) {
+      max_anchor_length = anchor_length_tmp;
       found_anchor = 1;
       strand = bwt_anchor->strand;
       type = bwt_anchor->type;
     }
+    
+    if (read_length - anchor_length_tmp < 16) {
+      array_list_insert(bwt_anchor, big_anchor_list);
+    } 
+    
   }
   
   array_list_clear(list, NULL);
+
+  if (array_list_size(big_anchor_list) > 0) {
+    for (int i = array_list_size(big_anchor_list) - 1; i >= 0; i--) {
+      //printf("Insert cal %i\n", i);
+      bwt_anchor = array_list_remove_at(i, big_anchor_list);
+      size_t seed_size = bwt_anchor->end - bwt_anchor->start;
+
+      if (bwt_anchor->type == FORWARD_ANCHOR) {
+	cal = convert_bwt_anchor_to_CAL(bwt_anchor, 0, seed_size);
+      } else {
+	cal = convert_bwt_anchor_to_CAL(bwt_anchor, read_length - seed_size - 1, read_length - 1);
+      }
+      
+      array_list_insert(cal, list);
+    }
+    array_list_set_flag(SINGLE_ANCHORS, list);
+    
+    goto exit;
+  }
 
   for (int type = 1; type >= 0; type--) {
     if (!type) {
@@ -123,7 +151,7 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
 	anchor_forw = (bwt_anchor_forw->end - bwt_anchor_forw->start + 1);
 	anchor_back = (bwt_anchor_back->end - bwt_anchor_back->start + 1); 
 
-	anchor_tmp = anchor_forw + anchor_back;
+	anchor_length_tmp = anchor_forw + anchor_back;
 
 	//printf("\tCommpare %i:%lu-%lu with %i:%lu-%lu\n", bwt_anchor_forw->chromosome + 1, 
 	//     bwt_anchor_forw->start, bwt_anchor_forw->end, bwt_anchor_back->chromosome + 1, 
@@ -131,29 +159,36 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
 	if (bwt_anchor_forw->chromosome == bwt_anchor_back->chromosome &&
 	    abs(bwt_anchor_back->start - bwt_anchor_forw->end) <= MAX_BWT_ANCHOR_DISTANCE && 
 	    anchor_forw >= MIN_ANCHOR && anchor_back >= MIN_ANCHOR) {
-
-	  if (bwt_anchor_back->start < bwt_anchor_forw->end) { continue; }
-
-	  size_t seed_size = bwt_anchor_back->end - bwt_anchor_back->start + 1;
-	  int gap_read = read_length - ((bwt_anchor_forw->end - bwt_anchor_forw->start) + seed_size) - 1;
-	  int gap_genome = bwt_anchor_back->start - bwt_anchor_forw->end - 1;
 	  
-	  /*printf("[%lu-%lu|%i] - [%lu-%lu|%i] gap_read = %i, gap_genome = %i, distance_read_genome = %i\n", 
-		 bwt_anchor_forw->start, bwt_anchor_forw->end, bwt_anchor_forw->end - bwt_anchor_forw->start + 1, 
-		 bwt_anchor_back->start, bwt_anchor_back->end, bwt_anchor_back->end - bwt_anchor_back->start + 1,
-		 gap_read, gap_genome, gap_genome - gap_read);
-	  */
+	  if (bwt_anchor_back->start < bwt_anchor_forw->end) { continue; }
+	  
+	  gap_read = read_length - (anchor_forw + anchor_back);
+	  gap_genome = bwt_anchor_back->start - bwt_anchor_forw->end;
 
+	  //printf("anchor_forw = %i, anchor_back = %i, gap_read = %i, gap_genome = %i\n",
+	  //	 anchor_forw, anchor_back, gap_read, gap_genome);
+	  	  
 	  int apply_flank = 0;
 	  if (gap_read < 2 || gap_genome < 2) {
-	    int gap = abs(gap_read) > abs(gap_genome) ? abs(gap_read) : abs(gap_genome);
-	    int flank  = 10;
+	    int gap;
+	    if (gap_read < 0 && gap_genome < 0) {
+	      gap = abs(gap_read) > abs(gap_genome) ? abs(gap_read) : abs(gap_genome);
+	    } else if (gap_read < 0) {
+	      gap = abs(gap_read);
+	    } else if (gap_genome < 0) {
+	      gap = abs(gap_genome);
+	    } else {
+	      gap = 2;
+	    }
+	    
+	    int flank  = 5;
 	    apply_flank = 1;
+	    
 	    if (abs(gap) >= flank*2) {
 	      //Solve read overlap
 	      flank = abs(gap)/2 + flank/2;
 	    }
-
+	    //printf("\tgap = %i, flank = %i\n", gap, flank);
 	    if (flank >= anchor_forw) {
 	      bwt_anchor_forw->end -= anchor_forw/2;	      
 	    } else {
@@ -166,20 +201,21 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
 	      bwt_anchor_back->start += flank;
 	    }
 	  } 
-
+	  	  
 	  cal = convert_bwt_anchor_to_CAL(bwt_anchor_forw, 0, bwt_anchor_forw->end - bwt_anchor_forw->start);
 	  //printf("INSERT-1 (%i)[%i:%lu-%lu]\n", cal->strand, cal->chromosome_id, cal->start, cal->end);
 	  array_list_insert(cal, list);
 	  seed_size = bwt_anchor_back->end - bwt_anchor_back->start + 1;
-	  if (bwt_anchor_forw->end + read_length >= bwt_anchor_back->start) {	    
-	    seed_region_t *seed_region = seed_region_new(read_length - seed_size, read_length - 1,
-							 bwt_anchor_back->start, bwt_anchor_back->end, 1);
-	    linked_list_insert_last(seed_region, cal->sr_list);	
-	  } else {
-	    cal = convert_bwt_anchor_to_CAL(bwt_anchor_back, read_length - seed_size, read_length - 1);
-	    //printf("INSERT-2 (%i)[%i:%lu-%lu]\n", cal->strand, cal->chromosome_id, cal->start, cal->end);
-	    array_list_insert(cal, list);
-	  }
+	  //if (bwt_anchor_forw->end + read_length >= bwt_anchor_back->start) {	    
+	  //seed_region_t *seed_region = seed_region_new(read_length - seed_size, read_length - 1,
+	  //bwt_anchor_back->start, bwt_anchor_back->end, 1);
+	  //cal->end = bwt_anchor_back->end;
+	  //linked_list_insert_last(seed_region, cal->sr_list);	
+	  //} else {
+	  cal = convert_bwt_anchor_to_CAL(bwt_anchor_back, read_length - seed_size, read_length - 1);
+	  //printf("INSERT-2 (%i)[%i:%lu-%lu]\n", cal->strand, cal->chromosome_id, cal->start, cal->end);
+	  array_list_insert(cal, list);
+	  //}
 
 	  array_list_set_flag(DOUBLE_ANCHORS, list);
 	  found_double_anchor = 1;
@@ -203,26 +239,32 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
 	anchor_list_tmp =  backward_anchor_list_0;
       }
     }
+
+    //printf("LIST SIZE %i\n", array_list_size(anchor_list_tmp));
     for (int i = 0; i < array_list_size(anchor_list_tmp); i++) {
       bwt_anchor = array_list_get(i, anchor_list_tmp);
       size_t seed_size = bwt_anchor->end - bwt_anchor->start;
       //array_list_insert(bwt_anchor_new(bwt_anchor->strand, bwt_anchor->chromosome, 
       //			       bwt_anchor->start, bwt_anchor->end, bwt_anchor->type), anchor_list);
-      if (FORWARD_ANCHOR) {
+      if (bwt_anchor->type == FORWARD_ANCHOR) {
+	//printf("------------------------> start %i\n", 0);
 	cal = convert_bwt_anchor_to_CAL(bwt_anchor, 0, seed_size);
       } else {
-	cal = convert_bwt_anchor_to_CAL(bwt_anchor, read_length - seed_size, read_length - 1);
+	//printf("------------------------> start %i\n", read_length - seed_size);
+	cal = convert_bwt_anchor_to_CAL(bwt_anchor, read_length - seed_size - 1, read_length - 1);
       }
       array_list_insert(cal, list);
     }
     array_list_set_flag(SINGLE_ANCHORS, list);
-  }
+  } 
 
+ exit:
   array_list_free(forward_anchor_list_1, bwt_anchor_free);
   array_list_free(backward_anchor_list_1, bwt_anchor_free);
   array_list_free(forward_anchor_list_0, bwt_anchor_free);
   array_list_free(backward_anchor_list_0, bwt_anchor_free);
-  
+  array_list_free(big_anchor_list, bwt_anchor_free);
+
   return array_list_size(list);
   
 }
@@ -404,7 +446,7 @@ int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch) {
 }
 
 //------------------------------------------------------------------------------------
-
+/*
 int fill_anchor_gap(bwt_anchor_t *bwt_anchor_prev, bwt_anchor_t *bwt_anchor_next, 
 		    genome_t *genome, fastq_read_t *read, char *sequence, 
 		    const int max_err, int *l_extend, int *r_extend) {
@@ -765,7 +807,7 @@ int first_phase(bwt_server_input_t* input, batch_t *batch) {
 	} else {
 	  //SP Read
 	  continue;
-	  /*search_prev = bwt_anchor_prev->start + anchor_len_prev - (anchor_len_prev / 2);
+	  search_prev = bwt_anchor_prev->start + anchor_len_prev - (anchor_len_prev / 2);
 	  search_next = bwt_anchor_next->start + (anchor_len_next / 2);
 
 	  printf("Position Search Prev(%i)[%i:%lu]: ", bwt_anchor_prev->strand,
@@ -883,7 +925,7 @@ int first_phase(bwt_server_input_t* input, batch_t *batch) {
 	    }
 
 	  } //Else know splice junction	
-	  */
+	  
 	} // Else Exonic Read or SP Read
       } //End loop anchors
 
@@ -924,18 +966,7 @@ int first_phase(bwt_server_input_t* input, batch_t *batch) {
 
   return CONSUMER_STAGE;
 
-  /*    
-  if (batch->mapping_batch->num_targets > 0) {
-    return SEEDING_STAGE;
-  }
-
-  if (batch->mapping_mode == RNA_MODE) {
-    return RNA_POST_PAIR_STAGE;
-  } else {
-    return DNA_POST_PAIR_STAGE;
-  }    
-  */
 }
-
+*/
 //------------------------------------------------------------------------------------
 

@@ -105,6 +105,8 @@ void thread_function(extra_stage_t *extra_stage_input) {
   printf("Finish search!\n");
 }
 */
+
+
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     report_optarg_t *report_optarg, metaexons_t *metaexons, options_t *options) {
@@ -191,11 +193,18 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   avls_list_t* avls_list = avls_list_new(genome->num_chromosomes);
   //load_intron_file(genome, options->intron_filename, chromosome_avls);
 
+  linked_list_t *buffer    = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
+  linked_list_t *buffer_hc = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
 
   fastq_batch_reader_input_t reader_input;
   fastq_batch_reader_input_init(options->in_filename, options->in_filename2, 
 				options->pair_mode, options->batch_size, 
 				NULL, &reader_input);  
+
+  //buffer_reader_input_t buffer_reader_input;
+  //buffer_reader_input_init(&reader_input,
+  //buffer,
+  //buffer_reader_input);
 
   if (options->pair_mode == SINGLE_END_MODE) {
     reader_input.fq_file1 = fastq_fopen(options->in_filename);
@@ -240,7 +249,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->min_score,  options->flank_length, genome,  
 		       options->max_intron_length, options->min_intron_length,  
 		       options->seeds_max_distance,  bwt_optarg, avls_list, 
-		       cal_optarg, bwt_index, metaexons, &sw_input);
+		       cal_optarg, bwt_index, metaexons, buffer, buffer_hc, 
+		       &sw_input);
   
 
   pair_server_input_t pair_input;
@@ -271,27 +281,33 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 			     &pair_input, &preprocess_rna, &sw_input, &writer_input, RNA_MODE, NULL);
 
   wf_input_t *wf_input = wf_input_new(&reader_input, batch);
-  
+  wf_input_buffer_t *wf_input_buffer = wf_input_new(buffer, batch);  
+  wf_input_buffer_t *wf_input_buffer_hc = wf_input_new(buffer_hc, batch);  
+
   //create and initialize workflow
   workflow_t *wf = workflow_new();
-     
-  
   workflow_stage_function_t stage_functions[] = {bwt_stage, cal_stage, 
 						 sw_stage, post_pair_stage};
-
   char *stage_labels[] = {"BWT", "CAL", "SW", "POST PAIR"};
   workflow_set_stages(4, &stage_functions, stage_labels, wf);
-  
-  /*
-  workflow_stage_function_t stage_functions[] = {bwt_stage};
-
-  char *stage_labels[] = {"BWT"};
-  workflow_set_stages(1, &stage_functions, stage_labels, wf);
-  */
- 
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);
   workflow_set_consumer(bam_writer, "BAM writer", wf);
+  
+  workflow_t *wf_last = workflow_new();
+  workflow_stage_function_t stage_functions_last[] = {rna_last_stage, post_pair_stage};
+  char *stage_labels_last[] = {"RNA LAST STAGE", "POST PAIR"};
+  workflow_set_stages(2, &stage_functions_last, stage_labels_last, wf_last);
+  workflow_set_producer(buffer_reader, "Buffer reader", wf_last);
+  workflow_set_consumer(bam_writer, "BAM writer", wf_last);
+
+  workflow_t *wf_hc = workflow_new();
+  workflow_stage_function_t stage_functions_hc[] = {rna_last_hc_stage, post_pair_stage};
+  char *stage_labels_hc[] = {"RNA HARD CLIPPINGS", "POST PAIR"};
+  workflow_set_stages(2, &stage_functions_hc, stage_labels_hc, wf_hc);
+  workflow_set_producer(buffer_reader, "Buffer reader", wf_hc);
+  workflow_set_consumer(bam_writer, "BAM writer", wf_hc);
+ 
 
   // Create new thread POSIX for search extra Splice Junctions
   //============================================================
@@ -300,50 +316,43 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   void *status;
   int ret;
 
-  extra_stage_input.align_list = alignments_list;
-  extra_stage_input.workflow = wf;
-  //extra_stage_input.pair_mng = pair_mng_new(pair_mng->pair_mode, pair_mng->min_distance, pair_mng->max_distance);
-  
-  //  if (time_on) {
-    
-    //}
-
-  /*pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-     
-  //Create thread extra Splice Junctions
-  if (ret = pthread_create(&thread, &attr, thread_function, &extra_stage_input)) {
-    printf("ERROR; return code from pthread_create() is %d\n", ret);
-    exit(-1);
-  }
-  */
   start_timer(start);
-  //Run workflow
-  workflow_run_with(options->num_cpu_threads, wf_input, wf);
-  //printf("Finish workflow\n");
-  pthread_cond_signal(&cond_sp);
 
+  //Run workflow
+  fprintf(stderr, "START WORKWFLOW '1ph'\n");
+  workflow_run_with(options->num_cpu_threads, wf_input, wf);
+  fprintf(stderr, "END WORKWFLOW '1ph'\n\n");
+
+  fprintf(stderr, "START WORKWFLOW '2ph'\n");
+  workflow_run_with(options->num_cpu_threads, wf_input_buffer, wf_last);
+  fprintf(stderr, "END WORKWFLOW '2ph'\n\n");
+
+  fprintf(stderr, "START WORKWFLOW '3ph'\n");
+  workflow_run_with(options->num_cpu_threads, wf_input_buffer_hc, wf_hc);
+  fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
+ 
   //Write chromosome avls
-  /*  write_chromosome_avls(chromosome_avls, NULL,  
-			extend_filename, 
-			exact_filename,
-			options->write_size, genome->num_chromosomes);
-  */
   write_chromosome_avls(extend_filename,
                         exact_filename, genome->num_chromosomes, avls_list);
-  /*  pthread_attr_destroy(&attr);
-  if (ret = pthread_join(thread, &status)) {
-    printf("ERROR; return code from pthread_join() is %d\n", ret);
-    exit(-1);
-  } 
-  */
+
   stop_timer(start, end, main_time);
   /*if (time_on) { 
     stop_timer(start, end, time);
     timing_add(time, TOTAL_TIME, timing);
     }*/
 
-  workflow_display_timing(wf);     
+  printf("= = = = T I M I N G    W O R K F L O W    '1' = = = =\n");
+  workflow_display_timing(wf);
+  printf("= = = = - - - - - - - - - - - - - - - - - - - = = = =\n\n");
+
+  printf("= = = = T I M I N G    W O R K F L O W    '2' = = = =\n");
+  workflow_display_timing(wf_last);
+  printf("= = = = - - - - - - - - - - - - - - - - - - - = = = =\n\n");
+
+  printf("= = = = T I M I N G    W O R K F L O W    '3' = = = =\n");
+  workflow_display_timing(wf_hc); 
+  printf("= = = = - - - - - - - - - - - - - - - - - - - = = = =\n\n");
+
 
   //closing files
   if (options->pair_mode == SINGLE_END_MODE) {
@@ -357,7 +366,14 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     
   // free memory
   workflow_free(wf);
+  workflow_free(wf_last);
+  workflow_free(wf_hc);
+
   wf_input_free(wf_input);
+  wf_input_free(wf_input_buffer);
+  wf_input_free(wf_input_buffer_hc);
+
+  //avls_list_free();
   batch_free(batch);
 
   //
@@ -365,11 +381,15 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   // end of workflow management
   //--------------------------------------------------------------------------------------
 
+  printf("========== FINAL BUFFER %i =========\n", linked_list_size(buffer));
+
   free(log_filename);
   free(output_filename);
   free(exact_filename);
   free(extend_filename);
-  linked_list_free(alignments_list, NULL);
+  linked_list_free(alignments_list, (void *)NULL);
+  linked_list_free(buffer, (void *)NULL);
+  linked_list_free(buffer_hc, (void *)NULL);
 }
 
 //--------------------------------------------------------------------

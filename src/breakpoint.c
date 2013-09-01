@@ -123,7 +123,7 @@ int cigar_code_get_num_ops(cigar_code_t *p) {
 //--------------------------------------------------------------------------------------
 
 cigar_op_t *cigar_code_get_first_op(cigar_code_t *p) {
-  if (!p) { return NULL; }
+  if (!p) { return NULL; }  
   return array_list_get(0, p->ops);
 }
 
@@ -146,10 +146,11 @@ cigar_op_t *cigar_code_get_last_op(cigar_code_t *p) {
 //--------------------------------------------------------------------------------------
 
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p) {
-  if (p && p->ops) {
+  if (p && p->ops && op) {
     cigar_op_t *last = cigar_code_get_last_op(p);
     if (last && last->name == op->name) {
       last->number += op->number;
+      //cigar_op_free(op);
     } else {
       array_list_insert(op, p->ops);
     }
@@ -159,9 +160,10 @@ void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p) {
 //--------------------------------------------------------------------------------------
 
 void cigar_code_insert_first_op(cigar_op_t *op, cigar_code_t *p) {
-  if (p && p->ops) {
+  if (p && p->ops && op) {
     cigar_op_t *first = cigar_code_get_first_op(p);
-    if (first && first->name == op->name) {
+
+    if (first != NULL && first->name == op->name) {
       first->number += op->number;
     } else {
       if (array_list_size(p->ops) == 0) {
@@ -293,15 +295,177 @@ int cigar_code_validate(int read_length, cigar_code_t *p) {
   int cigar_len = 0;
   for (int i = 0; i < array_list_size(p->ops); i++) {
     cigar_op_t *op = array_list_get(i, p->ops);
+    if (op->number <= 0) { printf("ERROR CIGAR %s\n", new_cigar_code_string(p)); return 0; }
     if (op->name == 'M' || op->name == 'I') {
       cigar_len += op->number;
     }
   }
-  printf("cigar len = %i\n", cigar_len);
+  //printf("cigar len = %i\n", cigar_len);
   return read_length == cigar_len;
 
 }
 
+int cigar_code_validate_(fastq_read_t *fq_read, cigar_code_t *p) {
+  if (!p || !p->ops) { return 0; }
+  int read_length = fq_read->length;
+
+  int cigar_len = 0;
+  for (int i = 0; i < array_list_size(p->ops); i++) {
+    cigar_op_t *op = array_list_get(i, p->ops);
+    if (op->number <= 0) { printf("ERROR CIGAR %s: %s\n", fq_read->id, new_cigar_code_string(p)); return 0; }
+    if (op->name == 'M' || op->name == 'I') {
+      cigar_len += op->number;
+    }
+  }
+  //printf("cigar len = %i\n", cigar_len);
+  return read_length == cigar_len;
+
+}
+
+//--------------------------------------------------------------------------------------
+
+void cigar_code_print(cigar_code_t *cigar_code) {
+  for (int i = 0; i < cigar_code_get_num_ops(cigar_code); i++) {
+    cigar_op_t * op = array_list_get(i, cigar_code->ops);
+    printf("%i%c", op->number, op->name);
+  }
+  printf("\n");
+}
+
+//--------------------------------------------------------------------------------------
+
+void cigar_code_delete_nt(int nt, int direction, cigar_code_t *cigar_code) {
+  int refresh = nt;
+  int pos;
+  cigar_op_t *op;
+  int num_ops = cigar_code_get_num_ops(cigar_code);
+  if (direction == 1) {
+    pos = num_ops - 1;
+    while (refresh > 0) {
+      if (pos < 0) { break; }
+      op = array_list_get(pos, cigar_code->ops);
+      if (op->name != 'M' && op->name != 'I') {
+	pos--;
+	continue;
+      } 
+      if (op->number > refresh) {
+	op->number -= refresh;
+	assert(op->number > 0);
+	break;
+      } else {
+	op = array_list_remove_at(pos--, cigar_code->ops);
+	refresh -= op->number;
+      }
+    }
+  } else {
+    pos = 0;
+    while (refresh > 0) {
+      if (pos >= num_ops) { break; }
+      op = array_list_get(pos, cigar_code->ops);
+      if (op->name != 'M' && op->name != 'I') {
+	pos++;
+	continue;
+      }
+      if (op->number > refresh) {
+	op->number -= refresh;
+	assert(op->number > 0);
+	break;
+      }  else {
+	pos++;
+	refresh -= op->number;
+      }
+    }
+
+    for (int i = pos - 1; i >= 0; i--) {
+      array_list_remove_at(i, cigar_code->ops);
+    }
+  }
+  
+}
+
+//--------------------------------------------------------------------------------------
+/*
+cigar_code_t *cigar_code_merge_sp(cigar_code_t *cc_left,
+				  cigar_code_t *cc_middle, 
+				  cigar_code_t *cc_right,
+				  int l_flank, int r_flank) {
+  
+  cigar_code_t *cigar_code = cigar_code_new();
+  cigar_op_t *op;
+  int num_ops = cigar_code_get_num_ops(cc_left);
+  assert(num_ops >= 2);
+
+  printf("l_flank = %i, r_flank = %i\n", l_flank, r_flank);
+
+  cigar_code_print(cc_middle);
+  cigar_code_print(cc_right);
+
+  //Delete and free last operations 'H'
+  op = array_list_remove_at(cigar_code_get_num_ops(cc_left) - 1, cc_left->ops);
+  assert(op->name == 'H');
+  cigar_op_free(op);
+
+  //Refresh left ops <------|
+  //Remove flank, only 'I' & 'M' OPs
+ 
+  printf("CIGAR LEFT REFRESH: \n");
+  cigar_code_print(cc_left);
+
+  //Merge left cigars operations
+  num_ops = cigar_code_get_num_ops(cc_left);
+  for (int i = 0; i < num_ops; i++) {
+    op = array_list_get(i, cc_left->ops);
+    cigar_code_append_op(op, cigar_code);
+  }
+
+  //Now, merge middle cigar operations
+  for (int i = 0; i < cigar_code_get_num_ops(cc_middle); i++) {
+    op = array_list_get(i, cc_middle->ops);
+    cigar_code_append_op(op, cigar_code);    
+  }
+
+  printf("CIGAR MIDDLE REFRESH: \n");
+  cigar_code_print(cigar_code);
+
+
+  //Delete and free first operations 'H'
+  op = array_list_remove_at(0, cc_right->ops);
+  assert(op->name == 'H');
+  cigar_op_free(op);
+
+  //Refresh right ops |------>
+  //Remove flank, only 'I' & 'M' OPs
+  num_ops = cigar_code_get_num_ops(cc_right);
+  refresh = r_flank;
+  pos = 0;
+  printf("CIGAR RIGHT REFRESH (pos value %i): \n", pos);
+  cigar_code_print(cc_right);
+
+  //Delete and free operations in right cigar
+  for (int i = 0; i < pos; i++) {
+    op = array_list_get(i, cc_right->ops);
+    printf("\tFree %i%c\n", op->number, op->name);
+    cigar_op_free(op);
+  }
+
+  //Merge right cigars operations
+  num_ops = cigar_code_get_num_ops(cc_right);
+  for (int i = pos; i < num_ops; i++) {
+    op = array_list_get(i, cc_right->ops);
+    cigar_code_append_op(op, cigar_code);
+  }
+  
+  cigar_code_free(cc_left);
+  cigar_code_free(cc_middle);
+  cigar_code_free(cc_right);
+
+  printf("FINAL CIGAR...\n");
+  cigar_code_print(cigar_code);
+
+  return cigar_code;
+
+}
+**/
 //--------------------------------------------------------------------------------------
 
 float cigar_code_get_score(int read_len, cigar_code_t *p) {
@@ -471,7 +635,8 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   if (status == CIGAR_MATCH_MISMATCH) {
     cigar_soft = map_len - 1;
     value = 0;
-    while ((ref_map[cigar_soft] != '-') && (query_map[cigar_soft] != '-') && 
+    while (cigar_soft >= 0 && 
+	   (ref_map[cigar_soft] != '-') && (query_map[cigar_soft] != '-') && 
 	   (query_map[cigar_soft] != ref_map[cigar_soft])){
       cigar_soft--;
       value++;
@@ -564,12 +729,24 @@ metaexon_t *metaexon_new(size_t start, size_t end) {
 
 int metaexon_insert_break(void *info, int type, metaexon_t *metaexon) {
   if (type == METAEXON_LEFT_END) {
-    printf("Close\n");
+    //printf("CLOSE LEFT META-EXON\n");
+    for (int i = 0; i < array_list_size(metaexon->left_breaks); i++) {
+      void *aux_info = array_list_get(i, metaexon->left_breaks);
+      if (aux_info == info) {
+	return 0;
+      }
+    }
     metaexon->left_closed = 1;
     return array_list_insert(info, metaexon->left_breaks);
   } else if (type == METAEXON_RIGHT_END) {
-    printf("Close\n");
+    //printf("CLOSE RIGHT META-EXON\n");
     metaexon->right_closed = 1;
+    for (int i = 0; i < array_list_size(metaexon->right_breaks); i++) {
+      void *aux_info = array_list_get(i, metaexon->right_breaks);
+      if (aux_info == info) {
+	return 0;
+      }
+    }
     return array_list_insert(info, metaexon->right_breaks);
   }  
 }
@@ -714,15 +891,19 @@ metaexons_t *metaexons_new(genome_t *genome) {
   metaexons->chunk_size = 1000;
 
   metaexons->num_chunks = (size_t*)calloc(num_chromosomes, sizeof(size_t));
+  metaexons->mutex = (pthread_mutex_t*)calloc(num_chromosomes, sizeof(pthread_mutex_t));
+
   metaexons->metaexons_table = (linked_list_t ****)calloc(num_chromosomes, sizeof(linked_list_t ***));
   for (unsigned int i = 0; i < num_chromosomes; i++) {
     num_chunks = genome->chr_size[i] / metaexons->chunk_size;
     metaexons->metaexons_table[i] = (linked_list_t ***)calloc(num_chunks, sizeof(linked_list_t **));
     metaexons->num_chunks[i] = num_chunks;
     tot_chunks += num_chunks;
+
+    pthread_mutex_init(&metaexons->mutex[i], NULL);
   }
 
-  printf("Tot chunks = %i \n", tot_chunks);
+  //printf("Tot chunks = %i \n", tot_chunks);
 
   return metaexons;
 }
@@ -740,41 +921,147 @@ void metaexons_free(metaexons_t *metaexons) {
   }
   free(metaexons->metaexons_table);
   free(metaexons->num_chunks);
-  
+  free(metaexons->mutex);
+
   free(metaexons);
 }
 
+//Always return the last metaexon found
 int metaexon_search(unsigned int strand, unsigned int chromosome,
 		    size_t start, size_t end, metaexon_t **metaexon_found, 
 		    metaexons_t *metaexons) {
   size_t chunk_start = start / metaexons->chunk_size;
+  size_t chunk_end = end / metaexons->chunk_size;
   linked_list_t *start_list;
   metaexon_t *metaexon;
   linked_list_iterator_t itr;
+  metaexon_t *metaexon_left;
+  metaexon_t *metaexon_right;
+  int found = 0;
   *metaexon_found = NULL;
 
-  if (!metaexons->metaexons_table[chromosome][chunk_start]) {
-    return 0;
-  }
+  //printf("Lock////// METAEXON SEARCH %i:%lu(ck=%lu)-%lu(ck=%lu) //////\n", chromosome, start, chunk_start, end, chunk_end);
+  pthread_mutex_lock(&metaexons->mutex[chromosome]);
 
-  start_list = metaexons->metaexons_table[chromosome][chunk_start][strand];
-  linked_list_iterator_init(start_list, &itr);
-  
-  metaexon = (metaexon_t *)linked_list_iterator_curr(&itr);
-  while (metaexon != NULL) {
-    //printf("%lu >= %lu && %lu <= %lu\n", start, metaexon->start, start, metaexon->end);
-    if (start <= metaexon->end && end <= metaexon->start) {
-      *metaexon_found = metaexon;
-      return 1;
-    } else if (start >= metaexon->start) {
-      return 0;
+  //metaexons_show(metaexons);
+
+  if (metaexons->metaexons_table[chromosome][chunk_start] &&
+      metaexons->metaexons_table[chromosome][chunk_end]) {
+    if (chunk_start != chunk_end) {
+      metaexon_left  = NULL;
+      metaexon_right = NULL;
+      if (metaexons->metaexons_table[chromosome][chunk_start]) {
+	start_list = metaexons->metaexons_table[chromosome][chunk_start][strand];
+	metaexon_left = linked_list_get_last(start_list);
+      }
+
+      if (metaexons->metaexons_table[chromosome][chunk_end]) {
+	start_list = metaexons->metaexons_table[chromosome][chunk_end][strand];
+	metaexon_right = linked_list_get_first(start_list);
+      }
+      //assert(metaexon_left);
+      //assert(metaexon_right);
+
+      if (metaexon_right && start <= metaexon_right->end && end >= metaexon_right->start) {
+	*metaexon_found = metaexon_right;
+	found = 1;
+      } else if (metaexon_left && start <= metaexon_left->end && end >= metaexon_left->start) {
+	*metaexon_found = metaexon_left;
+	found = 1;
+      }
+	
+    } else {
+      start_list = metaexons->metaexons_table[chromosome][chunk_start][strand];
+      linked_list_iterator_init(start_list, &itr);
+      metaexon = (metaexon_t *)linked_list_iterator_curr(&itr);
+      while (metaexon != NULL) {
+	//printf("%lu <= %lu && %lu >= %lu\n", start, metaexon->end, 
+	//     end, metaexon->start);
+	if (start <= metaexon->end && end >= metaexon->start) {
+	  size_t final_chunk = metaexon->end / metaexons->chunk_size;
+	  //printf("\tFound [%i-%i]\n", metaexon->left_closed, metaexon->right_closed);
+	  if (final_chunk != chunk_start) {
+	    //printf("\t...Found and extend to final metaexon\n");
+	    start_list = metaexons->metaexons_table[chromosome][final_chunk][strand];
+	    metaexon = linked_list_get_first(start_list);
+	  }
+	  *metaexon_found = metaexon;
+	  found = 1;
+	  break;
+	} else if (start <= metaexon->end) {
+	  break;
+	}
+	metaexon = (metaexon_t *)linked_list_iterator_next(&itr);
+      }
     }
-    metaexon = (metaexon_t *)linked_list_iterator_next(&itr);
   }
 
-  return 0;
+  pthread_mutex_unlock(&metaexons->mutex[chromosome]);
+
+  return found;
 
 }
+
+/*
+int metaexons_between_positions(int strand, int chromosome,
+				metaexon_t *metaexon_start, metaexon_t *metaexon_end, 
+				metaexons_t *metaexons, array_list_t *metaexon_list) {
+  
+  size_t chunk_start = metaexon_start->end / metaexons->chunk_size;
+  size_t chunk_end = metaexon_end->start / metaexons->chunk_size;
+  
+  if (!metaexons->metaexons_table[chromosome][chunk_start]) { return 0; }
+
+  linked_list_t *list = metaexons->metaexons_table[chromosome][chunk_start][strand];
+  linked_list_t *item = linked_list_get_first(list);
+
+  while (item != NULL) {
+    metaexon_t *metaexon_aux = item->item;
+    if (metaexon_aux == metaexon_start) {
+      break;
+    }
+    item = item->next;
+  }
+  
+  if (item == NULL) { return 0; }
+
+  int found = 0;
+  metaexon_t *metaexon = metaexon_aux;
+  size_t chunk = chunk_start;
+
+  item = item->next;
+  while (metaexon != metaexon_end) {
+    while (item != NULL) {
+      metaexon_t *metaexon_aux = item->item;
+      if (metaexon_aux == metaexon_start) {
+	found = 1;
+	break;
+      } else if (meatexon_aux->left_closed && metaexon_aux->right_close) {
+	array_list_insert(metaexon_aux, metaexon_list);
+      }
+      item = item->next;
+    }
+   
+    if (found) { break; }
+    
+    chunk++;
+
+    while (!metaexons->metaexons_table[chromosome][chunk] &&
+	   chunk <= chunk_end) {
+      chunk++;
+    }
+
+    if (chunk > chunk_end) { break; }
+    
+    list = metaexons->metaexons_table[chromosome][chunk][strand];
+    item = linked_list_get_first(list);
+  }
+  
+  if (!found) { return 0; }
+
+  return array_list_Size(metaexon_list);
+}
+*/
 
 void metaexon_insert(unsigned int strand, unsigned int chromosome,
 		     size_t start, size_t end, int min_intron_size, 
@@ -789,43 +1076,9 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
   
   linked_list_t *list;
   metaexon_t *metaexon;
-  
-  /*
-  // If this chunk is not initialized...
-  if (!metaexons->metaexons_table[chromosome][chunk_start]) {
-    metaexons->metaexons_table[chromosome][chunk_start] = (linked_list_t **)calloc(2, sizeof(linked_list_t *));
-    metaexons->metaexons_table[chromosome][chunk_start][0] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
-    metaexons->metaexons_table[chromosome][chunk_start][1] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
-  }
-
-  // If this chunk is not initialized...
-  if (!metaexons->metaexons_table[chromosome][chunk_end]) {
-    metaexons->metaexons_table[chromosome][chunk_end] = (linked_list_t **)calloc(2, sizeof(linked_list_t *));
-    metaexons->metaexons_table[chromosome][chunk_end][0] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
-    metaexons->metaexons_table[chromosome][chunk_end][1] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);    
-  } 
-
-  if (chunk_start == chunk_end) {
-    //Normal Case, metaexon in the same chunk
-    start_list = metaexons->metaexons_table[chromosome][chunk_start][strand];
-    metaexon = __metaexon_insert(start_list, start, end, min_intron_size);
-    if (info_break != NULL) {
-      metaexon_insert_break(info_break, type, metaexon);
-    }
-    } else {*/
-    /*start_list = metaexons->metaexons_table[chromosome][chunk_start][strand];
-    metaexon = __metaexon_insert(start_list, start, end, min_intron_size);
-    if (info_break != NULL) {
-      metaexon_insert_break(info_break, type, metaexon);
-    }    
     
-    end_list = metaexons->metaexons_table[chromosome][chunk_end][strand];
-    metaexon = __metaexon_insert(end_list, start, end, min_intron_size);    
-    if (info_break != NULL) {
-      metaexon_insert_break(info_break, type, metaexon);
-      }
-    */
-  
+  pthread_mutex_lock(&metaexons->mutex[chromosome]);
+
   //This section is for large reads ( > 1000nt)
   for (int chk = chunk_start; chk <= chunk_end; chk++) {
     if (!metaexons->metaexons_table[chromosome][chk]) {
@@ -835,18 +1088,24 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
     }
 
     list = metaexons->metaexons_table[chromosome][chk][strand];
-    if (!list) { exit(-1); }
 
     metaexon = __metaexon_insert(list, start, end, min_intron_size);
-    if (info_break != NULL) {
-      printf("Insert break!!\n");
-      metaexon_insert_break(info_break, type, metaexon);
-    }
   }
+
+  if (info_break != NULL) {
+    //printf("Insert break!!\n");
+    metaexon_insert_break(info_break, type, metaexon);
+  }
+
+  pthread_mutex_unlock(&metaexons->mutex[chromosome]);
 
 }
 
-void show_metaexons(metaexons_t *metaexons) {
+void metaexons_show(metaexons_t *metaexons) {
+  printf("\n=======================================================================\n");
+  printf("=                  M E T A E X O N S   S T A T U S                    =");
+  printf("\n=======================================================================\n");
+
   for (int chr = 0; chr < metaexons->num_chromosomes; chr++) {
     printf("CHROMOSOME %i: ", chr + 1);
     for (int chk = 0; chk < metaexons->num_chunks[chr]; chk++) {
@@ -883,6 +1142,7 @@ void show_metaexons(metaexons_t *metaexons) {
     }
     printf("\n");
   }
+  printf("=======================================================================\n");
 }
 
 //--------------------------------------------------------------------------------------

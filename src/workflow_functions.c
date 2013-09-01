@@ -15,6 +15,15 @@ wf_input_t *wf_input_new(fastq_batch_reader_input_t *fq_reader_input,
   return wfi;
 }
 
+wf_input_buffer_t *wf_input_buffer_new(linked_list_t *buffer,
+				       batch_t *batch) {
+  wf_input_buffer_t *wfi = (wf_input_buffer_t *) calloc(1, sizeof(wf_input_buffer_t));
+  wfi->buffer = buffer;
+  wfi->batch = batch;
+
+  return wfi;
+}
+
 void wf_input_free(wf_input_t *wfi) {
   if (wfi) free(wfi);
 }
@@ -58,6 +67,52 @@ void *fastq_reader(void *input) {
      if (time_on) { stop_timer(start, end, time); timing_add(time, FASTQ_READER, timing); }
 
      return new_batch;
+}
+
+void *buffer_reader(void *input) {
+  wf_input_buffer_t *wf_input = (wf_input_t *) input;
+
+  linked_list_t *buffer = wf_input->buffer;
+  batch_t *batch = wf_input->batch;
+  buffer_item_t *buffer_item;
+  const int MAX_READS = 100;
+  int num_reads = 0;
+  batch_t *new_batch = NULL;
+
+  if (linked_list_size(buffer) > 0) {
+    array_list_t *reads = array_list_new(MAX_READS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+    mapping_batch_t *mapping_batch = mapping_batch_new_2(MAX_READS, 
+							 reads,
+							 batch->pair_input->pair_mng);
+    while (num_reads < MAX_READS) {
+      buffer_item = linked_list_remove_last(buffer);
+      if (buffer_item == NULL) { break; }
+      fastq_read_t *read = buffer_item->read;
+      array_list_insert(buffer_item->read, reads);
+      mapping_batch->mapping_lists[num_reads] = array_list_new(50,
+							       1.25f, 
+							       COLLECTION_MODE_ASYNCHRONIZED);
+
+      for (int i = 0; i < array_list_size(buffer_item->items_list); i++) {
+	void *item = array_list_get(i, buffer_item->items_list);
+	array_list_insert(item, mapping_batch->mapping_lists[num_reads]);
+      }
+
+      array_list_set_flag(array_list_get_flag(buffer_item->items_list),
+			  mapping_batch->mapping_lists[num_reads]);
+      num_reads++;
+      //printf("TOTAL READS %i\n", num_reads);
+      buffer_item_free(buffer_item);
+    }
+    
+    mapping_batch->num_allocated_targets = num_reads;
+    new_batch = batch_new(batch->bwt_input, batch->region_input, batch->cal_input, 
+			  batch->pair_input, batch->preprocess_rna, batch->sw_input,
+			  batch->writer_input, batch->mapping_mode, mapping_batch); 
+  }
+
+
+  return new_batch;
 }
 
 //--------------------------------------------------------------------
@@ -199,13 +254,14 @@ int bam_writer(void *data) {
        }
      }
      
+     //fprintf(stderr, "TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
      if (basic_st->total_reads >= writer_input->limit_print) {
        //LOG_DEBUG_F("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
        //LOG_DEBUG_F("\tTotal Reads Mapped: %lu(%.2f%)\n", 
        //	   basic_st->num_mapped_reads, 
        //	   (float) (basic_st->num_mapped_reads*100)/(float)(basic_st->total_reads));
        //writer_input->limit_print += 1000000;
-       printf("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
+       fprintf(stderr, "TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
        printf("\tTotal Reads Mapped: %lu(%.2f%)\n", 
 		   basic_st->num_mapped_reads, 
 		   (float) (basic_st->num_mapped_reads*100)/(float)(basic_st->total_reads));
@@ -357,9 +413,22 @@ int sw_stage(void *data) {
 
 //--------------------------------------------------------------------
 
+int rna_last_stage(void *data) {
+   batch_t *batch = (batch_t *) data;
+   return apply_rna_last(batch->sw_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int rna_last_hc_stage(void *data) {
+   batch_t *batch = (batch_t *) data;
+   return apply_rna_last_hc(batch->sw_input, batch);
+}
+
+//--------------------------------------------------------------------
+
 int post_pair_stage(void *data) {
      batch_t *batch = (batch_t *) data;
-
      return prepare_alignments(batch->pair_input, batch);
 }
 

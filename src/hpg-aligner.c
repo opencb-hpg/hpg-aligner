@@ -190,7 +190,8 @@ int main(int argc, char* argv[]) {
   if (time_on){ timing_free(timing); }
 
   options_free(options);
-
+  
+  metaexons_free(metaexons);
   //printf("Reads mapped in BWT Section %lu (%lu correct(%f) and %lu misses(%f))\n", bwt_correct + bwt_error, bwt_correct, (float)(bwt_correct * 100)/(float)(bwt_correct + bwt_error), bwt_error, (float)(bwt_error * 100)/(float)(bwt_correct + bwt_error));
 
 

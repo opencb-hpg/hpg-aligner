@@ -159,4 +159,8 @@ void search_splice_junctions_sw_output(sw_simd_input_t* sw_input_p,
 
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch);
 
+int apply_rna_last(sw_server_input_t* input_p, batch_t *batch);
+
+int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch);
+
 #endif

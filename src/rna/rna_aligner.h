@@ -32,18 +32,27 @@
 #include "workflow_functions.h"
 #include "rna_server.h"
 
+typedef struct buffer_reader_input {
+  fastq_batch_reader_input_t *reader_input;
+  linked_list_t *buffer;
+}buffer_reader_input_t;
+
+void buffer_reader_input_init(fastq_batch_reader_input_t *reader_input, 
+			      linked_list_t *buffer, 
+			      buffer_reader_input_t *buffer_reader_input);
+
 typedef struct extra_stage {
   workflow_t *workflow;
   linked_list_t *align_list;
   pair_mng_t *pair_mng;
   char *intron_filename;
 } extra_stage_t;
-
+/*
 typedef struct buffer_item {
   fastq_read_t *read;
   array_list_t *alignments_list;
 }buffer_item_t;
-
+*/
 typedef struct buffer_pair_item {
   fastq_read_t *read_1;
   array_list_t *alignments_list_1;

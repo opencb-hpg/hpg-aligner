@@ -8,11 +8,13 @@ size_t total_splice = 0;
 
 //--------------------------------------------------------------------------------
 
-intron_t *intron_new(size_t start, size_t end, unsigned char strand) {
+intron_t *intron_new(unsigned char strand, unsigned int chromosome, size_t start, size_t end) {
   intron_t *intron = (intron_t *)malloc(sizeof(intron_t));
+
+  intron->strand = strand;
+  intron->chromosome = chromosome;
   intron->start = start;
   intron->end = end;
-  intron->strand = strand;
 
   return intron;
 
@@ -60,7 +62,7 @@ inline void insert_ends(unsigned char strand, start_data_t *start_data, size_t s
 
   for(size_t i = 0; i < num_ends; i++) {
     splice_end_t *end_sp = array_list_get(i, start_data->list_ends);
-    intron_t *new_intron = intron_new(start - 1, end_sp->end + 1, strand);
+    intron_t *new_intron = intron_new(strand, 0, start - 1, end_sp->end + 1);
     array_list_insert(new_intron, intron_list);
   }
 
@@ -72,7 +74,7 @@ inline void insert_starts(unsigned char strand, end_data_t *end_data, size_t end
 
   for(size_t i = 0; i < num_starts; i++) {
     size_t start = array_list_get(i, end_data->list_starts);
-    intron_t *new_intron = intron_new(start - 1, end + 1, strand);
+    intron_t *new_intron = intron_new(strand, 0, start - 1, end + 1);
     array_list_insert(new_intron, intron_list);
   }
 
@@ -173,7 +175,9 @@ void load_intron_file(genome_t *genome, char* intron_filename, avls_list_t *avls
       strand = 0; 
     }
 
-    allocate_start_node(chr, strand, start, end, start, end, FROM_FILE, -1, NULL, avls);
+    allocate_start_node(chr, strand, start, 
+			end, start, end, FROM_FILE, 
+			-1, NULL, NULL, NULL, avls);
   }
 }
 
@@ -350,22 +354,25 @@ void allocate_start_splice(size_t start, end_data_t *data) {
 void allocate_start_node(unsigned int chromosome, unsigned char strand, 
 			 size_t start_extend, size_t end_extend, 
 			 size_t start, size_t end, unsigned char type_orig,
-			 char type_sp, char *splice_nt, avls_list_t *avls_list) {
+			 char type_sp, char *splice_nt, 
+			 avl_node_t **ref_node_start, avl_node_t **ref_node_end, 
+			 avls_list_t *avls_list) {
 
   pthread_mutex_lock(&(avls_list->avls[strand][chromosome].mutex));
   //printf("Insert %lu - %lu\n", start, end);
   cp_avltree *avl = avls_list->avls[strand][chromosome].avl;
-  avl_node_t *node = (avl_node_t *)cp_avltree_get(avl, (void *)start);
+  avl_node_t *node_start, *node_end;
   start_data_t *start_data;
 
-  if(node == NULL) {
+  node_start = (avl_node_t *)cp_avltree_get(avl, (void *)start);
+  if(node_start == NULL) {
     //printf("\tNot Exist\n");
-    node = cp_avltree_insert(avl, (void *)start, (void *)start);
-    start_data = (start_data_t *)node->data;
+    node_start = cp_avltree_insert(avl, (void *)start, (void *)start);
+    start_data = (start_data_t *)node_start->data;
     start_data->start_extend = start_extend;
   } else {
     //printf("\tExist\n");
-    start_data = (start_data_t *)node->data;
+    start_data = (start_data_t *)node_start->data;
     if (start_data->start_extend > start_extend) {
     start_data->start_extend = start_extend;
     }
@@ -375,13 +382,18 @@ void allocate_start_node(unsigned int chromosome, unsigned char strand,
 
   //For Extra speed we insert all ends in the other avl 
   avl = avls_list->ends_avls[strand][chromosome].avl;
-  node = (avl_node_t *)cp_avltree_get(avl, (void *)end);
+  node_end = (avl_node_t *)cp_avltree_get(avl, (void *)end);
 
-  if(node == NULL) {
-    node = cp_avltree_insert(avl, (void *)end, (void *)end);
+  if(node_end == NULL) {
+    node_end = cp_avltree_insert(avl, (void *)end, (void *)end);
   } 
 
-  allocate_start_splice(start, (end_data_t *)node->data);
+  allocate_start_splice(start, (end_data_t *)node_end->data);
+
+  if (ref_node_start != NULL && ref_node_end != NULL) {
+    *ref_node_start = node_start;
+    *ref_node_end = node_end;
+  }
 
   pthread_mutex_unlock(&(avls_list->avls[strand][chromosome].mutex));
 
@@ -545,11 +557,16 @@ void write_chromosome_avls( char *extend_sp, char *exact_sp,
 	}
       } //end IF chromosome splice not NULL
       cp_avltree_destroy(avls_list->avls[st][c].avl);
+      cp_avltree_destroy(avls_list->ends_avls[st][c].avl);
     }
     free(avls_list->avls[st]);
+    free(avls_list->ends_avls[st]);
   }
 
   free(avls_list->avls);
+  free(avls_list->ends_avls);
+
+  free(avls_list);
   fclose(fd_extend);
   fclose(fd_exact);
   

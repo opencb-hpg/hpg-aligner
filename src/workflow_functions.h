@@ -31,6 +31,7 @@ extern int global_status;
 //--------------------------------------------------------------------
 
 void *fastq_reader(void *input);
+void *buffer_reader(void *input);
 
 //--------------------------------------------------------------------
 // workflow consumer
@@ -56,6 +57,10 @@ int sw_stage(void *data);
 
 int post_pair_stage(void *data);
 
+int rna_last_stage(void *data);
+
+int rna_last_hc_stage(void *data);
+
 //---------------------------------------------------------------------
 //workflow input
 //--------------------------------------------------------------------- 
@@ -65,8 +70,16 @@ typedef struct wf_input {
   batch_t *batch;
 } wf_input_t;
 
+typedef struct wf_input_buffer {
+  linked_list_t *buffer;
+  batch_t *batch;
+} wf_input_buffer_t;
+
 wf_input_t *wf_input_new(fastq_batch_reader_input_t *fq_reader_input,
                          batch_t *batch);
+
+wf_input_buffer_t *wf_input_buffer_new(linked_list_t *buffer,
+				       batch_t *batch);
 
 void wf_input_free(wf_input_t *wfi);
 
