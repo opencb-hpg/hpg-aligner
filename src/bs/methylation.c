@@ -10,6 +10,7 @@ void replace(char * refs, int len, int type) {
 
   switch (type) {
   case ACGT:
+    // case with no transformation required
     return;
   case AGT:
     c1 = 'C';
@@ -20,16 +21,19 @@ void replace(char * refs, int len, int type) {
     c2 = 'A';
     break;
   case AT:
+    // apply both transformations, and end the execution
     replace(refs, len, 1);
     replace(refs, len, 2);
     return;
   default:
+    // if the type value is not recognised, nothing is done
     return;
   }
 
   //printf("replace\nleng = %lu\ntype = %lu\n", len, type);
   //printf("c1 = %c\nc2 = %c\n\n", c1, c2);
 
+  // transforms the refs sequence, replacing the caracter c1 with the caracter c2
   for (int j = 0; j < len; j++) {
     if (refs[j] == c1) {
       refs[j] = c2;
@@ -42,6 +46,7 @@ void replace(char * refs, int len, int type) {
 //====================================================================================
 
 char complement (char c) {
+  // return the complementary base
   switch (c) {
   case 'A':
     return 'T';
@@ -59,6 +64,7 @@ char complement (char c) {
 //====================================================================================
 
 void rev_comp(char *orig, char *dest, int len) {
+  // put the reverse complementary sequence of orig in dest
   for (int i = 0; i < len; i++) {
     dest[len - i - 1] = complement(orig[i]);
   }
@@ -68,6 +74,7 @@ void rev_comp(char *orig, char *dest, int len) {
 //====================================================================================
 
 void comp(char *seq, int len) {
+  // obtain the complementary sequence of seq
   for (int i = 0; i < len - 1; i++) {
     seq[i] = complement(seq[i]);
   }
@@ -81,6 +88,7 @@ void replace_array(array_list_t *reads, int type) {
 
   //printf("reads = %lu\n", num_reads);
   
+  // replace the reads in the array depending the value of type
   for (size_t i = 0; i < num_reads; i++) {
     fq_read = (fastq_read_t *) array_list_get(i, reads);
 
@@ -98,6 +106,7 @@ void rev_comp_array(array_list_t *dest, array_list_t *src) {
   fastq_read_t* fq_read_src;
   fastq_read_t* fq_read_dest;
 
+  // get the reverse complementary sequence in all the array
   for (size_t i = 0; i < num_reads; i++) {
     fq_read_src  = (fastq_read_t *) array_list_get(i, src);
     fq_read_dest = (fastq_read_t *) array_list_get(i, dest);
@@ -130,6 +139,7 @@ void cpy_array_bs(array_list_t *src, array_list_t *dest1, array_list_t *dest2, a
   fastq_read_t* fq_read_src;
   fastq_read_t* fq_read_dest;
   
+  // make four copies of the original array
   for (size_t i = 0; i < num_reads; i++) {
     fq_read_src  = (fastq_read_t *) array_list_get(i, src);
     fq_read_dest = fastq_read_dup(fq_read_src);
@@ -151,18 +161,13 @@ void cpy_transform_array_bs(array_list_t *src, array_list_t *dest_ct, array_list
   fastq_read_t *fq_read_dest;
   fastq_read_t *fq_read_tmp;
 
+  // read element by element in the array, transform each one, and put in the new arrays
   for (size_t i = 0; i < num_reads; i++) {
     fq_read_src  = (fastq_read_t *) array_list_get(i, src);
 
     fq_read_dest = fastq_read_dup(fq_read_src);
     replace(fq_read_dest->sequence, fq_read_dest->length, AGT);
     array_list_insert(fq_read_dest, dest_ct);
-
-    /*
-    if (strcmp(fq_read_src->id, fq_read_dest->id)) {
-      printf("read %lu\n");
-    }
-    */
 
     fq_read_tmp = fastq_read_dup(fq_read_src);
     rev_comp(fq_read_dest->sequence, fq_read_tmp->sequence, fq_read_dest->length);
@@ -231,8 +236,10 @@ void transform_mappings_array(array_list_t **src){
   size_t num_mappings;
   alignment_t *align_tmp;
 
+  // go over all the sequences
   for (size_t i = 0; i < num_reads; i++) {
     num_mappings = array_list_size(src[i]);
+    // go over all the alignments
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src[i]);
       // modify the strand, and make it reverse
@@ -248,6 +255,7 @@ void transform_mappings(array_list_t *src){
   alignment_t *align_tmp;
 
   num_mappings = array_list_size(src);
+  // go over all the alignments
   for (size_t j = 0; j < num_mappings; j++) {
     align_tmp  = (alignment_t *) array_list_get(j, src);
     // modify the strand, and make it reverse
@@ -261,6 +269,7 @@ void transform_regions(array_list_t *src){
   region_t *region_tmp;
 
   num_mappings = array_list_size(src);
+  // go over all the regions
   for (size_t j = 0; j < num_mappings; j++) {
     region_tmp  = (region_t *) array_list_get(j, src);
     // modify the strand, and make it reverse
@@ -312,29 +321,27 @@ void revert_mappings_seqs(array_list_t **src1, array_list_t **src2, array_list_t
   //printf("num reads src1 = %lu\t", array_list_size(src1));
   //printf("num reads src2 = %lu\t", array_list_size(src2));
 
+  // go over all the sequences
   for (size_t i = 0; i < num_reads; i++) {
     fastq_orig  = (fastq_read_t *) array_list_get(i, orig);
  
-    // mappings for reads transformations 1
+    // go over all the alignments in list 1
     num_mappings = array_list_size(src1[i]);
-    //printf("mapps to convert 1 (read %lu) = %lu\n", i, num_mappings);
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src1[i]);
-      // modify the strand, and make it reverse
+      // free existing memory and copy the original
       if (align_tmp->sequence != NULL) free(align_tmp->sequence);
 
       align_tmp->sequence = strdup(fastq_orig->sequence);
     }
 
-    // mappings for reads transformations 2
+    // go over all the alignments in list 2
     num_mappings = array_list_size(src2[i]);
-    //printf("mapps to convert 1 (read %lu) = %lu\n", i, num_mappings);
     for (size_t j = 0; j < num_mappings; j++) {
       align_tmp  = (alignment_t *) array_list_get(j, src2[i]);
-      // modify the strand, and make it reverse
-      if (align_tmp->sequence) {
-	free(align_tmp->sequence);
-      }
+      // free existing memory and copy the original
+      if (align_tmp->sequence != NULL) free(align_tmp->sequence);
+
       align_tmp->sequence = strdup(fastq_orig->sequence);
     }
   }
@@ -361,19 +368,19 @@ char *obtain_seq(alignment_t *alig) {
   for (operations = 0; operations < alig->num_cigar_operations; operations++) {
     sscanf(cigar, "%i%c%s", &num, &car, cigar);
     //printf("%3i %c %s\n",  num, car, cigar);
-    if (car == 'M' || car == '=') {
+    if (car == 'M' || car == '=' || car == 'X') {
       for (cont = 0; cont < num; cont++, pos++, pos_read++) {
 	seq[pos] = read[pos_read];
       }
     }
     else {
-      if (car == 'D') {
+      if (car == 'D' || car == 'N') {
 	pos_read += num - 1;
       }
       else {
-	if (car == 'I') {
+	if (car == 'I' || car == 'H' || car == 'S') {
 	  for (cont = 0; cont < num; cont++, pos++) {
-	    seq[pos] = 'N';
+	    seq[pos] = '-';
 	  }
 	}
       }
@@ -389,23 +396,48 @@ char *obtain_seq(alignment_t *alig) {
 
 //====================================================================================
 
-void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file) {
+void write_metilation_status_new(array_list_t *array_list, metil_file_t *metil_file) {
 
   //printf("Init metilation status\n");
-  
+  /*
+  printf("CpG %s\nCHG %s\nCHH %s\nMUT %s\n\n",
+	 metil_file->filenameCpG, metil_file->filenameCHG, metil_file->filenameCHH, metil_file->filenameMUT);
+  */  
+
+  FILE * CpG = metil_file->CpG;
+  if (CpG == NULL) {
+    printf("reopen CpG file\n");
+    CpG =fopen(metil_file->filenameCpG, "a");
+  }
+  FILE * CHG = metil_file->CHG;
+  if (CHG == NULL) {
+    printf("reopen CHG file\n");
+    CHG = fopen(metil_file->filenameCHG, "a");
+  }
+  FILE * CHH = metil_file->CHH;
+  if (CHH == NULL) {
+    printf("reopen CHH file\n");
+    CHH = fopen(metil_file->filenameCHH, "a");
+  }
+  FILE * MUT = metil_file->MUT;
+  if (MUT == NULL) {
+    printf("reopen CHH file\n");
+    MUT = fopen(metil_file->filenameMUT, "a");
+  }
+
   size_t num_items = array_list_size(array_list);
   alignment_t *alig;
   genome_t *genome = metil_file->genome;
   hash_table_t *table_bs = metil_file->table_isles;
   char *seq, *gen, *read;
   size_t len, end, start;
-  char *key = (char *)malloc(3 * sizeof(char));
-  int data;
 
   char *cigar;
   int num;
   char car;
   int cont, pos, pos_read;
+
+  int file_error;
 
   for (size_t j = 0; j < num_items; j++) {
     alig = (alignment_t *) array_list_get(j, array_list);
@@ -424,9 +456,11 @@ void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file)
       printf("map qual   %i\n", alig->map_quality);
       printf("n cigar    %i\n", alig->num_cigar_operations);
       */      
-      
-      //seq = obtain_seq(alig);
-      //len = strlen(seq);
+
+      /*      
+      seq = obtain_seq(alig);
+      len = strlen(seq);
+      */
       len = strlen(alig->sequence);
       gen = (char *)calloc(len + len + 2, sizeof(char));
 
@@ -453,34 +487,54 @@ void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file)
 		// methylated cytosine
 		if (gen[pos + 1] == 'G') {
 		  // CpG zone
-		  ;
 		  //printf("%s\t+\t%i %i\t%lu\tZ\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
-		  //fprintf(metil_file->CpG, "%s\t+\t%i %i\t%lu\tZ\n",
-		  //	  alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		  /*
+		  file_error = fprintf(CpG, "%s\t+\t%i %i\t%lu\tZ\n",
+				       alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		  if (file_error < 0) {
+		    printf("Error al escribir\n");
+		    exit(-1);
+		  }
+		  */
 		}
 		else {
 		  if (gen[pos + 2] == 'G') {
 		    // CHG zone
-		    ;
 		    //printf("%s\t+\t%i %i\t%lu\tX\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
-		    //fprintf(metil_file->CHG, "%s\t+\t%i %i\t%lu\tX\n",
-		    //	    alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		    /*
+		    file_error = fprintf(CHG, "%s\t+\t%i %i\t%lu\tX\n",
+					 alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		    if (file_error < 0) {
+		      printf("Error al escribir\n");
+		      exit(-1);
+		    }
+		    */
 		  }
 		  else {
 		    // CHH zone
-		    ;
 		    //printf("%s\t+\t%i %i\t%lu\tH\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
-		    //fprintf(metil_file->CHH, "%s\t+\t%i %i\t%lu\tH\n",
-		    //	    alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		    /*
+		    file_error = fprintf(CHH, "%s\t+\t%i %i\t%lu\tH\n",
+					 alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		    if (file_error < 0) {
+		      printf("Error al escribir\n");
+		      exit(-1);
+		    }
+		    */
 		  }
 		}
 	      }
 	      else {
 		// mutated cytosine
-		;
 		//printf("%s\t+\t%i %i\t%lu\tM\n", alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
-		//fprintf(metil_file->MUT, "%s\t+\t%i %i\t%lu\tM\n",
-		//	alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		/*
+		file_error = fprintf(MUT, "%s\t+\t%i %i\t%lu\tM\n",
+				     alig->query_name, alig->chromosome, alig->seq_strand, start + pos);
+		if (file_error < 0) {
+		  printf("Error al escribir\n");
+		  exit(-1);
+		}
+		*/
 	      }
 	    }
 	  }
@@ -498,22 +552,36 @@ void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file)
 	  }
 	}
       }
+      free(cigar);
 
       if (seq) free(seq);
       if (gen) free(gen);
     }
   }
-  if (key) free(key);
   //printf("end status\n");
 }
 
 //====================================================================================
 
-void metil_file_init(metil_file_t *metil_file, char *CpG, char *CHG, char *CHH, char *MUT, genome_t *genome) {
-  metil_file->filenameCpG = strdup(CpG);
-  metil_file->filenameCHG = strdup(CHG);
-  metil_file->filenameCHH = strdup(CHH);
-  metil_file->filenameMUT = strdup(MUT);
+//void metil_file_init(metil_file_t *metil_file, char *CpG, char *CHG, char *CHH, char *MUT, genome_t *genome) {
+void metil_file_init(metil_file_t *metil_file, char *dir, genome_t *genome) {
+  char *name_tmp = malloc(128 * sizeof(char));
+
+  int file_error;
+
+  sprintf(name_tmp, "%s/CpG.txt", dir);
+  metil_file->filenameCpG = strdup(name_tmp);
+  sprintf(name_tmp, "%s/CHG.txt", dir);
+  metil_file->filenameCHG = strdup(name_tmp);
+  sprintf(name_tmp, "%s/CHH.txt", dir);
+  metil_file->filenameCHH = strdup(name_tmp);
+  sprintf(name_tmp, "%s/MUT.txt", dir);
+  metil_file->filenameMUT = strdup(name_tmp);
+
+  /*
+  printf("CpG %s\nCHG %s\nCHH %s\nMUT %s\n\n",
+	 metil_file->filenameCpG, metil_file->filenameCHG, metil_file->filenameCHH, metil_file->filenameMUT);
+  */
 
   metil_file->genome = genome;
 
@@ -522,12 +590,43 @@ void metil_file_init(metil_file_t *metil_file, char *CpG, char *CHG, char *CHH, 
   metil_file->CHH = fopen(metil_file->filenameCHH, "w");
   metil_file->MUT = fopen(metil_file->filenameMUT, "w");
 
+
+  FILE *a;
+  a = metil_file->CpG;
+  file_error = fprintf(a, "File for Cytosines in CpG context\n\n");
+  if (file_error < 0) {
+    printf("Error al escribir\n");
+    exit(-1);
+  }
+  a = metil_file->CHG;
+  file_error = fprintf(a, "File for Cytosines in CHG context\n\n");
+  if (file_error < 0) {
+    printf("Error al escribir\n");
+    exit(-1);
+  }
+  a = metil_file->CHH;
+  file_error = fprintf(a, "File for Cytosines in CHH context\n\n");
+  if (file_error < 0) {
+    printf("Error al escribir\n");
+    exit(-1);
+  }
+  a = metil_file->MUT;
+  file_error = fprintf(a, "File for Cytosines mutated\n\n");
+  if (file_error < 0) {
+    printf("Error al escribir\n");
+    exit(-1);
+  }
+
+  free(name_tmp);
+
+  /*
   metil_file->table_isles = hash_create(jenkins_one_at_a_time_hash,
 					scmp,
 					destr_key,
 					nulldes,
 					200);
   hash_init(metil_file->table_isles, "ACGTN-");
+  */
 }
 
 //====================================================================================
@@ -538,22 +637,44 @@ void metil_file_free(metil_file_t *metil_file) {
   free(metil_file->filenameCHH);
   free(metil_file->filenameMUT);
 
-  fclose(metil_file->CpG);
-  fclose(metil_file->CHG);
-  fclose(metil_file->CHH);
-  fclose(metil_file->MUT);
+  if (metil_file->CpG != NULL) fclose(metil_file->CpG);
+  if (metil_file->CHG != NULL) fclose(metil_file->CHG);
+  if (metil_file->CHH != NULL) fclose(metil_file->CHH);
+  if (metil_file->MUT != NULL) fclose(metil_file->MUT);
 
+  /*
   hash_destroy(metil_file->table_isles);
-
+  */
   free(metil_file);
 }
 
 //====================================================================================
 
-void write_metilation_status_old(array_list_t *array_list, metil_file_t *metil_file) {
+void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file) {
 
-  printf("Init metilation status\n");
+  //printf("Init metilation status\n");
   
+  FILE * CpG = metil_file->CpG;
+  if (CpG == NULL) {
+    printf("reopen CpG file\n");
+    CpG =fopen(metil_file->filenameCpG, "a");
+  }
+  FILE * CHG = metil_file->CHG;
+  if (CHG == NULL) {
+    printf("reopen CHG file\n");
+    CHG = fopen(metil_file->filenameCHG, "a");
+  }
+  FILE * CHH = metil_file->CHH;
+  if (CHH == NULL) {
+    printf("reopen CHH file\n");
+    CHH = fopen(metil_file->filenameCHH, "a");
+  }
+  FILE * MUT = metil_file->MUT;
+  if (MUT == NULL) {
+    printf("reopen CHH file\n");
+    MUT = fopen(metil_file->filenameMUT, "a");
+  }
+
   size_t num_items = array_list_size(array_list);
   alignment_t *alig;
   genome_t *genome = metil_file->genome;
@@ -562,6 +683,9 @@ void write_metilation_status_old(array_list_t *array_list, metil_file_t *metil_f
   size_t len, end, start;
   char *key = (char *)malloc(3 * sizeof(char));
   int data;
+
+  size_t contador = 0;
+  size_t alineamientos = 0;
 
   for (size_t j = 0; j < num_items; j++) {
     alig = (alignment_t *) array_list_get(j, array_list);
@@ -603,9 +727,13 @@ void write_metilation_status_old(array_list_t *array_list, metil_file_t *metil_f
       
       genome_read_sequence_by_chr_index(gen, alig->seq_strand, alig->chromosome, &start, &end, genome);
 
-      printf("\nseq %s\ngen %s\n", seq, gen);
-
+      //printf("\nseq %s\ngen %s\n", seq, gen);
+      
+      alineamientos++;
       for (size_t i = 0; i < len - 2; i++) {
+	if (gen[i] == 'C' && seq[i] == 'C') contador++;
+	if (gen[i] == 'G' && seq[i] == 'G') contador++;
+	/*
 	if (gen[i] == 'C') {
 	  if (seq[i] == 'C' || seq[i] == 'T') {
 	    key[0] = gen[i];
@@ -653,13 +781,16 @@ void write_metilation_status_old(array_list_t *array_list, metil_file_t *metil_f
 	    //printf("Mutacion en %lu\n", start + i);
 	  }
 	}
-	;
+	*/
       }
 
       if (seq) free(seq);
       if (gen) free(gen);
     }
   }
+  
+  printf("methylated cytosines:\t%lu\tin\t%lu\talignments\n", contador, alineamientos);
+  
   free(key);
 }
 

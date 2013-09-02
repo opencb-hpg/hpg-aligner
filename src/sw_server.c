@@ -49,6 +49,7 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
   input->sw_optarg.subst_matrix['G']['T'] = input->mismatch;
   input->sw_optarg.subst_matrix['N']['T'] = input->mismatch;
 
+
   input->sw_optarg.subst_matrix['A']['G'] = input->mismatch;
   input->sw_optarg.subst_matrix['C']['G'] = input->mismatch;
   input->sw_optarg.subst_matrix['T']['G'] = input->mismatch;
@@ -678,7 +679,519 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
 
 int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
-  //printf("START: apply_sw\n"); 
+  int sw_3_nucleotides = 0;
+
+  /*
+  sw_optarg_t *sw_optarg2 = &input->sw_optarg;
+
+  printf("Matrix Table\n\tA\tC\tG\tT\tN\nA\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nC\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nG\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nT\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nN\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\n\n",
+	 sw_optarg2->subst_matrix['A']['A'],
+	 sw_optarg2->subst_matrix['C']['A'],
+	 sw_optarg2->subst_matrix['G']['A'],
+	 sw_optarg2->subst_matrix['T']['A'],
+	 sw_optarg2->subst_matrix['N']['A'],
+
+	 sw_optarg2->subst_matrix['A']['C'],
+	 sw_optarg2->subst_matrix['C']['C'],
+	 sw_optarg2->subst_matrix['G']['C'],
+	 sw_optarg2->subst_matrix['T']['C'],
+	 sw_optarg2->subst_matrix['N']['C'],
+
+	 sw_optarg2->subst_matrix['A']['G'],
+	 sw_optarg2->subst_matrix['C']['G'],
+	 sw_optarg2->subst_matrix['G']['G'],
+	 sw_optarg2->subst_matrix['T']['G'],
+	 sw_optarg2->subst_matrix['N']['G'],
+
+	 sw_optarg2->subst_matrix['A']['T'],
+	 sw_optarg2->subst_matrix['C']['T'],
+	 sw_optarg2->subst_matrix['G']['T'],
+	 sw_optarg2->subst_matrix['T']['T'],
+	 sw_optarg2->subst_matrix['N']['T'],
+
+	 sw_optarg2->subst_matrix['A']['N'],
+	 sw_optarg2->subst_matrix['C']['N'],
+	 sw_optarg2->subst_matrix['G']['N'],
+	 sw_optarg2->subst_matrix['T']['N'],
+	 sw_optarg2->subst_matrix['N']['N']
+	 );
+  */
+
+  if (sw_3_nucleotides == 0) {
+    apply_sw_bs_4nt(input, batch);
+  } else {
+    
+    //printf("START: apply_sw\n"); 
+    int tid = omp_get_thread_num();
+    mapping_batch_t *mapping_batch = batch->mapping_batch;
+    cal_t *cal = NULL;
+    array_list_t *cal_list = NULL, *mapping_list = NULL;
+    
+    array_list_t *fq_batch = mapping_batch->fq_batch;
+    fastq_read_t *fq_read;
+    
+    // added by PP for bisulfite
+    array_list_t *CT_fq_batch = mapping_batch->CT_fq_batch;
+    array_list_t *GA_fq_batch = mapping_batch->GA_fq_batch;
+    array_list_t *CT_rev_fq_batch = mapping_batch->CT_rev_fq_batch;
+    array_list_t *GA_rev_fq_batch = mapping_batch->GA_rev_fq_batch;
+    fastq_read_t *fq_read2;
+    // end added by PP for bisulfite
+    
+    size_t start, end;
+    size_t start2, end2;
+    /*
+    genome_t *genome = input->genome_p;
+    */
+    // added by PP for bisulfite
+    genome_t *genome1 = input->genome1_p;
+    genome_t *genome2 = input->genome2_p;
+    // end added by PP for bisulfite
+    
+    size_t flank_length = input->flank_length;
+    
+    // SIMD support for Smith-Waterman
+    float score, min_score = input->min_score;
+    
+    sw_output_t *sw_output;
+    
+    size_t read_index, num_cals;
+    
+    size_t num_targets = mapping_batch->num_targets;
+    size_t new_num_targets = 0;
+    // added by PP for bisulfite
+    size_t num_targets2 = mapping_batch->num_targets2;
+    size_t new_num_targets2 = 0;
+    // added by PP for bisulfite
+    
+    // added by PP for bisulfite
+    size_t sw_total1 = mapping_batch->num_to_do;
+    size_t sw_total2 = mapping_batch->num_to_do2;
+    size_t sw_total = sw_total1 + sw_total2;
+    // end added by PP for bisulfite
+    
+    // set to zero
+    mapping_batch->num_to_do = 0;
+    // added by PP for bisulfite
+    mapping_batch->num_to_do2 = 0;
+    int g[sw_total];
+    // end added by PP for bisulfite
+    
+    sw_optarg_t *sw_optarg = &input->sw_optarg;
+    
+    sw_multi_output_t *output = sw_multi_output_new(sw_total);
+    char *q[sw_total], *r[sw_total];
+    uint8_t strands[sw_total], chromosomes[sw_total];
+    size_t starts[sw_total];
+    size_t sw_count = 0, read_indices[sw_total], sw_count2 = 0;
+    int read_len, ref_len, max_ref_len;
+    
+    //printf("num of sw to do: %i\n", sw_total);
+    
+    // initialize query and reference sequences to Smith-Waterman
+    for (size_t i = 0; i < num_targets; i++) {
+      //    printf("sw_server: target #%i of %i\n", i, num_seqs);
+      read_index = mapping_batch->targets[i];
+      
+      // to use with the three nucleotides searches
+      fq_read  = (fastq_read_t *) array_list_get(read_index, GA_fq_batch);
+      fq_read2 = (fastq_read_t *) array_list_get(read_index, GA_rev_fq_batch);
+      
+      //printf("read %lu = %s\n", read_index, fq_read->sequence);
+      //printf("read %lu = %s\n", read_index, fq_read2->sequence);
+      
+      //    printf("sw_server: read #%i\n", read_index);
+      
+      cal_list = mapping_batch->mapping_lists[read_index];
+      num_cals = array_list_size(cal_list);
+      
+      read_len = fq_read->length;
+      //    max_ref_len = read_len + (read_len / 2);
+      
+      //printf("sw_server: num_cals = %i cals\n", num_cals);
+      
+      // processing each CAL from this read
+      for(size_t j = 0; j < num_cals; j++) {
+	
+	// get cal and read index
+	cal = array_list_get(j, cal_list);
+	read_indices[sw_count] = read_index;
+	
+	if (flank_length >= cal->start) {
+	  start = 0;
+	} else {
+	  start = cal->start - flank_length;
+	}
+	
+	end = cal->end + flank_length;
+	if (end >= genome1->chr_size[cal->chromosome_id - 1]) {
+	  end = genome1->chr_size[cal->chromosome_id - 1] - 1;
+	}
+	
+	ref_len = end - start + 2;
+	//      if (ref_len < max_ref_len) {
+	
+	// query sequence, revcomp if necessary
+	q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
+	
+	// to use with the three nucleotides searches
+	if (cal->strand == 0) {
+	  memcpy(q[sw_count], fq_read->sequence, read_len);
+	  //seq_reverse_complementary(q[sw_count], read_len);
+	} else {
+	  memcpy(q[sw_count], fq_read2->sequence, read_len);
+	}
+	
+	//q[sw_count] = &(fq_batch->seq[fq_batch->data_indices[index]]);
+	
+	// reference sequence
+	//printf("\tSW: %d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", j, cal->chromosome_id, cal->strand, cal->start, cal->end);
+	
+	r[sw_count] = calloc(1, end - start + 2);
+	
+	// to use with the three nucleotides searches
+
+	if (cal->strand == 0) {
+	  genome_read_sequence_by_chr_index(r[sw_count], 0,
+					    cal->chromosome_id - 1, &start, &end, genome1);
+	} else {
+
+	  genome_read_sequence_by_chr_index(r[sw_count], 0,
+					    cal->chromosome_id - 1, &start, &end, genome2);
+
+	  /*
+	  start2 = genome1->chr_size[cal->chromosome_id - 1] - 1 - end;
+	  end2   = genome1->chr_size[cal->chromosome_id - 1] - 1 - start;
+	  genome_read_sequence_by_chr_index(r[sw_count], 0,
+					    cal->chromosome_id - 1, &start2, &end2, genome2);
+	  */
+	}
+
+	/*
+	genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome1);
+	*/
+	
+	// save some stuff, we'll use them after...
+	strands[sw_count] = cal->strand;
+	chromosomes[sw_count] = cal->chromosome_id;
+	starts[sw_count] = start;
+
+	/*
+	printf("st = %lu\tend = %lu\n", cal->start, cal->end);
+	printf("1\nseq %s\ngen %s\nstrand %2lu chromo %lu start %lu end %lu\n",
+	       q[sw_count], r[sw_count], cal->strand, cal->chromosome_id, start, end);
+	*/
+	// increase counter
+	sw_count++;
+      }
+      
+      // free cal_list
+      array_list_clear(cal_list, (void *) cal_free);
+      //    batch->mapping_lists[index] = NULL;
+    }
+    ////////////////
+    sw_count2 = sw_count;
+    
+    for (size_t i = 0; i < num_targets2; i++) {
+      //    printf("sw_server: target #%i of %i\n", i, num_seqs);
+      read_index = mapping_batch->targets2[i];
+      
+      // to use with the three nucleotides searches
+      fq_read  = (fastq_read_t *) array_list_get(read_index, CT_fq_batch);
+      fq_read2 = (fastq_read_t *) array_list_get(read_index, CT_rev_fq_batch);
+      
+      //printf("read %lu = %s\n", read_index, fq_read->sequence);
+      //printf("read %lu = %s\n", read_index, fq_read2->sequence);
+      
+      //    printf("sw_server: read #%i\n", read_index);
+      
+      cal_list = mapping_batch->mapping_lists2[read_index];
+      num_cals = array_list_size(cal_list);
+      
+      read_len = fq_read->length;
+      //    max_ref_len = read_len + (read_len / 2);
+      
+      //printf("sw_server: num_cals = %i cals\n", num_cals);
+      
+      // processing each CAL from this read
+      for(size_t j = 0; j < num_cals; j++) {
+	
+	// get cal and read index
+	cal = array_list_get(j, cal_list);
+	read_indices[sw_count] = read_index;
+	
+	if (flank_length >= cal->start) {
+	  start = 0;
+	} else {
+	  start = cal->start - flank_length;
+	}
+	
+	end = cal->end + flank_length;
+	if (end >= genome1->chr_size[cal->chromosome_id - 1]) {
+	  end = genome1->chr_size[cal->chromosome_id - 1] - 1;
+	}
+	
+	ref_len = end - start + 2;
+	//      if (ref_len < max_ref_len) {
+	
+	// query sequence, revcomp if necessary
+	q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
+	
+	// to use with the three nucleotides searches
+	if (cal->strand == 0) {
+	  memcpy(q[sw_count], fq_read->sequence, read_len);
+	  //seq_reverse_complementary(q[sw_count], read_len);
+	} else {
+	  memcpy(q[sw_count], fq_read2->sequence, read_len);
+	}
+	
+	//q[sw_count] = &(fq_batch->seq[fq_batch->data_indices[index]]);
+	
+	// reference sequence
+	//printf("\tSW: %d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", j, cal->chromosome_id, cal->strand, cal->start, cal->end);
+	
+	r[sw_count] = calloc(1, end - start + 2);
+	
+	// to use with the three nucleotides searches
+
+	if (cal->strand == 0) {
+	  genome_read_sequence_by_chr_index(r[sw_count], 0,
+					    cal->chromosome_id - 1, &start, &end, genome2);
+	} else {
+
+	  genome_read_sequence_by_chr_index(r[sw_count], 0,
+					    cal->chromosome_id - 1, &start, &end, genome1);
+
+	  /*
+	  start2 = genome1->chr_size[cal->chromosome_id - 1] - 1 - end;
+	  end2   = genome1->chr_size[cal->chromosome_id - 1] - 1 - start;
+	  genome_read_sequence_by_chr_index(r[sw_count], 0,
+					    cal->chromosome_id - 1, &start2, &end2, genome1);
+	  */
+	}
+
+	/*
+	genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome2);
+	*/
+	
+	// save some stuff, we'll use them after...
+	strands[sw_count] = cal->strand;
+	chromosomes[sw_count] = cal->chromosome_id;
+	starts[sw_count] = start;
+	
+	//printf("2\nseq %s\ngen %s\nstrand %2lu chromo %lu start %lu end %lu\n",
+	//     q[sw_count], r[sw_count], cal->strand, cal->chromosome_id, start, end);
+
+	// increase counter
+	sw_count++;
+      }
+      
+      // free cal_list
+      array_list_clear(cal_list, (void *) cal_free);
+      //    batch->mapping_lists[index] = NULL;
+    }
+    
+    //printf("before smith_waterman: sw_total = %i, sw_count = %i, sw_count2 = %i\n", sw_total, sw_count, sw_count2);
+    
+    // run Smith-Waterman
+    //  printf("before smith_waterman: sw_total = %i, sw_count = %i\n", sw_total, sw_count);
+    smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+    //  printf("after smith_waterman\n");
+    
+    
+    for (size_t i = 0; i < sw_count; i++) {
+      LOG_DEBUG_F("cal: start = %lu, strand = %i\n", starts[i], strands[i]);
+      LOG_DEBUG_F("\tquery : %s\n", q[i]); 
+      LOG_DEBUG_F("\tref.  : %s\n", r[i]); 
+      LOG_DEBUG_F("\tquery map: %s (start: %i)\n", 
+		  output->query_map_p[i], output->query_start_p[i]);
+      LOG_DEBUG_F("\tref. map : %s (start: %i)\n", 
+		  output->ref_map_p[i], output->ref_start_p[i]);
+      LOG_DEBUG("\n");
+    }
+    
+    
+    //size_t mapp = 0, mapp2 = 0;
+    
+    
+    
+    double norm_score;
+    // filter alignments by min_score
+    for (size_t i = 0; i < sw_count2; i++) {
+      
+      read_index = read_indices[i];
+      fq_read = (fastq_read_t *) array_list_get(read_index, GA_fq_batch);
+      fq_read2 = (fastq_read_t *) array_list_get(read_index, GA_rev_fq_batch);
+      
+      read_len = fq_read->length;
+      norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
+      
+      if (norm_score >= min_score) {
+	// valid mappings, 
+	//insert in the list for further processing
+	mapping_list = mapping_batch->mapping_lists[read_index];
+	array_list_set_flag(0, mapping_list);
+	
+	if (array_list_size(mapping_list) == 0) {
+	  mapping_batch->targets[new_num_targets++] = read_index;
+	  
+	  //mapp++;
+	}
+	
+	sw_output = sw_output_new(strands[i],
+				  chromosomes[i],
+				  starts[i],
+				  strlen(r[i]),
+				  strlen(output->query_map_p[i]),
+				  output->query_start_p[i],
+				  output->ref_start_p[i],
+				  output->score_p[i],
+				  norm_score,
+				  output->query_map_p[i],
+				  output->ref_map_p[i]);
+	array_list_insert(sw_output, mapping_list);
+	
+	mapping_batch->num_to_do++;
+	
+      }
+      
+      // free query and reference
+      free(q[i]);
+      free(r[i]);
+    }
+    mapping_batch->num_targets = new_num_targets;
+    
+    for (size_t i = sw_count2; i < sw_count; i++) {
+      
+      read_index = read_indices[i];
+      fq_read = (fastq_read_t *) array_list_get(read_index, CT_fq_batch);
+      fq_read2 = (fastq_read_t *) array_list_get(read_index, CT_rev_fq_batch);
+      
+      read_len = fq_read->length;
+      norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
+      
+      if (norm_score >= min_score) {
+	// valid mappings, 
+	//insert in the list for further processing
+	mapping_list = mapping_batch->mapping_lists2[read_index];
+	array_list_set_flag(0, mapping_list);
+	
+	if (array_list_size(mapping_list) == 0) {
+	  mapping_batch->targets2[new_num_targets2++] = read_index;
+	  
+	  //mapp2++;
+	}
+	
+	sw_output = sw_output_new(strands[i],
+				  chromosomes[i],
+				  starts[i],
+				  strlen(r[i]),
+				  strlen(output->query_map_p[i]),
+				  output->query_start_p[i],
+				  output->ref_start_p[i],
+				  output->score_p[i],
+				  norm_score,
+				  output->query_map_p[i],
+				  output->ref_map_p[i]);
+	array_list_insert(sw_output, mapping_list);
+	
+	mapping_batch->num_to_do2++;
+	
+      }
+      
+      // free query and reference
+      free(q[i]);
+      free(r[i]);
+    }
+    mapping_batch->num_targets2 = new_num_targets2;
+    
+    // update counter
+    //  thr_sw_items[tid] += sw_count;
+    
+    // free
+    sw_multi_output_free(output);
+    
+    // go to the next stage
+    
+    /*
+      printf("3 SW1         \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n", 
+      num_targets, mapp, num_targets - mapp);
+      printf("3 SW2         \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n", 
+      num_targets2, mapp2, num_targets2 - mapp2);
+    */
+    
+    //printf("END: apply_sw, (%d Smith-Waterman)\n", sw_total);
+    
+  }
+  
+  //return CONSUMER_STAGE;
+  return POST_PAIR_STAGE;
+  
+  //  printf("END: apply_sw, (%d Smith-Waterman, %d valids)\n", total, valids);
+}
+
+//--------------------------------------------------------------------------------------
+
+void fill_matrix(subst_matrix_t subst_matrix, float match, float mismatch, int type, float factor_match, float factor_mismatch) {
+
+  subst_matrix['A']['A'] = match;
+  subst_matrix['C']['A'] = mismatch;
+  subst_matrix['T']['A'] = mismatch;
+  subst_matrix['N']['A'] = mismatch;
+
+  subst_matrix['A']['C'] = mismatch;
+  subst_matrix['G']['C'] = mismatch;
+  subst_matrix['N']['C'] = mismatch;
+
+  subst_matrix['A']['T'] = mismatch;
+  subst_matrix['T']['T'] = match;
+  subst_matrix['G']['T'] = mismatch;
+  subst_matrix['N']['T'] = mismatch;
+
+  subst_matrix['C']['G'] = mismatch;
+  subst_matrix['T']['G'] = mismatch;
+  subst_matrix['N']['G'] = mismatch;
+
+  subst_matrix['A']['N'] = mismatch;
+  subst_matrix['C']['N'] = mismatch;
+  subst_matrix['T']['N'] = mismatch;
+  subst_matrix['G']['N'] = mismatch;
+  subst_matrix['N']['N'] = match;
+
+  /*
+  float a = match * factor_match;
+  float b = mismatch / factor_mismatch;
+  float c = mismatch / factor_mismatch;
+  */
+  float x = 5;
+  float y = 5;
+  float z = 5;
+
+  if (type == 1) {
+    subst_matrix['C']['C'] = x;
+    subst_matrix['T']['C'] = y;
+    subst_matrix['C']['T'] = z;
+    subst_matrix['G']['G'] = match;
+    subst_matrix['A']['G'] = mismatch;
+    subst_matrix['G']['A'] = mismatch;
+  } else {
+    subst_matrix['C']['C'] = match;
+    subst_matrix['T']['C'] = mismatch;
+    subst_matrix['C']['T'] = mismatch;
+    subst_matrix['G']['G'] = x;
+    subst_matrix['A']['G'] = y;
+    subst_matrix['G']['A'] = z;
+  }
+
+}
+
+//--------------------------------------------------------------------------------------
+
+void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
+
+  //printf("\nSTART: apply_sw\n"); 
   int tid = omp_get_thread_num();
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   cal_t *cal = NULL;
@@ -687,19 +1200,8 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
   array_list_t *fq_batch = mapping_batch->fq_batch;
   fastq_read_t *fq_read;
 
-  // added by PP for bisulfite
-  array_list_t *CT_fq_batch = mapping_batch->CT_fq_batch;
-  array_list_t *GA_fq_batch = mapping_batch->GA_fq_batch;
-  array_list_t *CT_rev_fq_batch = mapping_batch->CT_rev_fq_batch;
-  array_list_t *GA_rev_fq_batch = mapping_batch->GA_rev_fq_batch;
-  fastq_read_t *fq_read2;
-  // end added by PP for bisulfite
-
   size_t start, end;
   genome_t *genome = input->genome_p;
-  // added by PP for bisulfite
-  genome_t *genome2 = input->genome2_p;
-  // end added by PP for bisulfite
      
   size_t flank_length = input->flank_length;
 
@@ -712,82 +1214,155 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
   size_t num_targets = mapping_batch->num_targets;
   size_t new_num_targets = 0;
-  // added by PP for bisulfite
   size_t num_targets2 = mapping_batch->num_targets2;
   size_t new_num_targets2 = 0;
-  // added by PP for bisulfite
 
-  //size_t sw_total = mapping_batch->num_to_do;
-  // added by PP for bisulfite
   size_t sw_total1 = mapping_batch->num_to_do;
   size_t sw_total2 = mapping_batch->num_to_do2;
   size_t sw_total = sw_total1 + sw_total2;
-  // end added by PP for bisulfite
 
   // set to zero
   mapping_batch->num_to_do = 0;
-  // added by PP for bisulfite
   mapping_batch->num_to_do2 = 0;
-  // end added by PP for bisulfite
+  int g[sw_total];
 
   sw_optarg_t *sw_optarg = &input->sw_optarg;
 
-  sw_multi_output_t *output = sw_multi_output_new(sw_total);
-  char *q[sw_total], *r[sw_total];
-  uint8_t strands[sw_total], chromosomes[sw_total];
-  size_t starts[sw_total];
+  //sw_multi_output_t *output  = sw_multi_output_new(sw_total);
+  sw_multi_output_t *output1 = sw_multi_output_new(sw_total);
+  sw_multi_output_t *output2 = sw_multi_output_new(sw_total);
+
+  //char *q[sw_total],  *r[sw_total];
+  char *q1[sw_total], *r1[sw_total];
+  char *q2[sw_total], *r2[sw_total];
+
+  //uint8_t strands[sw_total], chromosomes[sw_total];
+  uint8_t strands1[sw_total], chromosomes1[sw_total];
+  uint8_t strands2[sw_total], chromosomes2[sw_total];
+
+  //size_t starts[sw_total];
+  size_t starts1[sw_total];
+  size_t starts2[sw_total];
+
   size_t sw_count = 0, read_indices[sw_total], sw_count2 = 0;
+
   int read_len, ref_len, max_ref_len;
 
-  // debugging: to kown how many reads are not mapped by SW score
-  //  int unmapped_by_score[fq_batch->num_reads];
-  //  memset(unmapped_by_score, 0, fq_batch->num_reads * sizeof(int));
+  //printf("matrix 1\n");
+  //sw_optarg_t *sw_optarg1 = sw_optarg_new(sw_optarg->gap_open, sw_optarg->gap_extend, sw_optarg->subst_matrix_name);
+  sw_optarg_t sw_optarg1;
+  //printf("matrix 2\n");
+  //sw_optarg_t *sw_optarg2 = sw_optarg_new(sw_optarg->gap_open, sw_optarg->gap_extend, sw_optarg->subst_matrix_name);
+  sw_optarg_t sw_optarg2;
+ 
+  //printf("data matrix 1\n");
+  float match = sw_optarg->subst_matrix['A']['A'];
+  //printf("data matrix 2\n");
+  float missm = sw_optarg->subst_matrix['C']['A'];
 
-  //printf("num of sw to do: %i\n", sw_total);
+  sw_optarg1.gap_open   = sw_optarg->gap_open;
+  sw_optarg1.gap_extend = sw_optarg->gap_extend;
+  sw_optarg2.gap_open   = sw_optarg->gap_open;
+  sw_optarg2.gap_extend = sw_optarg->gap_extend;
+
+  //printf("open   %f, %f, %f\n", sw_optarg->gap_open, sw_optarg1.gap_open, sw_optarg2.gap_open);
+  //printf("extend %f, %f, %f\n", sw_optarg->gap_extend, sw_optarg1.gap_extend, sw_optarg2.gap_extend);
+
+  //printf("fill matrix 1\n");
+  fill_matrix(sw_optarg1.subst_matrix, match, missm, 0, 8, 2);
+  //printf("fill matrix 2\n");
+  fill_matrix(sw_optarg2.subst_matrix, match, missm, 1, 8, 2);
+
   /*
-  /////////////////////////////////////
-  for (size_t i = 0; i < num_targets; i++) {
-        printf("sw_server: target #%i\n", i);
-    read_index = mapping_batch->targets[i];
-    cal_list = mapping_batch->mapping_lists[read_index];
-    array_list_clear(cal_list, (void *) cal_free);
-  }
-  mapping_batch->num_targets = 0;
-  for (size_t i = 0; i < num_targets2; i++) {
-        printf("sw_server: target #%i\n", i);
-    read_index = mapping_batch->targets2[i];
-    cal_list = mapping_batch->mapping_lists2[read_index];
-    array_list_clear(cal_list, (void *) cal_free);
-  }
-  mapping_batch->num_targets2 = 0;
-  return POST_PAIR_STAGE;
-  /////////////////////////////////////
+  printf("Matrix Table1\n\tA\tC\tG\tT\tN\nA\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nC\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nG\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nT\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nN\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\n",
+	 sw_optarg1.subst_matrix['A']['A'],
+	 sw_optarg1.subst_matrix['C']['A'],
+	 sw_optarg1.subst_matrix['G']['A'],
+	 sw_optarg1.subst_matrix['T']['A'],
+	 sw_optarg1.subst_matrix['N']['A'],
+
+	 sw_optarg1.subst_matrix['A']['C'],
+	 sw_optarg1.subst_matrix['C']['C'],
+	 sw_optarg1.subst_matrix['G']['C'],
+	 sw_optarg1.subst_matrix['T']['C'],
+	 sw_optarg1.subst_matrix['N']['C'],
+
+	 sw_optarg1.subst_matrix['A']['G'],
+	 sw_optarg1.subst_matrix['C']['G'],
+	 sw_optarg1.subst_matrix['G']['G'],
+	 sw_optarg1.subst_matrix['T']['G'],
+	 sw_optarg1.subst_matrix['N']['G'],
+
+	 sw_optarg1.subst_matrix['A']['T'],
+	 sw_optarg1.subst_matrix['C']['T'],
+	 sw_optarg1.subst_matrix['G']['T'],
+	 sw_optarg1.subst_matrix['T']['T'],
+	 sw_optarg1.subst_matrix['N']['T'],
+
+	 sw_optarg1.subst_matrix['A']['N'],
+	 sw_optarg1.subst_matrix['C']['N'],
+	 sw_optarg1.subst_matrix['G']['N'],
+	 sw_optarg1.subst_matrix['T']['N'],
+	 sw_optarg1.subst_matrix['N']['N']
+	 );
+
+  printf("Matrix Table2\n\tA\tC\tG\tT\tN\nA\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nC\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nG\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nT\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nN\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\n\n",
+	 sw_optarg2.subst_matrix['A']['A'],
+	 sw_optarg2.subst_matrix['C']['A'],
+	 sw_optarg2.subst_matrix['G']['A'],
+	 sw_optarg2.subst_matrix['T']['A'],
+	 sw_optarg2.subst_matrix['N']['A'],
+
+	 sw_optarg2.subst_matrix['A']['C'],
+	 sw_optarg2.subst_matrix['C']['C'],
+	 sw_optarg2.subst_matrix['G']['C'],
+	 sw_optarg2.subst_matrix['T']['C'],
+	 sw_optarg2.subst_matrix['N']['C'],
+
+	 sw_optarg2.subst_matrix['A']['G'],
+	 sw_optarg2.subst_matrix['C']['G'],
+	 sw_optarg2.subst_matrix['G']['G'],
+	 sw_optarg2.subst_matrix['T']['G'],
+	 sw_optarg2.subst_matrix['N']['G'],
+
+	 sw_optarg2.subst_matrix['A']['T'],
+	 sw_optarg2.subst_matrix['C']['T'],
+	 sw_optarg2.subst_matrix['G']['T'],
+	 sw_optarg2.subst_matrix['T']['T'],
+	 sw_optarg2.subst_matrix['N']['T'],
+
+	 sw_optarg2.subst_matrix['A']['N'],
+	 sw_optarg2.subst_matrix['C']['N'],
+	 sw_optarg2.subst_matrix['G']['N'],
+	 sw_optarg2.subst_matrix['T']['N'],
+	 sw_optarg2.subst_matrix['N']['N']
+	 );
   */
+
+  size_t elem_1 = 0, elem_2 = 0;
+  
+  //printf("num of sw to do: %lu\n", sw_total);
 
   // initialize query and reference sequences to Smith-Waterman
   for (size_t i = 0; i < num_targets; i++) {
     //    printf("sw_server: target #%i of %i\n", i, num_seqs);
     read_index = mapping_batch->targets[i];
-
-    fq_read = (fastq_read_t *) array_list_get(read_index, GA_fq_batch);
-    fq_read2 = (fastq_read_t *) array_list_get(read_index, GA_rev_fq_batch);
-
-    //printf("read %lu = %s\n", read_index, fq_read->sequence);
-    //printf("read %lu = %s\n", read_index, fq_read2->sequence);
-
+    
+    // to use with the four nucleotides searches
+    fq_read  = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
     //    printf("sw_server: read #%i\n", read_index);
-
+    
     cal_list = mapping_batch->mapping_lists[read_index];
     num_cals = array_list_size(cal_list);
-
+    
     read_len = fq_read->length;
-    //    max_ref_len = read_len + (read_len / 2);
-
+    
     //printf("sw_server: num_cals = %i cals\n", num_cals);
-
+    
     // processing each CAL from this read
     for(size_t j = 0; j < num_cals; j++) {
-
+      
       // get cal and read index
       cal = array_list_get(j, cal_list);
       read_indices[sw_count] = read_index;
@@ -805,141 +1380,206 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 
       ref_len = end - start + 2;
       //      if (ref_len < max_ref_len) {
-
-	// query sequence, revcomp if necessary
-	q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
-	if (cal->strand == 0) {
-	  memcpy(q[sw_count], fq_read->sequence, read_len);
-	  //seq_reverse_complementary(q[sw_count], read_len);
-	} else {
-	  memcpy(q[sw_count], fq_read2->sequence, read_len);
-	}
-
-	//q[sw_count] = &(fq_batch->seq[fq_batch->data_indices[index]]);
+      
+      if (cal->strand == 0) {
+	g[sw_count] = 0;
 	
-	// reference sequence
-	//printf("\tSW: %d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", j, cal->chromosome_id, cal->strand, cal->start, cal->end);
+	q1[elem_1] = (char *) calloc((read_len + 1), sizeof(char));
 	
-	r[sw_count] = calloc(1, end - start + 2);
-
-	//genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
-	//				  cal->chromosome_id - 1, &start, &end, genome);
-	if (cal->strand == 0) {
-	  genome_read_sequence_by_chr_index(r[sw_count], 0,
-					    cal->chromosome_id - 1, &start, &end, genome);
-	} else {
-	  genome_read_sequence_by_chr_index(r[sw_count], 0,
-					    cal->chromosome_id - 1, &start, &end, genome2);
+	// to use with the four nucleotides searches
+	memcpy(q1[elem_1], fq_read->sequence, read_len);
+	/*
+	if (cal->strand == 1) {
+	  seq_reverse_complementary(q1[elem_1], read_len);
 	}
-
+	*/
+	
+	r1[elem_1] = calloc(1, end - start + 2);
+	
+	// to use with the four nucleotides searches
+	genome_read_sequence_by_chr_index(r1[elem_1], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome);
+	// to use with the four nucleotides searches
+	
 	// save some stuff, we'll use them after...
-	strands[sw_count] = cal->strand;
-	chromosomes[sw_count] = cal->chromosome_id;
-	starts[sw_count] = start;
-	
-	// increase counter
-	sw_count++;
-    }
+	strands1[elem_1] = cal->strand;
+	chromosomes1[elem_1] = cal->chromosome_id;
+	starts1[elem_1] = start;
 
+	//printf("11\nseq %s\ngen %s\nstrand %2lu chromo %lu start %lu end %lu\n",
+	//     q1[elem_1], r1[elem_1], cal->strand, cal->chromosome_id, start, end);
+
+	elem_1++;
+      } else {
+	g[sw_count] = 1;
+	
+	q2[elem_2] = (char *) calloc((read_len + 1), sizeof(char));
+	
+	// to use with the four nucleotides searches
+	memcpy(q2[elem_2], fq_read->sequence, read_len);
+	//	if (cal->strand == 1) {
+	seq_reverse_complementary(q2[elem_2], read_len);
+	//	}
+	
+	r2[elem_2] = calloc(1, end - start + 2);
+	
+	// to use with the four nucleotides searches
+	genome_read_sequence_by_chr_index(r2[elem_2], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome);
+	// to use with the four nucleotides searches
+	
+	// save some stuff, we'll use them after...
+	strands2[elem_2] = cal->strand;
+	chromosomes2[elem_2] = cal->chromosome_id;
+	starts2[elem_2] = start;
+	/*
+	printf("st = %lu\tend = %lu\n", cal->start, cal->end);
+	printf("12\nseq %s\ngen %s\nstrand %2lu chromo %lu start %lu end %lu\n",
+	       q2[elem_2], r2[elem_2], cal->strand, cal->chromosome_id, start, end);
+	*/
+	elem_2++;
+      }
+      
+      // query sequence, revcomp if necessary
+      
+      // increase counter
+      sw_count++;
+    }
+    
     // free cal_list
     array_list_clear(cal_list, (void *) cal_free);
     //    batch->mapping_lists[index] = NULL;
   }
   ////////////////
   sw_count2 = sw_count;
+  /*
+  printf("num of sw to do from first list: %lu\n", sw_count2);
+  printf("elem_1 %lu, elem_2 %lu\n", elem_1, elem_2);
+  */
 
   for (size_t i = 0; i < num_targets2; i++) {
     //    printf("sw_server: target #%i of %i\n", i, num_seqs);
     read_index = mapping_batch->targets2[i];
-
-    fq_read = (fastq_read_t *) array_list_get(read_index, CT_fq_batch);
-    fq_read2 = (fastq_read_t *) array_list_get(read_index, CT_rev_fq_batch);
-
-    //printf("read %lu = %s\n", read_index, fq_read->sequence);
-    //printf("read %lu = %s\n", read_index, fq_read2->sequence);
-
+    
+    // to use with the four nucleotides searches
+    fq_read  = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
     //    printf("sw_server: read #%i\n", read_index);
-
+    
     cal_list = mapping_batch->mapping_lists2[read_index];
     num_cals = array_list_size(cal_list);
-
+    
     read_len = fq_read->length;
     //    max_ref_len = read_len + (read_len / 2);
-
+    
     //printf("sw_server: num_cals = %i cals\n", num_cals);
-
+    
     // processing each CAL from this read
     for(size_t j = 0; j < num_cals; j++) {
-
+      
       // get cal and read index
       cal = array_list_get(j, cal_list);
       read_indices[sw_count] = read_index;
-
+      
       if (flank_length >= cal->start) {
         start = 0;
       } else {
         start = cal->start - flank_length;
       }
-
+      
       end = cal->end + flank_length;
       if (end >= genome->chr_size[cal->chromosome_id - 1]) {
         end = genome->chr_size[cal->chromosome_id - 1] - 1;
       }
-
+      
       ref_len = end - start + 2;
       //      if (ref_len < max_ref_len) {
-
+      
+      if (cal->strand == 0) {
+	g[sw_count] = 1;
 	// query sequence, revcomp if necessary
-	q[sw_count] = (char *) calloc((read_len + 1), sizeof(char));
-	if (cal->strand == 0) {
-	  memcpy(q[sw_count], fq_read->sequence, read_len);
-	  //seq_reverse_complementary(q[sw_count], read_len);
-	} else {
-	  memcpy(q[sw_count], fq_read2->sequence, read_len);
-	}
-	//q[sw_count] = &(fq_batch->seq[fq_batch->data_indices[index]]);
+	q2[elem_2] = (char *) calloc((read_len + 1), sizeof(char));
 	
-	// reference sequence
-	//printf("\tSW: %d.[chromosome:%d]-[strand:%d]-[start:%d, end:%d]\n", j, cal->chromosome_id, cal->strand, cal->start, cal->end);
-	
-	r[sw_count] = calloc(1, end - start + 2);
-
-	//genome_read_sequence_by_chr_index(r[sw_count], cal->strand,
-	//				  cal->chromosome_id - 1, &start, &end, genome);
-	if (cal->strand == 0) {
-	  genome_read_sequence_by_chr_index(r[sw_count], 0,
-					    cal->chromosome_id - 1, &start, &end, genome2);
-	} else {
-	  genome_read_sequence_by_chr_index(r[sw_count], 0,
-					    cal->chromosome_id - 1, &start, &end, genome);
+	// to use with the four nucleotides searches
+	memcpy(q2[elem_2], fq_read->sequence, read_len);
+	/*
+	if (cal->strand == 1) {
+	  seq_reverse_complementary(q2[elem_2], read_len);
 	}
-
+	*/
+	
+	r2[elem_2] = calloc(1, end - start + 2);
+	
+	// to use with the four nucleotides searches
+	genome_read_sequence_by_chr_index(r2[elem_2], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome);
+	// to use with the four nucleotides searches
+	
 	// save some stuff, we'll use them after...
-	strands[sw_count] = cal->strand;
-	chromosomes[sw_count] = cal->chromosome_id;
-	starts[sw_count] = start;
-	
-	// increase counter
-	sw_count++;
-    }
+	strands2[elem_2] = cal->strand;
+	chromosomes2[elem_2] = cal->chromosome_id;
+	starts2[elem_2] = start;
 
+	//printf("22\nseq %s\ngen %s\nstrand %2lu chromo %lu start %lu end %lu\n",
+	//      q2[elem_2], r2[elem_2], cal->strand, cal->chromosome_id, start, end);
+
+	elem_2++;
+      } else {
+	g[sw_count] = 0;
+	// query sequence, revcomp if necessary
+	q1[elem_1] = (char *) calloc((read_len + 1), sizeof(char));
+	
+	// to use with the four nucleotides searches
+	memcpy(q1[elem_1], fq_read->sequence, read_len);
+	//	if (cal->strand == 1) {
+	seq_reverse_complementary(q1[elem_1], read_len);
+	//	}
+	
+	r1[elem_1] = calloc(1, end - start + 2);
+	
+	// to use with the four nucleotides searches
+	genome_read_sequence_by_chr_index(r1[elem_1], cal->strand,
+					  cal->chromosome_id - 1, &start, &end, genome);
+	// to use with the four nucleotides searches
+	
+	// save some stuff, we'll use them after...
+	strands1[elem_1] = cal->strand;
+	chromosomes1[elem_1] = cal->chromosome_id;
+	starts1[elem_1] = start;
+
+	//printf("21\nseq %s\ngen %s\nstrand %2lu chromo %lu start %lu end %lu\n",
+	//     q1[elem_1], r1[elem_1], cal->strand, cal->chromosome_id, start, end);
+
+	elem_1++;
+      }
+      
+      
+      // increase counter
+      sw_count++;
+    }
+    
     // free cal_list
     array_list_clear(cal_list, (void *) cal_free);
     //    batch->mapping_lists[index] = NULL;
   }
+  /*
+  printf("num of sw to do from second list %lu\n", sw_count - sw_count2);
+  printf("num of sw to do %lu\n", sw_count);
+  printf("elem_1 %lu, elem_2 %lu\n", elem_1, elem_2);
+  */
 
   //printf("before smith_waterman: sw_total = %i, sw_count = %i, sw_count2 = %i\n", sw_total, sw_count, sw_count2);
-
-  ////////////////
-  ////////////////
-  ////////////////
-
+  
   // run Smith-Waterman
   //  printf("before smith_waterman: sw_total = %i, sw_count = %i\n", sw_total, sw_count);
-  smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
-  //  printf("after smith_waterman\n");
-
+  //smith_waterman_mqmr(q, r, sw_count, sw_optarg, 1, output);
+  if (elem_1 > 0)
+    smith_waterman_mqmr(q1, r1, elem_1, &sw_optarg1, 1, output1);
+  if (elem_2 > 0)
+    smith_waterman_mqmr(q2, r2, elem_2, &sw_optarg2, 1, output2);
+  //printf("after smith_waterman\n");
   
+  /*
   for (size_t i = 0; i < sw_count; i++) {
     LOG_DEBUG_F("cal: start = %lu, strand = %i\n", starts[i], strands[i]);
     LOG_DEBUG_F("\tquery : %s\n", q[i]); 
@@ -950,121 +1590,216 @@ int apply_sw_bs(sw_server_input_t* input, batch_t *batch) {
 		output->ref_map_p[i], output->ref_start_p[i]);
     LOG_DEBUG("\n");
   }
-
-
+  */
+  
   //size_t mapp = 0, mapp2 = 0;
-
-
-
+  
   double norm_score;
   // filter alignments by min_score
+  
+  size_t el_1 = 0, el_2 = 0;
+  
   for (size_t i = 0; i < sw_count2; i++) {
-
+    
     read_index = read_indices[i];
-    fq_read = (fastq_read_t *) array_list_get(read_index, GA_fq_batch);
-    fq_read2 = (fastq_read_t *) array_list_get(read_index, GA_rev_fq_batch);
-
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
     read_len = fq_read->length;
-    norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
-
-    if (norm_score >= min_score) {
-      // valid mappings, 
-      //insert in the list for further processing
-      mapping_list = mapping_batch->mapping_lists[read_index];
-      array_list_set_flag(0, mapping_list);
-
-      if (array_list_size(mapping_list) == 0) {
-	mapping_batch->targets[new_num_targets++] = read_index;
-
-	//mapp++;
+    
+    if (g[i] == 0) {
+      norm_score = NORM_SCORE(output1->score_p[el_1], read_len, input->match);
+      
+      if (norm_score >= min_score) {
+	// valid mappings, 
+	//insert in the list for further processing
+	mapping_list = mapping_batch->mapping_lists[read_index];
+	array_list_set_flag(0, mapping_list);
+	
+	if (array_list_size(mapping_list) == 0) {
+	  mapping_batch->targets[new_num_targets++] = read_index;
+	  
+	  //mapp++;
+	}
+	
+	sw_output = sw_output_new(strands1[el_1],
+				  chromosomes1[el_1],
+				  starts1[el_1],
+				  strlen(r1[el_1]),
+				  strlen(output1->query_map_p[el_1]),
+				  output1->query_start_p[el_1],
+				  output1->ref_start_p[el_1],
+				  output1->score_p[el_1],
+				  norm_score,
+				  output1->query_map_p[el_1],
+				  output1->ref_map_p[el_1]);
+	array_list_insert(sw_output, mapping_list);
+	
+	mapping_batch->num_to_do++;
       }
-
-      sw_output = sw_output_new(strands[i],
-				chromosomes[i],
-				starts[i],
-				strlen(r[i]),
-				strlen(output->query_map_p[i]),
-				output->query_start_p[i],
-				output->ref_start_p[i],
-				output->score_p[i],
-				norm_score,
-				output->query_map_p[i],
-				output->ref_map_p[i]);
-      array_list_insert(sw_output, mapping_list);
-
-      mapping_batch->num_to_do++;
-
+      // free query and reference
+      free(q1[el_1]);
+      free(r1[el_1]);
+      
+      el_1++;
+    } else {
+      norm_score = NORM_SCORE(output2->score_p[el_2], read_len, input->match);
+      
+      if (norm_score >= min_score) {
+	// valid mappings, 
+	//insert in the list for further processing
+	mapping_list = mapping_batch->mapping_lists[read_index];
+	array_list_set_flag(0, mapping_list);
+	
+	if (array_list_size(mapping_list) == 0) {
+	  mapping_batch->targets[new_num_targets++] = read_index;
+	  
+	  //mapp++;
+	}
+	
+	sw_output = sw_output_new(strands2[el_2],
+				  chromosomes2[el_2],
+				  starts2[el_2],
+				  strlen(r2[el_2]),
+				  strlen(output2->query_map_p[el_2]),
+				  output2->query_start_p[el_2],
+				  output2->ref_start_p[el_2],
+				  output2->score_p[el_2],
+				  norm_score,
+				  output2->query_map_p[el_2],
+				  output2->ref_map_p[el_2]);
+	array_list_insert(sw_output, mapping_list);
+	
+	mapping_batch->num_to_do++;
+      }
+      // free query and reference
+      free(q2[el_2]);
+      free(r2[el_2]);
+      
+      el_2++;
     }
-
-    // free query and reference
-    free(q[i]);
-    free(r[i]);
+    
   }
   mapping_batch->num_targets = new_num_targets;
 
+  /*
+  printf("elem from first list:  %lu\n", el_1);
+  printf("elem from second list: %lu\n", el_2);
+  printf("num of sw do from first list: %lu\n", sw_count2);
+
+  printf("from sw_count2: %lu\tto sw_count: %lu\n", sw_count2, sw_count);
+  */
+  
   for (size_t i = sw_count2; i < sw_count; i++) {
-
+    
     read_index = read_indices[i];
-    fq_read = (fastq_read_t *) array_list_get(read_index, CT_fq_batch);
-    fq_read2 = (fastq_read_t *) array_list_get(read_index, CT_rev_fq_batch);
-
-    read_len = fq_read->length;
-    norm_score = NORM_SCORE(output->score_p[i], read_len, input->match);
-
-    if (norm_score >= min_score) {
-      // valid mappings, 
-      //insert in the list for further processing
-      mapping_list = mapping_batch->mapping_lists2[read_index];
-      array_list_set_flag(0, mapping_list);
-
-      if (array_list_size(mapping_list) == 0) {
-	mapping_batch->targets2[new_num_targets2++] = read_index;
-
-	//mapp2++;
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
+    //printf("g[%lu]: %i\n", i, g[i]);
+    
+    if (g[i] == 0) {
+      
+      read_len = fq_read->length;
+      norm_score = NORM_SCORE(output1->score_p[el_1], read_len, input->match);
+      
+      if (norm_score >= min_score) {
+	// valid mappings, 
+	//insert in the list for further processing
+	mapping_list = mapping_batch->mapping_lists2[read_index];
+	array_list_set_flag(0, mapping_list);
+	
+	if (array_list_size(mapping_list) == 0) {
+	  mapping_batch->targets2[new_num_targets2++] = read_index;
+	  
+	  //mapp2++;
+	}
+	
+	sw_output = sw_output_new(strands1[el_1],
+				  chromosomes1[el_1],
+				  starts1[el_1],
+				  strlen(r1[el_1]),
+				  strlen(output1->query_map_p[el_1]),
+				  output1->query_start_p[el_1],
+				  output1->ref_start_p[el_1],
+				  output1->score_p[el_1],
+				  norm_score,
+				  output1->query_map_p[el_1],
+				  output1->ref_map_p[el_1]);
+	array_list_insert(sw_output, mapping_list);
+	
+	mapping_batch->num_to_do2++;
+	
       }
+      
+      // free query and reference
+      free(q1[el_1]);
+      free(r1[el_1]);
+      el_1++;
+    } else {
+      //printf("g[i] = 1\n");
+      //printf("elem_2 %lu, el_2 %lu\n", elem_2, el_2);
+      
+      read_len = fq_read->length;
+      norm_score = NORM_SCORE(output2->score_p[el_2], read_len, input->match);
+      
+      //printf("g[i] = 1\n");
 
-      sw_output = sw_output_new(strands[i],
-				chromosomes[i],
-				starts[i],
-				strlen(r[i]),
-				strlen(output->query_map_p[i]),
-				output->query_start_p[i],
-				output->ref_start_p[i],
-				output->score_p[i],
-				norm_score,
-				output->query_map_p[i],
-				output->ref_map_p[i]);
-      array_list_insert(sw_output, mapping_list);
+      if (norm_score >= min_score) {
+	// valid mappings, 
+	//insert in the list for further processing
+	mapping_list = mapping_batch->mapping_lists2[read_index];
+	array_list_set_flag(0, mapping_list);
+	
+	//printf("g[i] = 1\n");
 
-      mapping_batch->num_to_do2++;
-
+	if (array_list_size(mapping_list) == 0) {
+	  mapping_batch->targets2[new_num_targets2++] = read_index;
+	  
+	  //mapp2++;
+	}
+	
+	sw_output = sw_output_new(strands2[el_2],
+				  chromosomes2[el_2],
+				  starts2[el_2],
+				  strlen(r2[el_2]),
+				  strlen(output2->query_map_p[el_2]),
+				  output2->query_start_p[el_2],
+				  output2->ref_start_p[el_2],
+				  output2->score_p[el_2],
+				  norm_score,
+				  output2->query_map_p[el_2],
+				  output2->ref_map_p[el_2]);
+	//printf("g[i] = 1\n");
+	array_list_insert(sw_output, mapping_list);
+	//printf("g[i] = 1\n");
+	
+	mapping_batch->num_to_do2++;
+	
+      }
+      
+      // free query and reference
+      free(q2[el_2]);
+      free(r2[el_2]);
+      el_2++;
     }
-
-    // free query and reference
-    free(q[i]);
-    free(r[i]);
   }
   mapping_batch->num_targets2 = new_num_targets2;
 
-  // update counter
-  //  thr_sw_items[tid] += sw_count;
-
-  // free
-  sw_multi_output_free(output);
-
-  // go to the next stage
-
-  /*
-  printf("3 SW1         \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n", 
-	 num_targets, mapp, num_targets - mapp);
-  printf("3 SW2         \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n", 
-	 num_targets2, mapp2, num_targets2 - mapp2);
+  /*  
+  printf("elem from first list:  %lu\n", el_1);
+  printf("elem from second list: %lu\n", el_2);
+  printf("num of sw do from second list: %lu\n", sw_count - sw_count2);
   */
 
+  // update counter
+  //  thr_sw_items[tid] += sw_count;
+  
+  // free
+  //sw_multi_output_free(output);
+  sw_multi_output_free(output1);
+  sw_multi_output_free(output2);
+  
+  // go to the next stage
   //printf("END: apply_sw, (%d Smith-Waterman)\n", sw_total);
-  //return CONSUMER_STAGE;
-  return POST_PAIR_STAGE;
-
   //  printf("END: apply_sw, (%d Smith-Waterman, %d valids)\n", total, valids);
 }
 
@@ -1105,5 +1840,5 @@ void sw_output_free(sw_output_t *p) {
 }
 
 //--------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------
 

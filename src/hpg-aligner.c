@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
     bwt_index_free(bwt_index);
     genome_free(genome);
   } else {
-    //genome_free(genome);
+    genome_free(genome);
     bwt_index_free(bwt_index1);
     genome_free(genome1);
     bwt_index_free(bwt_index2);

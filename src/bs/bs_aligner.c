@@ -59,10 +59,9 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   batch_writer_input_init(output_filename, NULL, NULL, NULL, genome1, &writer_input);
 
   metil_file_t *metil_file = calloc(1, sizeof(metil_file_t));
-  metil_file_init(metil_file, "/genome/results/tmp/CpG.txt", "/genome/results/tmp/CHG.txt", 
-		  "/genome/results/tmp/CHH.txt", "/genome/results/tmp/MUT.txt", genome);
-  //metil_file->genome = genome;
-  
+  //printf("out = %s\n", options->output_name);
+  //metil_file_init(metil_file, "/home/pascual/tmp/", genome);
+  metil_file_init(metil_file, options->output_name, genome);
   writer_input.metil_file = metil_file;
   
   bam_header_t *bam_header = create_bam_header_by_genome(genome1);
@@ -93,9 +92,10 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   sw_server_input_init(NULL, NULL, 0, options->match, options->mismatch, 
 		       options->gap_open, options->gap_extend, options->min_score, 
 		       options->flank_length, genome1, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
+  //		       options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
+  sw_input.genome1_p = genome1;
   sw_input.genome2_p = genome2;
-  
-  
+
   //--------------------------------------------------------------------------------------
   // workflow management
   //
@@ -103,7 +103,7 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   // timing
   struct timeval start, end;
   extern double main_time;
-  
+
   batch_t *batch = batch_new(&bwt_input, &region_input, &cal_input, 
 			     &pair_input, NULL, &sw_input, &writer_input, BS_MODE, NULL);
   
@@ -112,13 +112,15 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   // create and initialize workflow
   workflow_t *wf = workflow_new();
   
-  //workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage, 
-  //     						    pre_pair_stage, sw_stage_bs, post_pair_stage};
-  //workflow_stage_function_t stage_functions[] = {bwt_stage_bs};
-  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage_bs, pre_pair_stage, sw_stage_bs, post_pair_stage_bs};
+  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage_bs, 
+						 pre_pair_stage, sw_stage_bs, post_pair_stage_bs};
   char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-  //char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
   workflow_set_stages(6, &stage_functions, stage_labels, wf);
+
+  //workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage_bs, 
+  //						 pre_pair_stage, sw_stage_bs, post_pair_stage_bs, bs_status_stage};
+  //char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR", "BS STATUS"};
+  //workflow_set_stages(7, &stage_functions, stage_labels, wf);
   
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);
@@ -139,6 +141,8 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   workflow_free(wf);
   wf_input_free(wf_input);
   batch_free(batch);
+
+  metil_file_free(metil_file);
   //
   //
   // end of workflow management

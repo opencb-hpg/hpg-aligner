@@ -64,16 +64,8 @@ int bs_writer(void *data) {
 	}
       } else {
 	found[i] = 1;
-	//	   num_mapped_reads++; //
-	write_metilation_status(mapping_lists[i], metil_file);
-	/*
-	{
-	  //if (strcmp(fq_read->id, "4_134503506_1_1_0_0_0_0:2:0_0:0:0_9685") == 0) {
-	    printf("read %lu\tlist %i\t%s found\n",
-		   i, k, fq_read->id);
-	    //}
-	}
-	*/
+	//num_mapped_reads++; //
+	//write_metilation_status(mapping_lists[i], metil_file);
 	write_mapped_read(mapping_lists[i], bam_file);
       }
     }
