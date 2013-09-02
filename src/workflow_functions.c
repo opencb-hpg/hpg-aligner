@@ -454,10 +454,10 @@ int post_pair_stage_bs(void *data) {
 
 //--------------------------------------------------------------------
 
-int bs_status_tage(void *data) {
+int bs_status_stage(void *data) {
   batch_t *batch = (batch_t *) data;
 
-  //return methylation_status_report(batch);
+  return methylation_status_report(batch->sw_input, batch);
 }
 
 //--------------------------------------------------------------------

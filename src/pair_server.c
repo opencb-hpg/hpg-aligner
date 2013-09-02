@@ -1303,7 +1303,8 @@ int prepare_alignments_bs(pair_server_input_t *input, batch_t *batch) {
   //printf("---------->pair_server.c: prepare_alignments done (pair mode = %i)\n", input->pair_mng->pair_mode);
   //  printf("pair_server.c: 1: after prepare_single_alignments\n");
 
-  return CONSUMER_STAGE;
+  //return CONSUMER_STAGE;
+  return BS_STATUS_STAGE;
 }
 
 //------------------------------------------------------------------------------------

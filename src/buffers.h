@@ -25,6 +25,8 @@
 #define SW_STAGE                4
 #define POST_PAIR_STAGE         5
 #define CONSUMER_STAGE         -1
+// added by PP
+#define BS_STATUS_STAGE         6
 
 //------------------------------------------------------------------------------------
 
@@ -60,8 +62,8 @@
 
 //------------------------------------------------------------------------------------
 
-#define PAIR_1 1
-#define PAIR_2 2
+#define PAIR_1   1
+#define PAIR_2   2
 #define PAIR_1_2 3
 
 //------------------------------------------------------------------------------------
@@ -234,6 +236,8 @@ typedef struct mapping_batch {
 
   array_list_t *CT_rev_fq_batch;
   array_list_t *GA_rev_fq_batch;
+
+  array_list_t *bs_status;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);

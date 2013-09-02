@@ -62,7 +62,7 @@ int sw_stage_bs(void *data);
 int post_pair_stage(void *data);
 int post_pair_stage_bs(void *data);
 
-int bs_status_tage(void *data);
+int bs_status_stage(void *data);
 
 //---------------------------------------------------------------------
 //workflow input

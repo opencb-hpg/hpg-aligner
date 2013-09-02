@@ -349,8 +349,9 @@ void revert_mappings_seqs(array_list_t **src1, array_list_t **src2, array_list_t
 
 //====================================================================================
 
-char *obtain_seq(alignment_t *alig) {
-  char *read = alig->sequence;
+char *obtain_seq(alignment_t *alig, fastq_read_t * orig) {
+  //char *read = alig->sequence;
+  char *read = orig->sequence;
   char *cigar = strdup(alig->cigar);
   //char *cigar = strdup("100M1D");
   int num;
@@ -705,7 +706,7 @@ void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file)
       printf("n cigar    %i\n", alig->num_cigar_operations);
       */      
       
-      seq = obtain_seq(alig);
+      //seq = obtain_seq(alig);
       //printf("seq %s\n", seq);
 
       len = strlen(seq);
@@ -842,3 +843,200 @@ char *obtain_seq_old(alignment_t *alig) {
 
 //====================================================================================
 
+void remove_duplicates(size_t reads, array_list_t **list, array_list_t **list2) {
+  size_t num_items, num_items2;
+  alignment_t *alig, *alig2;
+
+  for (size_t i = 0; i < reads; i++) {
+    num_items = array_list_size(list[i]);
+    //printf("list[%lu]\tlist2[%lu]\n", array_list_size(list[i]), array_list_size(list2[i]));
+    for (size_t j = 0; j < num_items; j++) {
+      alig = (alignment_t *) array_list_get(j, list[i]);
+
+      if (alig != NULL && alig->is_seq_mapped) {
+	num_items2 = array_list_size(list2[i]);
+	for (size_t k = 0; k < num_items2; k++) {
+	  alig2 = (alignment_t *) array_list_get(k, list2[i]);
+	  /*
+	  printf("alignment %lu - %lu\n", j, k);
+	  printf("query_name %s\n",  alig->query_name);
+	  printf("query_name %s\n", alig2->query_name);
+	  printf("sequence   %s\n",  alig->sequence);
+	  printf("sequence   %s\n", alig2->sequence);
+	  printf("cigar      %s\n",  alig->cigar);
+	  printf("cigar      %s\n", alig2->cigar);
+	  printf("position   %i\n",  alig->position + 1);
+	  printf("position   %i\n", alig2->position + 1);
+	  printf("mate pos   %i\n",  alig->mate_position);
+	  printf("mate pos   %i\n", alig2->mate_position);
+	  printf("temp len   %i\n",  alig->template_length);
+	  printf("temp len   %i\n", alig2->template_length);
+	  printf("chromo     %i\n",  alig->chromosome);
+	  printf("chromo     %i\n", alig2->chromosome);
+	  printf("strand     %i\n",  alig->seq_strand);
+	  printf("strand     %i\n", alig2->seq_strand);
+	  printf("mate  chro %i\n",  alig->mate_chromosome);
+	  printf("mate  chro %i\n", alig2->mate_chromosome);
+	  printf("map qual   %i\n",  alig->map_quality);
+	  printf("map qual   %i\n", alig2->map_quality);
+	  printf("n cigar    %i\n",  alig->num_cigar_operations);
+	  printf("n cigar    %i\n", alig2->num_cigar_operations);
+	  */
+	  if (alig->position   == alig2->position
+	      && alig->chromosome == alig2->chromosome 
+	      && alig->seq_strand == alig2->seq_strand 
+	      && alig->num_cigar_operations == alig2->num_cigar_operations) {
+	    alig2 = (alignment_t *) array_list_remove_at(k, list2[i]);
+	    alignment_free(alig2);
+	    k--;
+	    num_items2 = array_list_size(list2[i]);
+	  }
+	}
+      }
+    }
+    //printf("list[%lu]\tlist2[%lu]\n", array_list_size(list[i]), array_list_size(list2[i]));
+  }
+}
+
+//====================================================================================
+
+int methylation_status_report(sw_server_input_t* input, batch_t *batch) {
+  mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
+  array_list_t **mapping_lists;
+  size_t num_items;
+  size_t num_reads = array_list_size(mapping_batch->fq_batch);
+  genome_t *genome = input->genome_p;
+  //genome_t * genome = (genome_t *) input->genome_p;
+  
+  mapping_batch->bs_status = array_list_new(num_reads * 4, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+
+  remove_duplicates(num_reads, mapping_batch->mapping_lists, mapping_batch->mapping_lists2);
+  
+  for (int k = 0; k < 2; k++) {
+    
+    mapping_lists = (k == 0) ? mapping_batch->mapping_lists : mapping_batch->mapping_lists2;
+    
+    for (size_t i = 0; i < num_reads; i++) {
+      num_items = array_list_size(mapping_lists[i]);
+      
+      // mapped or not mapped ?
+      if (num_items != 0) {
+	printf("Read %lu (version %i)\tAlignments %lu\n", i, k, num_items);
+        add_metilation_status(mapping_lists[i], mapping_batch->bs_status, genome, mapping_batch->fq_batch);
+      }
+    }
+  }
+  
+  return CONSUMER_STAGE;
+}
+
+//====================================================================================
+
+void add_metilation_status(array_list_t *array_list, array_list_t *bs_status, genome_t * genome, array_list_t * orig_seq) {
+
+  //printf("Init add metilation status\n");
+  
+  size_t num_items = array_list_size(array_list);
+  alignment_t *alig;
+  //genome_t *genome = metil_file->genome;
+  char *seq, *gen;
+  fastq_read_t *orig;
+  size_t len, end, start;
+  
+  size_t contador1 = 0;
+  size_t contador2 = 0;
+  size_t alineamientos = 0;
+  
+  for (size_t j = 0; j < num_items; j++) {
+    alig = (alignment_t *) array_list_get(j, array_list);
+    if (alig != NULL && alig->is_seq_mapped) {
+      /*
+      printf("alignment %lu\n", j);
+      printf("query_name %s\n", alig->query_name);
+      printf("sequence   %s\n", alig->sequence);
+      printf("cigar      %s\n", alig->cigar);
+      printf("position   %i\n", alig->position + 1);
+      printf("mate pos   %i\n", alig->mate_position);
+      printf("temp len   %i\n", alig->template_length);
+      printf("chromo     %i\n", alig->chromosome);
+      printf("strand     %i\n", alig->seq_strand);
+      printf("mate  chro %i\n", alig->mate_chromosome);
+      printf("map qual   %i\n", alig->map_quality);
+      printf("n cigar    %i\n", alig->num_cigar_operations);
+      */
+
+      orig = (fastq_read_t *) array_list_get(j, orig_seq);
+      seq = obtain_seq(alig, orig);
+      printf("seq %s\n", seq);
+
+      len = strlen(seq);
+      gen = (char *)calloc(len + 2, sizeof(char));
+
+      start = alig->position + 1;
+      end = start + len + 1;
+      if (end >= genome->chr_size[alig->chromosome]) {
+        end = genome->chr_size[alig->chromosome] - 1;
+      }
+      
+      
+      genome_read_sequence_by_chr_index(gen, alig->seq_strand, alig->chromosome, &start, &end, genome);
+      
+      printf("\nseq %s\ngen %s\n", seq, gen);
+      printf("chromo %i, strand %i, begin %lu, end %lu\n",
+	     alig->chromosome, alig->seq_strand, alig->position, end);
+      
+      alineamientos++;
+      /*
+      for (size_t i = 0; i < len; i++) {
+	if (gen[i] == 'C' && seq[i] == 'C') contador1++;
+	if (gen[i] == 'G' && seq[i] == 'G') contador2++;
+	
+	if (gen[i] == 'C') {
+	  //printf("Candidata (C) en %lu\n", start + i);
+	  //case ZONE_CpG:
+	  if (gen[i + 1] == 'G') {
+	    if (seq[i] == 'C') {
+	      printf("%s\t+\t%i %i\t%lu\tZ\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	    } else {
+	      printf("%s\t-\t%i %i\t%lu\tz\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	    }
+	  } else {
+	    //case ZONE_CHG:
+	    if (gen[i + 2] == 'G') {
+	      if (seq[i] == 'C') {
+		printf("%s\t+\t%i %i\t%lu\tX\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      } else {
+		printf("%s\t-\t%i %i\t%lu\tx\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      }
+	    } else {
+	      //case ZONE_CHH:
+	      if (seq[i] == 'C') {
+		printf("%s\t+\t%i %i\t%lu\tH\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      } else {
+		printf("%s\t-\t%i %i\t%lu\th\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      }
+	    }
+	  }
+	} else {
+	  if (gen[i] == 'G') {
+	    if (seq[i] == 'G' || seq[i] == 'A') {
+	      printf("Candidata (G) en %lu\n", start + i);
+	    } else {
+	      printf("%s\t-\t%i %i\t%lu\tm\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
+	      //printf("Mutacion en %lu\n", start + i);
+	    }
+	  }
+	}
+      }
+      */
+      if (seq) free(seq);
+      if (gen) free(gen);
+    }
+  }
+  
+  printf("methylated cytosines (+):\t%lu\tin\t%lu\talignments\n", contador1, alineamientos);
+  printf("methylated cytosines (-):\t%lu\tin\t%lu\talignments\n", contador2, alineamientos);
+  printf("\n\n");
+}
+
+//====================================================================================

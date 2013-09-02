@@ -5,14 +5,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "aligners/bwt/bwt.h"
-#include "aligners/sw/smith_waterman.h"
-#include "bioformats/fastq/fastq_file.h"
-#include "aligners/bwt/genome.h"
-#include "buffers.h"
+
+#include "commons/commons.h"
+#include "commons/system_utils.h"
 
 #include "containers/array_list.h"
 #include "containers/list.h"
+
+#include "aligners/bwt/bwt.h"
+#include "aligners/bwt/genome.h"
+#include "aligners/sw/smith_waterman.h"
+
+#include "bioformats/fastq/fastq_file.h"
+
+#include "buffers.h"
+#include "pair_server.h"
 
 #include "hash_table.h"
 
@@ -295,15 +302,37 @@ void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file)
 
 //====================================================================================
 
-/**
+/*
  * @brief  Write the metilation status of each Cytosine
  * @param  array_list array with the information to report
  * @param  metil_file metilation structura with the output information
  * 
  * Report in diferent files depending of the region, the status of the Cytosines aligned in the pipeline
  */
-void methylation_status_report(metil_file_t *metil_file, batch_t *batch);
+//void methylation_status_report(metil_file_t *metil_file, batch_t *batch);
 
 //====================================================================================
+
+/**
+ * @brief  Stage to determine the status of each Cytosine in the sequence alignment                                        
+ * @param  batch                                                                                                           
+ *                                                                                                                         
+ *                                                                                                                         
+ */
+int methylation_status_report(sw_server_input_t* input, batch_t *batch);
+
+//====================================================================================                                     
+
+/**
+ * @brief  Add the metilation status of each Cytosine to the write list                                                    
+ * @param  array_list                                                                                                      
+ * @param  bs_status                                                                                                       
+ *                                                                                                                         
+ *                                                                                                                         
+ */
+void add_metilation_status(array_list_t *array_list, array_list_t *bs_status, genome_t * genome, array_list_t * orig_seq);
+
+//====================================================================================                                     
+
 
 #endif // METHYLATION_H

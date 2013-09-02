@@ -323,10 +323,6 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p == NULL) return;
   
   if (p->fq_batch) { array_list_free(p->fq_batch, (void *) fastq_read_free); }
-  if (p->CT_fq_batch) { array_list_free(p->CT_fq_batch, (void *) fastq_read_free); }
-  if (p->CT_rev_fq_batch) { array_list_free(p->CT_rev_fq_batch, (void *) fastq_read_free); }
-  if (p->GA_fq_batch) { array_list_free(p->GA_fq_batch, (void *) fastq_read_free); }
-  if (p->GA_rev_fq_batch) { array_list_free(p->GA_rev_fq_batch, (void *) fastq_read_free); }
   if (p->targets) { free(p->targets); }
   if (p->mapping_lists) { free(p->mapping_lists); }
   if (p->pair_mng) { free(p->pair_mng); }
@@ -335,12 +331,17 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p->old_mapping_lists) {
     free(p->old_mapping_lists);
   }
-
-  // added by PP
-  if (p->mapping_lists2) { free(p->mapping_lists2); }
   if (p->bwt_mappings) { free(p->bwt_mappings); }
+  
+  // added by PP
+  if (p->CT_fq_batch) { array_list_free(p->CT_fq_batch, (void *) fastq_read_free); }
+  if (p->CT_rev_fq_batch) { array_list_free(p->CT_rev_fq_batch, (void *) fastq_read_free); }
+  if (p->GA_fq_batch) { array_list_free(p->GA_fq_batch, (void *) fastq_read_free); }
+  if (p->GA_rev_fq_batch) { array_list_free(p->GA_rev_fq_batch, (void *) fastq_read_free); }
+  if (p->mapping_lists2) { free(p->mapping_lists2); }
   if (p->targets2) { free(p->targets2); }
-
+  if (p->bs_status) {free(p->bs_status); }
+  
   free(p);
 }
 
