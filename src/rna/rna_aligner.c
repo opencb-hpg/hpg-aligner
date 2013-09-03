@@ -5,6 +5,12 @@
 //--------------------------------------------------------------------
 // workflow input                                                                                                                                                     
 //--------------------------------------------------------------------  
+extern int splice_junction_type(char nt_start_1, char nt_start_2, char nt_end_1, char nt_end_2);
+
+void load_transcriptome(char *filename, genome_t *genome, 
+			avls_list_t *avls_list, metaexons_t *metaexons);
+
+//--------------------------------------------------------------------
 
 
 /*
@@ -191,7 +197,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
   //init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
   avls_list_t* avls_list = avls_list_new(genome->num_chromosomes);
-  //load_intron_file(genome, options->intron_filename, chromosome_avls);
+  if (options->transcriptome_filename != NULL) {
+    load_transcriptome(options->transcriptome_filename, genome, avls_list, metaexons);
+    //    LOG_FATAL_F("transcriptome filename = %s\n", options->transcriptome_filename);
+  }
 
   linked_list_t *buffer    = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
   linked_list_t *buffer_hc = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
@@ -392,4 +401,233 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   linked_list_free(buffer_hc, (void *)NULL);
 }
 
+//--------------------------------------------------------------------------------------
+//        T R A N S C R I P T O M E     M A N A G E M E N T
+//--------------------------------------------------------------------------------------
+
+static inline char *parse_attribute(char *name, char *attrs) {
+  int name_len = strlen(name);
+  char *p1 = strstr(attrs, name);
+  char * p2 = strstr(p1 + name_len, "\";");
+  int len = p2 - p1 - name_len;
+  char *res = (char *) malloc(len + 2);
+  strncpy(res, p1 + name_len, len);
+  res[len] = 0;
+  return res;
+}
+
+//--------------------------------------------------------------------------------------
+
+static inline exon_t *parse_exon_line(FILE *f, genome_t *genome) {
+  const int MAX_LENGTH = 8192;
+
+  int field, found;
+  char line[MAX_LENGTH], *token, *str, *p1, *p2;
+  
+  int chr, strand, start, end, exon_number;
+  char *chr_name, *gene_id, *transcript_id, *exon_id, *exon_number_str;
+
+  while (fgets(line, MAX_LENGTH, f) != NULL) {
+    str = strdup(line);
+    token = strtok(str, "\t");
+    field = 0;
+    while (token != NULL) {
+      if (field == 0) { // seqname          
+
+	found = 0;
+	for (chr = 0; chr < genome->num_chromosomes; chr++) {
+	  if (strcmp(token, genome->chr_name[chr]) == 0) { found = 1; break; }
+	}
+	if (!found) break;
+
+	chr_name = strdup(token);
+      } else if (field == 2) { // feature type name: exon
+	if (strcmp(token, "exon") != 0) {
+	  found = 0;
+	  free(chr_name);
+	  break;
+	}
+      } else if (field == 3) { // start position of the feature (starting at 1)
+	start = atoi(token);
+      } else if (field == 4) { // end position of the feature (starting at 1)  
+        end = atoi(token);
+      } else if (field == 6) { // strand + (forward) or - (reverse)
+        strand = (token == '-' ? 1 : 0);
+      } else if (field == 8) { // attributes, a semicolon-separated list of tag-value pairs
+	// gene_id, transcript_id, exon_id
+	gene_id = parse_attribute("gene_id \"", token);
+	transcript_id = parse_attribute("transcript_id \"", token);
+	exon_id = parse_attribute("exon_id \"", token);
+
+	// exon_number
+	exon_number_str = parse_attribute("exon_number \"", token);
+	if (exon_number_str) {
+	  exon_number = atoi(exon_number_str);
+	  free(exon_number_str);
+	}
+      }
+      
+      token = strtok(NULL, "\t");
+      field++;
+    }
+    free(str);
+    if (found) {
+      return exon_new(chr, strand, start, end, exon_number,
+		      chr_name, gene_id, transcript_id, exon_id);
+    }
+  }
+  return NULL;
+}
+
+//--------------------------------------------------------------------------------------
+
+void load_transcriptome(char *filename, genome_t *genome, 
+			avls_list_t *avls_list, metaexons_t *metaexons) {
+
+  FILE *f = fopen(filename, "r");
+
+  int count = 0;
+  exon_t *exon1 = NULL, *exon2 = NULL;
+
+  size_t g_start, g_end;
+  int type, splice_strand;
+  char nt_start[2], nt_end[2];
+
+  while (1) {
+
+    // get exon1
+    if (!exon1) {
+      exon1 = parse_exon_line(f, genome);  
+      if (exon1) {
+	//	exon_display(exon1);
+	count++;
+      }
+    }
+
+    // get exon2
+    if (!exon2) {
+      exon2 = parse_exon_line(f, genome);
+      if (exon2) {
+	//	exon_display(exon2);
+	count++;
+      }
+    }
+
+    if (exon1 && exon2) {
+      if (exon2->exon_number + 1 == exon1->exon_number) {
+	// exons belonging to the same transcript
+	// process exon1 and exon2, to init the splice junction
+	g_start = exon1->end;
+	g_end = g_start + 1;
+	//	printf("chr = %s (%i), strand %i, g_start = %i, g_end = %i\n", exon1->chr_name, exon1->chr, exon1->strand, g_start, g_end);
+	genome_read_sequence_by_chr_index(nt_start, exon1->strand, exon1->chr, &g_start, &g_end, genome);
+	//	printf("\tnt_start = %s\n", nt_start);
+
+	g_end = exon2->start - 1;
+	g_start = g_end - 1;
+	//	printf("chr = %s (%i), strand %i, g_start = %i, g_end = %i\n", exon2->chr_name, exon2->chr, exon2->strand, g_start, g_end);
+	genome_read_sequence_by_chr_index(nt_end, exon2->strand, exon2->chr, &g_start, &g_end, genome);
+	//	printf("\tnt_end = %s\n", nt_end);
+	
+	type = splice_junction_type(nt_start[0], nt_start[1], nt_end[0], nt_end[1]);
+	int splice_strand;
+	avl_node_t *avl_node_start, *avl_node_end;
+	
+	splice_strand = 0;
+	if (type == CT_AC_SPLICE || type == GT_AT_SPLICE || type == CT_GC_SPLICE ) {
+	  splice_strand = 1;
+	}
+
+	//	LOG_FATAL_F("nt_start = %s, nt_end = %s, type = %i\n", nt_start, nt_end, type);
+
+	allocate_start_node(exon1->chr, // startint at 0
+			    splice_strand,
+			    exon1->end,   // splice start
+			    exon2->start, // splice_end,
+			    exon1->end,   // splice start
+			    exon2->start, // splice_end,
+			    FROM_FILE,
+			    type,
+			    NULL, 
+			    &avl_node_start,
+			    &avl_node_end, 
+			    avls_list);
+	
+	metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
+			METAEXON_RIGHT_END, avl_node_start, metaexons);
+	
+	metaexon_insert(exon2->strand, exon2->chr, exon2->start, exon2->end, 40,
+			METAEXON_LEFT_END, avl_node_end, metaexons);
+	
+	// ...and then, free exon1 and update it to exon2
+	exon_free(exon1);
+	exon1 = exon2;
+	exon2 = NULL;
+      } else {
+	// exons belonging to different transcripts
+	// process exon1 but only if it's the first (no splice)
+	// (otherwise, it was already processed, there was a splice)
+	if (exon1->exon_number == 1) {
+	  metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
+			  METAEXON_NORMAL, NULL, metaexons);
+	}
+
+	// ...and then, free exon1 and update it to exon2
+	exon_free(exon1);
+	exon1 = exon2;
+	exon2 = NULL;
+      }
+    } else if (exon1) {
+      // process the last exon (exon1) but only if it's the first (no splice)
+      // (otherwise, it was already processed, there was a splice)
+      if (exon1->exon_number == 1) {
+	metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
+			METAEXON_NORMAL, NULL, metaexons);
+      }
+      // and free and exit
+      exon_free(exon1);
+      break;
+    } else {
+      // and exit
+      break;
+    }
+  }
+
+  fclose(f);
+
+  LOG_DEBUG_F("Number of processed exons: %i", count);
+
+    /*
+    if (!found) continue;
+
+    found = 0;
+    for (chr = 0; chr < genome->num_chromosomes; chr++) {
+      if (strcmp(value, genome->chr_name[chr]) == 0) { found = 1; break; }
+    }
+
+    // we have an exon ready to be processed !!
+    if (splice) {
+      // exon with splices
+      
+    } else {
+      // exon without splices
+      metaexon_insert(strand, chr, exon_start1, exon_end1, 40,
+		      METAEXON_NORMAL, NULL, metaexons);
+    }
+
+    */
+  //  }
+}
+
 //--------------------------------------------------------------------
+//--------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+

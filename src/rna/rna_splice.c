@@ -579,16 +579,6 @@ void write_chromosome_avls( char *extend_sp, char *exact_sp,
     
 }
 
-
-
-
-
-
-
-
-
-
-
 /*
 
 int search_end_splice(node_element_splice_t *node, size_t end) {

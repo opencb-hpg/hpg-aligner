@@ -22,6 +22,8 @@
 #define SEARCH_ENDS 2
 
 
+//--------------------------------------------------------------------
+
 array_list_t *search_candidate_sp_avl(unsigned char strand, size_t lim_start, 
 				      size_t lim_end, array_list_t *intron_list, 
 				      cp_avlnode *node, unsigned char type_search);
