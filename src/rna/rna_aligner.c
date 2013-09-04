@@ -328,7 +328,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   fprintf(stderr, "END WORKWFLOW '2ph'\n\n");
 
   fprintf(stderr, "START WORKWFLOW '3ph'\n");
-  workflow_run_with(1/*options->num_cpu_threads*/, wf_input_buffer_hc, wf_hc);
+  workflow_run_with(options->num_cpu_threads, wf_input_buffer_hc, wf_hc);
   fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
  
   //Write chromosome avls

@@ -5984,10 +5984,10 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       const int MAX_META_ALIGNMENTS = 10;
 
       if (limit > MAX_META_ALIGNMENTS) {
-	for (int i = limit - 1; i >= MAX_META_ALIGNMENTS; i--) {
+	/*for (int i = limit - 1; i >= MAX_META_ALIGNMENTS; i--) {
 	  fusion_cals = array_list_get(j, cals_targets);
 	  array_list_free(fusion_cals, cal_free);
-	}
+	  }*/
 	limit = MAX_META_ALIGNMENTS;
       }
       
@@ -6256,7 +6256,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       }
     }
 
-    int n_report = 1;
+    int n_report = array_list_size(meta_alignments_list);
     meta_alignment_t *meta_alignment = array_list_get(0, meta_alignments_list);
     int best_score = array_list_size(meta_alignments_list);//meta_alignment->score;
     
