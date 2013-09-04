@@ -360,6 +360,13 @@ void allocate_start_node(unsigned int chromosome, unsigned char strand,
 
   pthread_mutex_lock(&(avls_list->avls[strand][chromosome].mutex));
   //printf("Insert %lu - %lu\n", start, end);
+
+  if (start >= end) { 
+    fprintf(stderr, "ERROR [%i:%i]!!! START END AVL %lu vs %lu", 
+			      strand, chromosome, start, end); 
+    exit(-1); 
+  }
+
   cp_avltree *avl = avls_list->avls[strand][chromosome].avl;
   avl_node_t *node_start, *node_end;
   start_data_t *start_data;

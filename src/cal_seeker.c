@@ -1026,13 +1026,13 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
 
     
-    //printf("<<<<<===== CAL SERVER =====>>>>>\n");
-    //for (int c = 0; c < array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]); c++) {
-      //cal_t *cal_aux = array_list_get(c, mapping_batch->mapping_lists[mapping_batch->targets[i]]);
-      //cal_print(cal_aux);
-      //}
-    //printf("<<<<<===== CAL SERVER END =====>>>>>\n");
-    //}    
+    /* printf("<<<<<===== CAL SERVER =====>>>>>\n"); */
+    /* for (int c = 0; c < array_list_size(mapping_batch->mapping_lists[mapping_batch->targets[i]]); c++) { */
+    /*   cal_t *cal_aux = array_list_get(c, mapping_batch->mapping_lists[mapping_batch->targets[i]]); */
+    /*   cal_print(cal_aux); */
+    /* } */
+    /* printf("<<<<<===== CAL SERVER END =====>>>>>\n"); */
+       
   }
 
   mapping_batch->num_targets = target_pos;
