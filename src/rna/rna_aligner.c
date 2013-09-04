@@ -641,8 +641,8 @@ void load_transcriptome(char *filename, genome_t *genome,
 
   LOG_DEBUG_F("Number of processed exons: %i", count);
 
-  metaexons_show(metaexons);
-  exit(-1);
+  //metaexons_show(metaexons);
+  //exit(-1);
 
     /*
     if (!found) continue;

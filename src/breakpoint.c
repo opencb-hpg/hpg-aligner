@@ -896,6 +896,9 @@ metaexons_t *metaexons_new(genome_t *genome) {
   metaexons->metaexons_table = (linked_list_t ****)calloc(num_chromosomes, sizeof(linked_list_t ***));
   for (unsigned int i = 0; i < num_chromosomes; i++) {
     num_chunks = genome->chr_size[i] / metaexons->chunk_size;
+    if (genome->chr_size[i] % metaexons->chunk_size > 0) {
+      num_chunks++;
+    }
     metaexons->metaexons_table[i] = (linked_list_t ***)calloc(num_chunks, sizeof(linked_list_t **));
     metaexons->num_chunks[i] = num_chunks;
     tot_chunks += num_chunks;
@@ -1079,7 +1082,14 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
     
   pthread_mutex_lock(&metaexons->mutex[chromosome]);
 
+  //printf("Insert chromosome %i\n", chromosome);
   //This section is for large reads ( > 1000nt)
+  if (chunk_start >= metaexons->num_chunks[chromosome] || 
+      chunk_end >= metaexons->num_chunks[chromosome]) {
+    printf("%lu-%lu\n", start, end);
+    exit(-1);
+  }
+
   for (int chk = chunk_start; chk <= chunk_end; chk++) {
     if (!metaexons->metaexons_table[chromosome][chk]) {
       metaexons->metaexons_table[chromosome][chk] = (linked_list_t **)calloc(2, sizeof(linked_list_t *));

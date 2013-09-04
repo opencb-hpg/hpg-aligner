@@ -2606,7 +2606,7 @@ cigar_code_t *search_left_single_anchor(int gap_close,
   int cal_chromosome_id = cal->chromosome_id;
 
   genome_start = first_cal_end + 1;
-  //printf("IN PARAMETERS: read_pos->%i, first_cal_end->%lu, gap_close->%i\n", read_pos, first_cal_end, gap_close, genome_start );
+  printf("IN PARAMETERS: read_pos->%i, first_cal_end->%lu, gap_close->%i\n", read_pos, first_cal_end, gap_close, genome_start );
   //array_list_insert(genome_start, final_positions);
   //==== 1st-Select the correct start ====//
   for (int s_0 = 0; s_0 < array_list_size(right_breaks); s_0++) {
@@ -2636,21 +2636,21 @@ cigar_code_t *search_left_single_anchor(int gap_close,
     genome_end = node_start->position - 1;
     int lim_ref;
     lim_ref = genome_end - genome_start + 1; 
-    //printf("genome_end = %lu, genome_start = %lu, lim_ref = %i\n", genome_end, genome_start, lim_ref);
+    printf("genome_end = %lu, genome_start = %lu, lim_ref = %i\n", genome_end, genome_start, lim_ref);
     if (lim_ref < 0) {
       //For first step, genome_start = first_cal->end
       int dsp = abs(lim_ref);
       gap_close += dsp;
       read_pos  -= dsp;
       array_list_insert(genome_end, final_positions);
-      //printf("1):::::::::::: INSERT FINAL POSITIONS: %i, (%i)\n", genome_end, array_list_size(final_positions));
+      printf("1):::::::::::: INSERT FINAL POSITIONS: %i, (%i)\n", genome_end, array_list_size(final_positions));
       //printf(":::--::::GENOME GAP %i\n", genome_end);
       //printf("RECALCULATING GAP AND READ POS (gap_close, read_pos)(%i, %i)\n", gap_close, read_pos);
     } else {      
       genome_read_sequence_by_chr_index(reference, 0, 
 					cal_chromosome_id - 1, 
 					&genome_start, &genome_end, genome);
-      //printf("Reference START_SP [[[START_SP]]]----[END_SP]: %s\n", reference);
+      printf("Reference START_SP [[[START_SP]]]----[END_SP]: %s\n", reference);
       max_dist = 3;
       int t, c;
       for (t = 0; t < num_targets; t++) {
@@ -2658,9 +2658,9 @@ cigar_code_t *search_left_single_anchor(int gap_close,
 	lim_ref = node_start->position - genome_start;
 	if (lim_ref > gap_close) { lim_ref = gap_close; }
 	dist = 0;
-	//printf("\tTravel to %lu\n", node_start->position);
+	printf("\tTravel to %lu\n", node_start->position);
 	for (c  = 0; c < lim_ref; c++) { 
-	  //printf("\t\t[%c vs %c]\n", query_map[read_pos + c], reference[c]);
+	  printf("\t\t[%c vs %c]\n", query_map[read_pos + c], reference[c]);
 	  if (query_map[read_pos + c] != reference[c]) { 
 	    dist++;
 	  }
@@ -2681,16 +2681,16 @@ cigar_code_t *search_left_single_anchor(int gap_close,
 	lim_ref = node_start->position - genome_start;
 	gap_close -= lim_ref;
 	read_pos += lim_ref;	
-	//printf("GAP CLOSE (%i) READ POS (%i)\n", gap_close, read_pos);
+	printf("GAP CLOSE (%i) READ POS (%i)\n", gap_close, read_pos);
 	if (gap_close <= 0) {
 	  //Final Map
 	  map = 1;
 	  array_list_insert(genome_start + c - 1, final_positions);
-	  //printf("3):::::::::::: INSERT FINAL POSITIONS: %i (%i)\n", genome_start + c, array_list_size(final_positions));
+	  printf("3):::::::::::: INSERT FINAL POSITIONS: %i (%i)\n", genome_start + c, array_list_size(final_positions));
 	  break;
 	} else {
 	  array_list_insert(node_start->position - 1, final_positions);
-	  //printf("2):::::::::::: INSERT FINAL POSITIONS: %i (%i)\n", node_start->position - 1, array_list_size(final_positions));
+	  printf("2):::::::::::: INSERT FINAL POSITIONS: %i (%i)\n", node_start->position - 1, array_list_size(final_positions));
 	}
       }
     }
@@ -2719,6 +2719,7 @@ cigar_code_t *search_left_single_anchor(int gap_close,
       for (int s = 0; s < array_list_size(final_starts); s++) {
 	genome_start = array_list_get(s, final_starts) + 1;
 	genome_end = genome_start + gap_close + 1;
+	printf("%lu - %lu\n", genome_start, genome_end);
 	genome_read_sequence_by_chr_index(s_reference[s], 0, 
 					  cal_chromosome_id - 1, 
 					  &genome_start, &genome_end, genome); 	      
@@ -3892,7 +3893,8 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 				     1.25f,
 				     COLLECTION_MODE_ASYNCHRONIZED);
 
-    //printf("WK_1ph-Process: == (%i CALs)Read %s ==\n", array_list_size(cals_list), fq_read->id);
+    printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
+
     if (flag == DOUBLE_ANCHORS) {
       //printf("\tWK_1ph: -- DOUBLE ANCHOR PROOCESS --\n");
       //printf("<<<<@ %s\n", fq_read->id);
