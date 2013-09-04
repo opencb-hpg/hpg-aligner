@@ -161,7 +161,7 @@ char cigar_automata_status(unsigned char status) {
 }
 
 // Select the splice junction type
-inline int splice_junction_type(char nt_start_1, char nt_start_2, char nt_end_1, char nt_end_2) {
+int splice_junction_type(char nt_start_1, char nt_start_2, char nt_end_1, char nt_end_2) {
   LOG_DEBUG_F("SEARCH SPLICE JUNCTION TYPE FOR %c%c - %c%c\n", nt_start_1, nt_start_2, nt_end_1, nt_end_2);
 
   int splice_type = NOT_SPLICE;

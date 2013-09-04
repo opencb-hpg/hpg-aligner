@@ -98,7 +98,7 @@ typedef struct options {
   char* genome_filename;
   char* output_name;
   char* header_filename;
-  char* intron_filename;
+  char* transcriptome_filename;
 } options_t;
 
 

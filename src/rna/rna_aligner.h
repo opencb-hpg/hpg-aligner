@@ -35,7 +35,7 @@
 typedef struct buffer_reader_input {
   fastq_batch_reader_input_t *reader_input;
   linked_list_t *buffer;
-}buffer_reader_input_t;
+} buffer_reader_input_t;
 
 void buffer_reader_input_init(fastq_batch_reader_input_t *reader_input, 
 			      linked_list_t *buffer, 
@@ -65,5 +65,54 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
 		     report_optarg_t *report_optarg, metaexons_t *metaexons, 
 		     options_t *options);
+
+typedef struct exon {
+  int chr;
+  int strand;
+  int start;
+  int end;
+  int exon_number;
+  char *chr_name;
+  char *gene_id;
+  char *transcript_id;
+  char *exon_id;
+} exon_t;
+
+static inline exon_t *exon_new(int chr, int strand, int start, int end, int exon_number,
+			     char *chr_name,  char *gene_id, char *transcript_id,
+			     char *exon_id) {
+  exon_t *p = (exon_t *) malloc(sizeof(exon_t));
+
+  p->chr = chr;
+  p->strand = strand;
+  p->start = start;
+  p->end = end;
+  p->exon_number = exon_number;
+  p->chr_name = chr_name;
+  p->gene_id = gene_id;
+  p->transcript_id = transcript_id;
+  p->exon_id = exon_id;
+
+  return p;
+}
+
+static inline void exon_free(exon_t *p) {
+  if (p) {
+    if (p->chr_name) free(p->chr_name);
+    if (p->gene_id) free(p->gene_id);
+    if (p->transcript_id) free(p->transcript_id);
+    if (p->exon_id) free(p->exon_id);
+
+    free(p);
+  }
+}
+
+static inline void exon_display(exon_t *p) {
+  if (p) {
+    printf("chr %s (%i): strand %c: %i - %i, gene_id = %s, transcript_id = %s, exon_number = %i, exon_id = %s\n",
+	   p->chr_name, p->chr, (p->strand ? '-' : '+'), p->start, p->end, p->gene_id,
+	   p->transcript_id, p->exon_number, p->exon_id);
+  }
+}
 
 #endif

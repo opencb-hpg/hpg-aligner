@@ -168,7 +168,7 @@ void options_free(options_t *options) {
      if (options->genome_filename  != NULL) { free(options->genome_filename); }
      if (options->output_name  != NULL)	{ free(options->output_name); }
      if (options->prefix_name != NULL) { free(options->prefix_name); }
-     if (options->intron_filename != NULL) { free(options->intron_filename); }
+     if (options->transcriptome_filename != NULL) { free(options->transcriptome_filename); }
 
      free(options);
 }
@@ -315,7 +315,7 @@ void** argtable_options_new(void) {
      argtable[13] = arg_int0(NULL, "num-cal-seekers", NULL, "Number of CAL Seekers");
      argtable[14] = arg_int0(NULL, "extra-seed-left-padding", NULL, "Nucleotides padding of left min seed");
      argtable[15] = arg_int0(NULL, "extra-seed-right-padding", NULL, "Nucleotides padding of right min seed");
-     argtable[16] = arg_file0(NULL, "if,intron-file", NULL, "Intron file to help search splice junctions");
+     argtable[16] = arg_file0(NULL, "transcriptome-file", NULL, "Transcriptome file to help search splice junctions");
      argtable[17] = arg_int0(NULL, "seed-size", NULL, "Number of nucleotides in a seed");
      argtable[18] = arg_int0(NULL, "min-seed-size", NULL, "Minimum number of nucleotides in a seed");
      argtable[19] = arg_int0(NULL, "cal-flank-size", NULL, "Flank length for CALs");
@@ -409,7 +409,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[13])->count) { options->cal_set = 1; options->num_cal_seekers = *(((struct arg_int*)argtable[13])->ival); }
   if (((struct arg_int*)argtable[14])->count) { options->min_seed_padding_left = *(((struct arg_int*)argtable[14])->ival); }
   if (((struct arg_int*)argtable[15])->count) { options->min_seed_padding_right = *(((struct arg_int*)argtable[15])->ival); }
-  if (((struct arg_file*)argtable[16])->count) { options->intron_filename = strdup(*(((struct arg_file*)argtable[16])->filename)); }
+  if (((struct arg_file*)argtable[16])->count) { options->transcriptome_filename = strdup(*(((struct arg_file*)argtable[16])->filename)); }
   if (((struct arg_int*)argtable[17])->count) { options->seed_size = *(((struct arg_int*)argtable[17])->ival); }
   if (((struct arg_int*)argtable[18])->count) { options->min_seed_size = *(((struct arg_int*)argtable[18])->ival); }
   if (((struct arg_int*)argtable[19])->count) { options->flank_length = *((struct arg_int*)argtable[19])->ival; }
