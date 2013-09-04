@@ -60,7 +60,6 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		     report_optarg_t *report_optarg, options_t *options);
 
 
-//void run_bs_aligner(genome_t *genome, genome_t *genome1, genome_t *genome2, 
 void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
 		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1,
 		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg,
@@ -218,9 +217,7 @@ int main(int argc, char* argv[]) {
     //genome = genome_new("dna_compression.bin", bs_dir1);
     genome1 = genome_new("dna_compression.bin", bs_dir1);
     genome2 = genome_new("dna_compression.bin", bs_dir2);
-    //printf("    gen0 %lu\n", genome->chr_size[0]);
-    //printf("    gen1 %lu\n", genome1->chr_size[0]);
-    //printf("    gen2 %lu\n", genome2->chr_size[0]);
+
     LOG_DEBUG("Done !!");
     
     // BWT index
@@ -292,7 +289,6 @@ int main(int argc, char* argv[]) {
   } else { // if (!strcmp(command, "bs")) {
     // BS version
     run_bs_aligner(genome1, genome2, genome, bwt_index1, bwt_index2,
-    //run_bs_aligner(genome, genome1, genome2, bwt_index1, bwt_index2,
 		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   }
 

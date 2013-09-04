@@ -42,6 +42,7 @@ typedef struct metil_file {
   char* filenameCHG;                     /**< Metilation file name for CpG regions. */
   char* filenameCHH;                     /**< Metilation file name for CpG regions. */
   char* filenameMUT;                     /**< Metilation file name for Mutations.   */
+  char* filenameSTAT;                    /**< Metilation file name for statistics.  */
   char* mode;                            /**< Open mode ("r", "w").                 */ // not in use
   genome_t *genome;                      /**< Reference to the original genome.     */
 
@@ -49,8 +50,19 @@ typedef struct metil_file {
   FILE *CHG;                             /**< File pointer to CHG output.           */
   FILE *CHH;                             /**< File pointer to CHH output.           */
   FILE *MUT;                             /**< File pointer to Mutation output.      */
+  FILE *STAT;                            /**< File pointer to Statistics output.    */
 
   hash_table_t *table_isles;             /**< Structure with the hash table values  */
+
+  // check the values in order to change the type of the counter variables
+  size_t CpG_methyl;                 /**< Global Counter for methylated Cytosines in CpG context   */
+  size_t CpG_unmethyl;               /**< Global Counter for unmethylated Cytosines in CpG context */
+  size_t CHG_methyl;                 /**< Global Counter for methylated Cytosines in CHG context   */
+  size_t CHG_unmethyl;               /**< Global Counter for unmethylated Cytosines in CHG context */
+  size_t CHH_methyl;                 /**< Global Counter for methylated Cytosines in CHH context   */
+  size_t CHH_unmethyl;               /**< Global Counter for unmethylated Cytosines in CHH context */
+  size_t MUT_methyl;                 /**< Global Counter for mutated Cytosines                     */
+  size_t num_bases;                  /**< Global Counter for number of bases in the batch          */
 } metil_file_t;
 
 //====================================================================================
@@ -330,9 +342,20 @@ int methylation_status_report(sw_server_input_t* input, batch_t *batch);
  *                                                                                                                         
  *                                                                                                                         
  */
-void add_metilation_status(array_list_t *array_list, array_list_t *bs_status, genome_t * genome, array_list_t * orig_seq);
+void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index);
+
 
 //====================================================================================                                     
 
+/**
+ * @brief  Write the metilation status of each Cytosine
+ * @param  array_list 
+ * @param  metil_file 
+ * 
+ * 
+ */
+void write_bs_context(metil_file_t *metil_file, bs_context_t *bs_context);
+
+//====================================================================================
 
 #endif // METHYLATION_H

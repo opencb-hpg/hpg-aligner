@@ -355,6 +355,7 @@ int bwt_stage(void *data) {
 int bwt_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
 
+  //printf("Init BWT\n");
   return apply_bwt_bs(batch->bwt_input, batch);     
 }
 
@@ -371,6 +372,7 @@ int seeding_stage(void *data) {
 int seeding_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
 
+  //printf("Init seeding\n");
   return apply_seeding_bs(batch->region_input, batch);
 }
 
@@ -391,6 +393,7 @@ int cal_stage(void *data) {
 int cal_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
 
+  //printf("Init CAL\n");
   return apply_caling_bs(batch->cal_input, batch);
 }
 
@@ -405,15 +408,18 @@ int rna_preprocess_stage(void *data) {
 //---------------------------------------------------------------------
 
 int pre_pair_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
-     return apply_pair(batch->pair_input, batch);
+  batch_t *batch = (batch_t *) data;
+
+  return apply_pair(batch->pair_input, batch);
 }
 
 //---------------------------------------------------------------------
 
 int pre_pair_stage_bs(void *data) {
-     batch_t *batch = (batch_t *) data;
-     return apply_pair(batch->pair_input, batch);
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init pre_pair\n");
+  return apply_pair(batch->pair_input, batch);
 }
 
 //--------------------------------------------------------------------
@@ -433,6 +439,7 @@ int sw_stage(void *data) {
 int sw_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
 
+  //printf("Init SW\n");
   return apply_sw_bs(batch->sw_input, batch);
 }
 
@@ -457,6 +464,7 @@ int post_pair_stage_bs(void *data) {
 int bs_status_stage(void *data) {
   batch_t *batch = (batch_t *) data;
 
+  //printf("Init bs_status\n");
   return methylation_status_report(batch->sw_input, batch);
 }
 

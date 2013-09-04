@@ -387,3 +387,21 @@ void rna_batch_free(rna_batch_t *p) {
 */
 
 //------------------------------------------------------------------------------------
+
+void bs_context_init(bs_context_t *bs_context, size_t num_reads) {
+  bs_context->context_CpG = array_list_new(num_reads * 4, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_CHG = array_list_new(num_reads * 4, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_CHH = array_list_new(num_reads * 4, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_MUT = array_list_new(num_reads * 4, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  
+  bs_context->CpG_methyl   = 0;
+  bs_context->CpG_unmethyl = 0;
+  bs_context->CHG_methyl   = 0;
+  bs_context->CHG_unmethyl = 0;
+  bs_context->CHH_methyl   = 0;
+  bs_context->CHH_unmethyl = 0;
+  bs_context->MUT_methyl   = 0;
+  bs_context->num_bases    = 0;
+}
+
+//------------------------------------------------------------------------------------
