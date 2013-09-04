@@ -428,6 +428,7 @@ static inline exon_t *parse_exon_line(FILE *f, genome_t *genome) {
   char *chr_name, *gene_id, *transcript_id, *exon_id, *exon_number_str;
 
   while (fgets(line, MAX_LENGTH, f) != NULL) {
+    //    LOG_DEBUG_F("%s", line);
     str = strdup(line);
     token = strtok(str, "\t");
     field = 0;
@@ -452,7 +453,8 @@ static inline exon_t *parse_exon_line(FILE *f, genome_t *genome) {
       } else if (field == 4) { // end position of the feature (starting at 1)  
         end = atoi(token);
       } else if (field == 6) { // strand + (forward) or - (reverse)
-        strand = (token == '-' ? 1 : 0);
+        strand = ((strcmp(token, "-") == 0) ? 1 : 0);
+	//	printf("---> strand = %i, token = %s\n", strand, token);
       } else if (field == 8) { // attributes, a semicolon-separated list of tag-value pairs
 	// gene_id, transcript_id, exon_id
 	gene_id = parse_attribute("gene_id \"", token);
@@ -486,43 +488,79 @@ void load_transcriptome(char *filename, genome_t *genome,
 
   FILE *f = fopen(filename, "r");
 
-  int count = 0;
-  exon_t *exon1 = NULL, *exon2 = NULL;
+  int pos, direction, count = 0;
+  exon_t *exon = NULL, *exon1 = NULL, *exon2 = NULL;
 
   size_t g_start, g_end;
-  int type, splice_strand;
+  int type, splice_strand, strand;
   char nt_start[2], nt_end[2];
+  char *transcript_id;
 
+  array_list_t *list = array_list_new(100, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+
+  
   while (1) {
 
-    // get exon1
-    if (!exon1) {
-      exon1 = parse_exon_line(f, genome);  
-      if (exon1) {
-	//	exon_display(exon1);
-	count++;
+    // read the first exon
+    if (!exon) {
+      exon = parse_exon_line(f, genome);  
+      if (!exon) {
+	break;
       }
     }
 
-    // get exon2
-    if (!exon2) {
-      exon2 = parse_exon_line(f, genome);
-      if (exon2) {
-	//	exon_display(exon2);
-	count++;
-      }
+    array_list_insert(exon, list);
+    strand = exon->strand;
+    transcript_id = exon->transcript_id;
+
+    while ((exon = parse_exon_line(f, genome)) && strcmp(exon->transcript_id, transcript_id) == 0) {
+      array_list_insert(exon, list);
+    }
+    
+    // process the whole list
+    if (strand) {
+      // - strand
+      pos = list->size - 1;
+      direction = -1;
+    } else {
+      // + strand
+      pos = 0;
+      direction = 1;
     }
 
-    if (exon1 && exon2) {
-      if (exon2->exon_number + 1 == exon1->exon_number) {
+    exon1 = NULL;
+    exon2 = NULL;
+
+    for (int i = 0; i < list->size; i++, pos += direction) {
+
+      //      printf("---> pos = %i\n", pos);
+
+      // get exon1
+      if (!exon1) {
+	exon1 = array_list_get(pos, list);
+	count++;
+	continue;
+      }
+
+      // get exon2
+      if (!exon2) {
+	exon2 = array_list_get(pos, list);
+	if (exon2) {
+	  //	exon_display(exon2);
+	  count++;
+	}
+      }
+
+      if (exon1 && exon2) {
+	//	printf("Process Exon1[%lu-%lu] and Exon2[%lu-%lu]\n", exon1->start, exon1->end, exon2->start, exon2->end);
 	// exons belonging to the same transcript
 	// process exon1 and exon2, to init the splice junction
-	g_start = exon1->end;
+	g_start = exon1->end + 1;
 	g_end = g_start + 1;
 	//	printf("chr = %s (%i), strand %i, g_start = %i, g_end = %i\n", exon1->chr_name, exon1->chr, exon1->strand, g_start, g_end);
 	genome_read_sequence_by_chr_index(nt_start, exon1->strand, exon1->chr, &g_start, &g_end, genome);
 	//	printf("\tnt_start = %s\n", nt_start);
-
+	
 	g_end = exon2->start - 1;
 	g_start = g_end - 1;
 	//	printf("chr = %s (%i), strand %i, g_start = %i, g_end = %i\n", exon2->chr_name, exon2->chr, exon2->strand, g_start, g_end);
@@ -537,9 +575,14 @@ void load_transcriptome(char *filename, genome_t *genome,
 	if (type == CT_AC_SPLICE || type == GT_AT_SPLICE || type == CT_GC_SPLICE ) {
 	  splice_strand = 1;
 	}
-
-	//	LOG_FATAL_F("nt_start = %s, nt_end = %s, type = %i\n", nt_start, nt_end, type);
-
+	
+	//LOG_FATAL_F("nt_start = %s, nt_end = %s, type = %i\n", nt_start, nt_end, type);
+	
+	LOG_DEBUG_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
+	if (exon2->start <= exon1->end) {
+	  LOG_FATAL_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
+	}
+	
 	allocate_start_node(exon1->chr, // startint at 0
 			    splice_strand,
 			    exon1->end,   // splice start
@@ -563,39 +606,43 @@ void load_transcriptome(char *filename, genome_t *genome,
 	exon_free(exon1);
 	exon1 = exon2;
 	exon2 = NULL;
-      } else {
-	// exons belonging to different transcripts
-	// process exon1 but only if it's the first (no splice)
+      } else if (exon1) {
+	// process the last exon (exon1) but only if it's the first (no splice)
 	// (otherwise, it was already processed, there was a splice)
 	if (exon1->exon_number == 1) {
+	  //	  printf("Process Exon1[%lu-%lu]\n", exon1->start, exon1->end);
 	  metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
 			  METAEXON_NORMAL, NULL, metaexons);
 	}
-
-	// ...and then, free exon1 and update it to exon2
+	// and free and exit
 	exon_free(exon1);
-	exon1 = exon2;
+	exon1 = NULL;
 	exon2 = NULL;
+	break;
       }
-    } else if (exon1) {
+    } // end for
+
+    if (exon1) {
       // process the last exon (exon1) but only if it's the first (no splice)
       // (otherwise, it was already processed, there was a splice)
       if (exon1->exon_number == 1) {
+	//	printf("Process Exon1[%lu-%lu]\n", exon1->start, exon1->end);
 	metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
 			METAEXON_NORMAL, NULL, metaexons);
       }
       // and free and exit
       exon_free(exon1);
-      break;
-    } else {
-      // and exit
-      break;
     }
-  }
+    
+    array_list_clear(list, NULL);
+  } // end while
 
   fclose(f);
 
   LOG_DEBUG_F("Number of processed exons: %i", count);
+
+  metaexons_show(metaexons);
+  exit(-1);
 
     /*
     if (!found) continue;
