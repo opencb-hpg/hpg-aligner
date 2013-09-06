@@ -342,7 +342,7 @@ int methylation_status_report(sw_server_input_t* input, batch_t *batch);
  *                                                                                                                         
  *                                                                                                                         
  */
-void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index);
+void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index, int conversion);
 
 
 //====================================================================================                                     

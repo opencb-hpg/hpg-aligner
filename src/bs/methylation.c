@@ -983,7 +983,7 @@ int methylation_status_report(sw_server_input_t* input, batch_t *batch) {
       if (num_items != 0) {
 	//printf("Read %lu (version %i)\tAlignments %lu\n", i, k, num_items);
         //add_metilation_status(mapping_lists[i], mapping_batch->bs_status, genome, mapping_batch->fq_batch);
-        add_metilation_status(mapping_lists[i], bs_context, genome, mapping_batch->fq_batch, i);
+        add_metilation_status(mapping_lists[i], bs_context, genome, mapping_batch->fq_batch, i, k);
 	//printf("End addition\n");
       }
     }
@@ -996,7 +996,7 @@ int methylation_status_report(sw_server_input_t* input, batch_t *batch) {
 
 //====================================================================================
 
-void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index) {
+void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index, int conversion) {
 
   //printf("Init add metilation status\n");
   
@@ -1005,6 +1005,7 @@ void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, g
   char *seq, *gen;
   fastq_read_t *orig;
   size_t len, end, start;
+  int new_strand;
 
   char *new_stage;
   orig = (fastq_read_t *) array_list_get(index, orig_seq);
@@ -1054,132 +1055,169 @@ void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, g
 
       genome_read_sequence_by_chr_index(gen, alig->seq_strand, alig->chromosome, &start, &end, genome);
 
-
+      /*
       printf("seq %s\n", seq);
       printf("gen %s\n", gen);
-
+      */
       /*
       printf("chromo %i, strand %i, begin %lu, end %lu\n",
 	     alig->chromosome, alig->seq_strand, alig->position, end);
       */
       for (size_t i = 0; i < len; i++) {
-      //for (size_t i = 0; i < len - 2; i++) {
-
-	//printf("Init for\n");
-	//printf("Leido en gen[%lu](%lu) %c\n", start + i, i, gen[i]);
-
-	if (gen[i] == 'C') {
-	//if (seq[i] == 'C') {
-	  //printf("Candidata (C) en %lu\n", start + i);
-	  //case ZONE_CpG:
-	  if (gen[i + 1] == 'G') {
-	    if (seq[i] == 'C') {
-	  //if (seq[i + 1] == 'G') {
-	  //  if (gen[i] == 'C') {
-	      //printf("%s\t+\t%i\t%lu\tZ\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-	      new_stage = (char *) malloc(128 * sizeof(char));
-	      sprintf(new_stage, "%s\t+\t%i\t%lu\tZ\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-	      //array_list_insert(new_stage, bs_status);
-	      array_list_insert(new_stage, bs_context->context_CpG);
-	      bs_context->CpG_methyl++;
-	    } else if (seq[i] == 'T') {
-	    //} else if (gen[i] == 'T') {
-	      //printf("%s\t-\t%i\t%lu\tz\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-	      new_stage = (char *) malloc(128 * sizeof(char));
-	      sprintf(new_stage, "%s\t-\t%i\t%lu\tz\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-	      //array_list_insert(new_stage, bs_status);
-	      array_list_insert(new_stage, bs_context->context_CpG);
-	      bs_context->CpG_unmethyl++;
-	    } else {
-	      //printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-	      new_stage = (char *) malloc(128 * sizeof(char));
-	      sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-	      //array_list_insert(new_stage, bs_status);
-	      array_list_insert(new_stage, bs_context->context_MUT);
-	      bs_context->MUT_methyl++;
-	    }
-	  } else {
-	    //case ZONE_CHG:
-	    if (gen[i + 2] == 'G') {
+	if ((conversion == 1 && alig->seq_strand == 0) || (conversion == 0 && alig->seq_strand == 1)) {
+	  // methylated/unmethylated cytosines are located in the same strand as the alignment
+	  if (gen[i] == 'C') {
+	    //case ZONE_CpG:
+	    if (gen[i + 1] == 'G') {
 	      if (seq[i] == 'C') {
-	    //if (seq[i + 2] == 'G') {
-	    //  if (gen[i] == 'C') {
-		//printf("%s\t+\t%i\t%lu\tX\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		//printf("%s\t+\t%i\t%lu\tZ\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
 		new_stage = (char *) malloc(128 * sizeof(char));
-		sprintf(new_stage, "%s\t+\t%i\t%lu\tX\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		//array_list_insert(new_stage, bs_status);
-		array_list_insert(new_stage, bs_context->context_CHG);
-		bs_context->CHG_methyl++;
+		sprintf(new_stage, "%s\t+\t%i\t%lu\tZ\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		array_list_insert(new_stage, bs_context->context_CpG);
+		bs_context->CpG_methyl++;
 	      } else if (seq[i] == 'T') {
-	      //} else if (gen[i] == 'T') {
-		//printf("%s\t-\t%i\t%lu\tx\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		//printf("%s\t-\t%i\t%lu\tz\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
 		new_stage = (char *) malloc(128 * sizeof(char));
-		sprintf(new_stage, "%s\t-\t%i\t%lu\tx\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		//array_list_insert(new_stage, bs_status);
-		array_list_insert(new_stage, bs_context->context_CHG);
-		bs_context->CHG_unmethyl++;
+		sprintf(new_stage, "%s\t-\t%i\t%lu\tz\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		array_list_insert(new_stage, bs_context->context_CpG);
+		bs_context->CpG_unmethyl++;
 	      } else {
 		//printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
 		new_stage = (char *) malloc(128 * sizeof(char));
 		sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		//array_list_insert(new_stage, bs_status);
 		array_list_insert(new_stage, bs_context->context_MUT);
 		bs_context->MUT_methyl++;
 	      }
 	    } else {
-	      //case ZONE_CHH:
-	      if (seq[i] == 'C') {
-	      //if (gen[i] == 'C') {
-		//printf("%s\t+\t%i\t%lu\tH\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		new_stage = (char *) malloc(128 * sizeof(char));
-		sprintf(new_stage, "%s\t+\t%i\t%lu\tH\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		//array_list_insert(new_stage, bs_status);
-		array_list_insert(new_stage, bs_context->context_CHH);
-		bs_context->CHH_methyl++;
-	      } else if (seq[i] == 'T') {
-	      //} else if (gen[i] == 'T') {
-		//printf("%s\t-\t%i\t%lu\th\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		new_stage = (char *) malloc(128 * sizeof(char));
-		sprintf(new_stage, "%s\t-\t%i\t%lu\th\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		//array_list_insert(new_stage, bs_status);
-		array_list_insert(new_stage, bs_context->context_CHH);
-		bs_context->CHH_unmethyl++;
+	      //case ZONE_CHG:
+	      if (gen[i + 2] == 'G') {
+		if (seq[i] == 'C') {
+		  //printf("%s\t+\t%i\t%lu\tX\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t+\t%i\t%lu\tX\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  array_list_insert(new_stage, bs_context->context_CHG);
+		  bs_context->CHG_methyl++;
+		} else if (seq[i] == 'T') {
+		  //printf("%s\t-\t%i\t%lu\tx\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t-\t%i\t%lu\tx\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  array_list_insert(new_stage, bs_context->context_CHG);
+		  bs_context->CHG_unmethyl++;
+		} else {
+		  //printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  array_list_insert(new_stage, bs_context->context_MUT);
+		  bs_context->MUT_methyl++;
+		}
 	      } else {
-		//printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		//case ZONE_CHH:
+		if (seq[i] == 'C') {
+		  //printf("%s\t+\t%i\t%lu\tH\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t+\t%i\t%lu\tH\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  array_list_insert(new_stage, bs_context->context_CHH);
+		  bs_context->CHH_methyl++;
+		} else if (seq[i] == 'T') {
+		  //printf("%s\t-\t%i\t%lu\th\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t-\t%i\t%lu\th\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  array_list_insert(new_stage, bs_context->context_CHH);
+		  bs_context->CHH_unmethyl++;
+		} else {
+		  //printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
+		  array_list_insert(new_stage, bs_context->context_MUT);
+		  bs_context->MUT_methyl++;
+		}
+	      }
+	    }
+	  }
+	} else {
+	  // methylated/unmethylated cytosines are located in the other strand
+	  if (alig->seq_strand == 0)
+	    new_strand = 1;
+	  else
+	    new_strand = 0;
+
+	  if (gen[i+2] == 'G') {
+	    //case ZONE_CpG:
+	    if (gen[i + 1] == 'C') {
+	      if (seq[i] == 'G') {
+		//printf("%s\t+\t%i\t%lu\tZ\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
 		new_stage = (char *) malloc(128 * sizeof(char));
-		sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, alig->seq_strand);
-		//array_list_insert(new_stage, bs_status);
+		sprintf(new_stage, "%s\t+\t%i\t%lu\tZ\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		array_list_insert(new_stage, bs_context->context_CpG);
+		bs_context->CpG_methyl++;
+	      } else if (seq[i] == 'A') {
+		//printf("%s\t-\t%i\t%lu\tz\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		new_stage = (char *) malloc(128 * sizeof(char));
+		sprintf(new_stage, "%s\t-\t%i\t%lu\tz\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		array_list_insert(new_stage, bs_context->context_CpG);
+		bs_context->CpG_unmethyl++;
+	      } else {
+		//printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		new_stage = (char *) malloc(128 * sizeof(char));
+		sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
 		array_list_insert(new_stage, bs_context->context_MUT);
 		bs_context->MUT_methyl++;
+	      }
+	    } else {
+	      //case ZONE_CHG:
+	      if (gen[i] == 'C') {
+		if (seq[i] == 'G') {
+		  //printf("%s\t+\t%i\t%lu\tX\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t+\t%i\t%lu\tX\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  array_list_insert(new_stage, bs_context->context_CHG);
+		  bs_context->CHG_methyl++;
+		} else if (seq[i] == 'A') {
+		  //printf("%s\t-\t%i\t%lu\tx\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t-\t%i\t%lu\tx\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  array_list_insert(new_stage, bs_context->context_CHG);
+		  bs_context->CHG_unmethyl++;
+		} else {
+		  //printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  array_list_insert(new_stage, bs_context->context_MUT);
+		  bs_context->MUT_methyl++;
+		}
+	      } else {
+		//case ZONE_CHH:
+		if (seq[i] == 'G') {
+		  //printf("%s\t+\t%i\t%lu\tH\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t+\t%i\t%lu\tH\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  array_list_insert(new_stage, bs_context->context_CHH);
+		  bs_context->CHH_methyl++;
+		} else if (seq[i] == 'A') {
+		  //printf("%s\t-\t%i\t%lu\th\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t-\t%i\t%lu\th\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  array_list_insert(new_stage, bs_context->context_CHH);
+		  bs_context->CHH_unmethyl++;
+		} else {
+		  //printf("%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  new_stage = (char *) malloc(128 * sizeof(char));
+		  sprintf(new_stage, "%s\t.\t%i\t%lu\tM\t%i\n", alig->query_name, alig->chromosome, start + i, new_strand);
+		  array_list_insert(new_stage, bs_context->context_MUT);
+		  bs_context->MUT_methyl++;
+		}
 	      }
 	    }
 	  }
 	}
-
 	//printf("End for\n");
-	/*
-	else {
-	  if (gen[i] == 'G') {
-	    if (seq[i] == 'G' || seq[i] == 'A') {
-	      printf("Candidata (G) en %lu\n", start + i);
-	    } else {
-	      printf("%s\t-\t%i %i\t%lu\tm\n", alig->query_name, alig->chromosome, alig->seq_strand, start + i);
-	      //printf("Mutacion en %lu\n", start + i);
-	    }
-	  }
-	}
-	*/
       }
 
-      //printf("free seq\n");
       if (seq) free(seq);
-      //printf("free gen\n");
       if (gen) free(gen);
-      //printf("End free\n");
     }
   }
   /*
-  printf("End for\n");
   printf("\tMethyl\tunMethyl\nCpG\t%lu\t%lu\nCHG\t%lu\t%lu\nCHH\t%lu\t%lu\n------------------------\nMUT\t%lu\n",
 	 bs_context->CpG_methyl, bs_context->CpG_unmethyl,
 	 bs_context->CHG_methyl, bs_context->CHG_unmethyl,
