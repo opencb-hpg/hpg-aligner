@@ -880,7 +880,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   fastq_read_t *read;
   genome_t *genome = input->genome;
   size_t *targets_aux;
-  size_t min_seeds, max_seeds;
+  int min_seeds, max_seeds;
   int seed_size = 16;
   array_list_t *cal_list, *list;
   cal_t *cal;
@@ -1175,7 +1175,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   array_list_t *list = NULL;
-  size_t read_index, num_cals, min_seeds, max_seeds;
+  size_t read_index, num_cals;
+  int min_seeds, max_seeds;
   int min_limit;
 
   cal_t *cal;
@@ -1194,7 +1195,7 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
   linked_list_t *linked_list;
   int anchor_nt, gap_nt;
   seed_region_t *seed_region_start, *seed_region_end;
-  max_seeds = input->cal_optarg->num_seeds;
+  //max_seeds = input->cal_optarg->num_seeds;
   
   //  size_t *new_targets = (size_t *) calloc(num_targets, sizeof(size_t));
   

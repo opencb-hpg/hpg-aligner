@@ -4010,7 +4010,8 @@ else if (strcmp(fq_read->id, "@ENST00000423670@ENSG00000000457@protein_coding@1@
 else if (strcmp(fq_read->id, "@ENST00000423670@ENSG00000000457@protein_coding@1@169823652@169863408@-1@KNOWN_691_881_0_1_0_0_2:0:1_1:0:0_e/1") == 0) { continue; }
 else if (strcmp(fq_read->id, "@ENST00000470238@ENSG00000000457@processed_transcript@1@169828260@169863093@-1@KNOWN_625_472_1_0_0_0_4:2:0_1:0:0_9/1") == 0) { continue; }
     */
-    //printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
+
+    printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
     if (flag == DOUBLE_ANCHORS) {
       //printf("\tWK_1ph: -- DOUBLE ANCHOR PROOCESS --\n");
       //printf("<<<<@ %s\n", fq_read->id);

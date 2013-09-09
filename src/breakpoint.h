@@ -81,6 +81,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
 				  unsigned int query_len, unsigned int ref_len,
 				  int *distance, int ref_type);
 int cigar_code_validate(int read_length, cigar_code_t *p);
+int cigar_code_validate_(fastq_read_t *fq_read, cigar_code_t *p);
 //cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
 //				  unsigned int query_start, unsigned int query_len, 
 //				  int *distance);

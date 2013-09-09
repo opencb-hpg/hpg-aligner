@@ -442,6 +442,13 @@ typedef struct buffer_item {
 
 buffer_item_t *buffer_item_new();
 buffer_item_t *buffer_item_complete_new(fastq_read_t *read, array_list_t *cals_list, void *aux_data);
+void buffer_item_insert_new_item(fastq_read_t *fq_read,
+                                 linked_list_t *items_list,
+                                 void *data,
+                                 int type_items,
+                                 linked_list_t *buffer,
+                                 linked_list_t *buffer_hc,
+                                 int phase);
 void buffer_item_free(buffer_item_t *buffer_item);
 
 //======================================================================================
