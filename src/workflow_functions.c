@@ -152,7 +152,7 @@ int bam_writer(void *data) {
      batch_writer_input_t *writer_input = batch->writer_input;
      bam_file_t *bam_file = writer_input->bam_file;     
      linked_list_t *linked_list = writer_input->list_p;
-     size_t num_reads = array_list_size(mapping_batch->fq_batch);
+     size_t num_reads_b = array_list_size(mapping_batch->fq_batch);
      size_t num_mapped_reads = 0;
      size_t total_mappings = 0;
      unsigned char found_p1 = 0;
@@ -167,95 +167,36 @@ int bam_writer(void *data) {
 
      extern size_t *histogram_sw;
 
-     if (batch->mapping_mode == DNA_MODE || batch->mapping_mode == RNA_MODE) {
-       //for (int i = 0; i < 1024; i++) {
-       //histogram_sw[i] += mapping_batch->histogram_sw[i];
-       //}
-       free(mapping_batch->histogram_sw);
-       //
-       // DNA mode
-       //
-       for (size_t i = 0; i < num_reads; i++) {
-	 num_items = array_list_size(mapping_batch->mapping_lists[i]);
-	 total_mappings += num_items;
-	 fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+     extern size_t num_reads_map;
+     extern size_t num_reads;
 
-	 // mapped or not mapped ?	 
-	 if (num_items == 0) {
-	   total_mappings++;
-	   write_unmapped_read(fq_read, bam_file);
-	   if (mapping_batch->mapping_lists[i]) {
-	     array_list_free(mapping_batch->mapping_lists[i], NULL);
-	   }	 
-	 } else {
-	   num_mapped_reads++;
-	   write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
-	 }
-       }
-     } else {
-       //TODO: This section needs supracals implementatation, that it is not implemented yet.
-       //
-       // RNA mode
-       //
-       i = 0;
-       while (i < num_reads) {
-	 num_items = array_list_size(mapping_batch->mapping_lists[i]);
-	 total_mappings += num_items;
-	 fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
-	 // mapped or not mapped ?
-	 if (!num_items) {
-	   total_mappings++;
-	   write_unmapped_read(fq_read, bam_file);
-	 } else {
-	   //Search if some read contains a left/right hard clipping
-	   if (batch->pair_input->pair_mng->pair_mode == SINGLE_END_MODE) {
-	     if (search_hard_clipping(mapping_batch->mapping_lists[i])) {
-	       //Store to Buffer fq_read and alignments
-	       buffer_item_t *buffer_item = buffer_item_new(fastq_read_dup(buffer_item_new(fq_read)), 
-							    mapping_batch->mapping_lists[i]);
-
-	       linked_list_insert((void *)buffer_item, linked_list);
-	     } else {
-	       //Not Found Hard Clipping! Write to Diks all alignments
-	       num_mapped_reads++;
-	       write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
-	     }
-	   } else {
-	      if (i%2 == 0) {
-		found_p1 = search_hard_clipping(mapping_batch->mapping_lists[i]);
-		if (!mapping_batch->mapping_lists[i + 1]) { printf("Pair-End without pair.\n"); break;  }
-		found_p2 = search_hard_clipping(mapping_batch->mapping_lists[i + 1]);
-		if (found_p1 || found_p2) {
-		  //Store to Buffer fq_read and fq_read + 1 and alignments
-		  buffer_pair_item_t *buffer_item = buffer_item_pair_new(fastq_read_dup(buffer_item_new(fq_read)), 
-									 mapping_batch->mapping_lists[i], 
-									 fastq_read_dup(array_list_get(i + 1, 
-												       mapping_batch->fq_batch)),
-									 mapping_batch->mapping_lists[i + 1]);
-		  linked_list_insert((void *)buffer_item, linked_list);
-		} else {
-		  //Not Found Hard Clipping in any Pair! Write to Diks all alignments
-		  if (num_items) { num_mapped_reads++; }
-		  num_items = array_list_size(mapping_batch->mapping_lists[i + 1]);
-		  if (num_items) { num_mapped_reads++;total_mappings += num_items; }
-		  
-		  write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
-		  write_mapped_read(mapping_batch->mapping_lists[i + 1], bam_file);
-		}
-		i++;
-	      }
-	   }
-	 } //else num_items
-	 i++;
-       } //end of while
-
-       if (global_status == WORKFLOW_STATUS_FINISHED) {
-	 pthread_cond_signal(&cond_sp);
+     free(mapping_batch->histogram_sw);
+     //
+     // DNA/RNA mode
+     //
+     for (size_t i = 0; i < num_reads_b; i++) {
+       num_items = array_list_size(mapping_batch->mapping_lists[i]);
+       total_mappings += num_items;
+       fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+       
+       // mapped or not mapped ?	 
+       if (num_items == 0) {
+	 total_mappings++;
+	 write_unmapped_read(fq_read, bam_file);
+	 if (mapping_batch->mapping_lists[i]) {
+	   array_list_free(mapping_batch->mapping_lists[i], NULL);
+	 }	 
+       } else {
+	 num_mapped_reads++;
+	 write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
        }
      }
      
+     num_reads     += num_reads_b;
+     num_reads_map += num_mapped_reads;
+ 
      //fprintf(stderr, "TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
-     if (basic_st->total_reads >= writer_input->limit_print) {
+     /*if (basic_st->total_reads >= writer_input->limit_print) {
        //LOG_DEBUG_F("TOTAL READS PROCESS: %lu\n", basic_st->total_reads);
        //LOG_DEBUG_F("\tTotal Reads Mapped: %lu(%.2f%)\n", 
        //	   basic_st->num_mapped_reads, 
@@ -267,7 +208,7 @@ int bam_writer(void *data) {
 		   (float) (basic_st->num_mapped_reads*100)/(float)(basic_st->total_reads));
        
        writer_input->limit_print += 100000;
-     }
+       }*/
      
      //printf("Batch Write OK!\n");     
      
@@ -277,7 +218,7 @@ int bam_writer(void *data) {
      
      if (batch) batch_free(batch);
      
-     basic_statistics_add(num_reads, num_mapped_reads, total_mappings, basic_st);
+     basic_statistics_add(num_reads_b, num_mapped_reads, total_mappings, basic_st);
      
      if (time_on) { stop_timer(start, end, time); timing_add(time, BAM_WRITER, timing); }
 }

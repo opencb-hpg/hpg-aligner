@@ -328,18 +328,34 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   start_timer(start);
 
   //Run workflow
+  extern size_t num_reads_map;
+  extern size_t num_reads;
+
+  num_reads_map = 0;
+  num_reads     = 0;
   fprintf(stderr, "START WORKWFLOW '1ph'\n");
   workflow_run_with(options->num_cpu_threads, wf_input, wf);
+  fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '1ph'\n\n");
-
+  
+  
+  num_reads_map = 0;
+  num_reads     = 0;
   fprintf(stderr, "START WORKWFLOW '2ph'\n");
   workflow_run_with(options->num_cpu_threads, wf_input_buffer, wf_last);
+  fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '2ph'\n\n");
 
+  
+  num_reads_map = 0;
+  num_reads     = 0;
   fprintf(stderr, "START WORKWFLOW '3ph'\n");
   workflow_run_with(options->num_cpu_threads, wf_input_buffer_hc, wf_hc);
+  fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
- 
+
+  /*options->num_cpu_threads*/
+
   //Write chromosome avls
   write_chromosome_avls(extend_filename,
                         exact_filename, genome->num_chromosomes, avls_list);
@@ -579,16 +595,16 @@ void load_transcriptome(char *filename, genome_t *genome,
 	//LOG_FATAL_F("nt_start = %s, nt_end = %s, type = %i\n", nt_start, nt_end, type);
 	
 	LOG_DEBUG_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
-	if (exon2->start <= exon1->end) {
+	if (exon2->start - 1 < exon1->end + 1) {
 	  LOG_FATAL_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
 	}
 	
 	allocate_start_node(exon1->chr, // startint at 0
 			    splice_strand,
-			    exon1->end,   // splice start
-			    exon2->start, // splice_end,
-			    exon1->end,   // splice start
-			    exon2->start, // splice_end,
+			    exon1->end + 1,   // splice start
+			    exon2->start - 1, // splice_end,
+			    exon1->end + 1,   // splice start
+			    exon2->start - 1, // splice_end,
 			    FROM_FILE,
 			    type,
 			    NULL, 

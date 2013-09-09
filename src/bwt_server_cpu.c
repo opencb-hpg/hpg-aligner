@@ -403,13 +403,7 @@ int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch) {
 	metaexon_insert(cal->strand, cal->chromosome_id - 1,
 			cal->start, cal->end, 40,
 			METAEXON_NORMAL, NULL,
-			metaexons);
-	
-	/*	bwt_anchor_t *bwt_anchor_next = array_list_get(j + 1, list);
-	metaexon_insert(bwt_anchor_next->strand, bwt_anchor_next->chromosome,
-			bwt_anchor_next->start, bwt_anchor_next->end, 40,
-			METAEXON_NORMAL, NULL,
-			metaexons);	*/
+			metaexons);	
       }    
     } else if (array_list_get_flag(list) == SINGLE_ANCHORS) {
       for (int j = 0; j < array_list_size(list); j++) {
@@ -419,10 +413,10 @@ int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch) {
 	if (metaexon_search(cal->strand, cal->chromosome_id - 1,
 			    cal->start, cal->end, &metaexon,
 			    metaexons)) {
-	  metaexon_insert(cal->strand, cal->chromosome_id - 1,
+	  /*metaexon_insert(cal->strand, cal->chromosome_id - 1,
 			  cal->start, cal->end, 40,
 			  METAEXON_NORMAL, NULL,
-			  metaexons);
+			  metaexons);*/
 	}
       }
     }

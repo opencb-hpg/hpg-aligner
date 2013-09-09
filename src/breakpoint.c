@@ -380,7 +380,7 @@ void cigar_code_delete_nt(int nt, int direction, cigar_code_t *cigar_code) {
       array_list_remove_at(i, cigar_code->ops);
     }
   }
-  
+
 }
 
 //--------------------------------------------------------------------------------------
@@ -943,6 +943,7 @@ int metaexon_search(unsigned int strand, unsigned int chromosome,
   int found = 0;
   *metaexon_found = NULL;
 
+  strand = 0;
   //printf("Lock////// METAEXON SEARCH %i:%lu(ck=%lu)-%lu(ck=%lu) //////\n", chromosome, start, chunk_start, end, chunk_end);
   pthread_mutex_lock(&metaexons->mutex[chromosome]);
 
@@ -950,6 +951,7 @@ int metaexon_search(unsigned int strand, unsigned int chromosome,
 
   if (metaexons->metaexons_table[chromosome][chunk_start] &&
       metaexons->metaexons_table[chromosome][chunk_end]) {
+    //printf("CHUNK NOT NULL\n");
     if (chunk_start != chunk_end) {
       metaexon_left  = NULL;
       metaexon_right = NULL;
@@ -977,8 +979,9 @@ int metaexon_search(unsigned int strand, unsigned int chromosome,
       start_list = metaexons->metaexons_table[chromosome][chunk_start][strand];
       linked_list_iterator_init(start_list, &itr);
       metaexon = (metaexon_t *)linked_list_iterator_curr(&itr);
+      //printf("EQUAL CHUNKS num_items = %i\n", linked_list_size(start_list));
       while (metaexon != NULL) {
-	//printf("%lu <= %lu && %lu >= %lu\n", start, metaexon->end, 
+	//printf("\t%lu <= %lu && %lu >= %lu\n", start, metaexon->end, 
 	//     end, metaexon->start);
 	if (start <= metaexon->end && end >= metaexon->start) {
 	  size_t final_chunk = metaexon->end / metaexons->chunk_size;
@@ -997,6 +1000,8 @@ int metaexon_search(unsigned int strand, unsigned int chromosome,
 	metaexon = (metaexon_t *)linked_list_iterator_next(&itr);
       }
     }
+  } else {
+    //printf("CHUNK NULL\n");
   }
 
   pthread_mutex_unlock(&metaexons->mutex[chromosome]);
@@ -1079,16 +1084,12 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
   
   linked_list_t *list;
   metaexon_t *metaexon;
-    
-  pthread_mutex_lock(&metaexons->mutex[chromosome]);
+  
 
+  pthread_mutex_lock(&metaexons->mutex[chromosome]);
+  strand = 0;
   //printf("Insert chromosome %i\n", chromosome);
   //This section is for large reads ( > 1000nt)
-  if (chunk_start >= metaexons->num_chunks[chromosome] || 
-      chunk_end >= metaexons->num_chunks[chromosome]) {
-    printf("%lu-%lu\n", start, end);
-    exit(-1);
-  }
 
   for (int chk = chunk_start; chk <= chunk_end; chk++) {
     if (!metaexons->metaexons_table[chromosome][chk]) {
@@ -1111,6 +1112,58 @@ void metaexon_insert(unsigned int strand, unsigned int chromosome,
 
 }
 
+
+
+void metaexons_show_chr(int chr, metaexons_t *metaexons) {
+  printf("CHROMOSOME %i: ", chr + 1);
+  for (int chk = 0; chk < metaexons->num_chunks[chr]; chk++) {
+    if (metaexons->metaexons_table[chr][chk] != NULL) {
+      linked_list_t *list_0 = metaexons->metaexons_table[chr][chk][0];
+      if (linked_list_size(list_0) > 0) {
+	printf("\n\t[%lu-%lu](+): ", chk*metaexons->chunk_size, chk*metaexons->chunk_size + metaexons->chunk_size);
+	for (linked_list_item_t *list_item = list_0->first; list_item != NULL; list_item = list_item->next) {
+	  metaexon_t *metaexon = list_item->item;
+	  if (metaexon->left_closed) {
+	    printf(" [");
+	  } else {
+	    printf(" (");
+	  }
+	  printf("%i-%i", metaexon->start, metaexon->end);
+	  if (metaexon->right_closed) {
+	    printf("] ");
+	  } else {
+	    printf(") ");
+	  }
+	}
+      }
+      
+      linked_list_t *list_1 = metaexons->metaexons_table[chr][chk][1];
+      if (linked_list_size(list_1) > 0) {
+	printf("\n\t[%lu-%lu](-): ", chk*metaexons->chunk_size, chk*metaexons->chunk_size + metaexons->chunk_size);
+	for (linked_list_item_t *list_item = list_1->first; list_item != NULL; list_item = list_item->next)  {
+	  metaexon_t *metaexon = list_item->item;
+	  printf(" [%i-%i] ", metaexon->start, metaexon->end);
+	}
+      }
+      
+    }
+  }
+  printf("\n");
+}
+
+void metaexons_show_all_chr(int chr, metaexons_t *metaexons) {
+  printf("\n=======================================================================\n");
+  printf("=                  M E T A E X O N S   S T A T U S                    =");
+  printf("\n=======================================================================\n");
+  
+  for (int chr = 0; chr < metaexons->num_chromosomes; chr++) {
+    metaexons_show_chr(chr, metaexons);
+  }
+
+  printf("=======================================================================\n");
+}
+
+/*
 void metaexons_show(metaexons_t *metaexons) {
   printf("\n=======================================================================\n");
   printf("=                  M E T A E X O N S   S T A T U S                    =");
@@ -1154,7 +1207,7 @@ void metaexons_show(metaexons_t *metaexons) {
   }
   printf("=======================================================================\n");
 }
-
+*/
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

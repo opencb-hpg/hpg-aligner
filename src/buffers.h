@@ -453,6 +453,7 @@ typedef struct meta_alignment {
   int type;
   int type_cigars[10];
   int score;
+  float f_score;
   int flag;
   array_list_t *cals_list;
   cigar_code_t *middle_cigars[10];

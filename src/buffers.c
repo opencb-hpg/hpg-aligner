@@ -468,15 +468,50 @@ void buffer_item_insert_new_item(fastq_read_t *fq_read,
   cal_t *cal_prev;
   cal_t *cal_next;
   int insert_hc = 1;
-  
+  int end;
+
   if (phase == 1) {
     linked_list_insert(buffer_item, buffer_hc);
     return;
+  } else {
+    linked_list_insert(buffer_item, buffer);
+    return;
   }
 
-  if (type_items != BITEM_META_ALIGNMENTS) {
+  if (type_items == BITEM_CALS) {    
+    end = 0;
     for (int i = 0; i < array_list_size(items_list); i++) {
-      cal_prev = array_list_get(i, items_list);
+      array_list_t *fusion_list = array_list_get(i, items_list);
+      for (int j = 0; j < array_list_size(fusion_list); j++) {
+	cal_prev = array_list_get(j, fusion_list);
+	if (cal_prev == NULL) {
+	  //printf("CAL NULL\n");
+	  insert_hc = 0;
+	  end = 1;
+	  break;
+	} else {
+	  seed_region_t *s_first = linked_list_get_first(cal_prev->sr_list);
+	  seed_region_t *s_last = linked_list_get_last(cal_prev->sr_list);
+	  
+	  assert(s_first);
+	  assert(s_last);
+	  
+	  //printf("s_first->read_start = %i, fq_read->length - s_last->read_end = %i\n",
+	  //     s_first->read_start, fq_read->length - s_last->read_end);
+	  if (s_first->read_start > 16 ||
+	      fq_read->length - s_last->read_end > 16) {
+	    //printf("INSERT IN HC = 0\n");
+	    insert_hc = 0;
+	    end = 1;
+	    break;
+	  }
+	}
+      }
+      if (end) { break; }
+    }
+  } if (type_items == BITEM_SINGLE_ANCHORS) {    
+    for (int j = 0; j < array_list_size(items_list); j++) {
+      cal_prev = array_list_get(j, items_list);
       if (cal_prev == NULL) {
 	//printf("CAL NULL\n");
 	insert_hc = 0;
@@ -497,7 +532,7 @@ void buffer_item_insert_new_item(fastq_read_t *fq_read,
 	  break;
 	}
       }
-    }
+    }  
   } else {
     //printf("Insert buffer meta alignments\n");
     for (int i = 0; i < array_list_size(items_list); i++) {

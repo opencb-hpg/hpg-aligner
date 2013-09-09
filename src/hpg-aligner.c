@@ -51,6 +51,11 @@ double main_time;
 size_t total_sw = 0;
 pthread_mutex_t sw_mutex;
 size_t *histogram_sw;
+
+size_t num_reads_map;
+size_t num_reads;
+
+double seeding_time_2;
 /*
 void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index, 
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
@@ -73,7 +78,8 @@ int main(int argc, char* argv[]) {
   pthread_mutex_init(&mutex_sp, NULL);
   pthread_mutex_init(&bwt_mutex, NULL);
   pthread_mutex_init(&sw_mutex, NULL);
-
+  
+  seeding_time_2 = 0;
   const char HEADER_FILE[1024] = "Human_NCBI37.hbam\0";
   basic_st = basic_statistics_new();
 
@@ -209,6 +215,8 @@ int main(int argc, char* argv[]) {
   }
   */
   printf("TOTAL READS SEEDING %i\n", seeding_reads);
+  printf("Time seeding second phase %f(s)\n", seeding_time_2/1000000);
+
   return 0;
 }
 
