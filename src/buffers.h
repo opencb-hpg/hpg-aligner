@@ -209,11 +209,6 @@ void pair_mng_free(pair_mng_t *p);
 //====================================================================================
 
 typedef struct bs_context {
-  array_list_t *context_CpG;             /**< Array with the sequences from CpG context to write */
-  array_list_t *context_CHG;             /**< Array with the sequences from CHG context to write */
-  array_list_t *context_CHH;             /**< Array with the sequences from CHH context to write */
-  array_list_t *context_MUT;             /**< Array with the sequences from mutations to write   */
-  
   size_t CpG_methyl;                 /**< Partial Counter for methylated Cytosines in CpG context   */
   size_t CpG_unmethyl;               /**< Partial Counter for unmethylated Cytosines in CpG context */
   size_t CHG_methyl;                 /**< Partial Counter for methylated Cytosines in CHG context   */
@@ -222,7 +217,15 @@ typedef struct bs_context {
   size_t CHH_unmethyl;               /**< Partial Counter for unmethylated Cytosines in CpG context */
   size_t MUT_methyl;                 /**< Partial Counter for mutated Cytosines                     */
   size_t num_bases;                  /**< Partial Counter for number of bases in the batch          */
+  array_list_t *context_CpG;             /**< Array with the sequences from CpG context to write */
+  array_list_t *context_CHG;             /**< Array with the sequences from CHG context to write */
+  array_list_t *context_CHH;             /**< Array with the sequences from CHH context to write */
+  array_list_t *context_MUT;             /**< Array with the sequences from mutations to write   */
+  
 } bs_context_t;
+
+bs_context_t *bs_context_new(size_t num_reads);
+void bs_context_free(bs_context_t *bs_context);
 
 void bs_context_init(bs_context_t * bs_context, size_t num_reads);
 
@@ -236,6 +239,7 @@ typedef struct mapping_batch {
   size_t num_to_do;
   unsigned char extra_stage_do;
   unsigned char was_process;
+
   unsigned char *extra_stage_id;
   array_list_t *fq_batch;
   size_t *targets;
@@ -259,7 +263,8 @@ typedef struct mapping_batch {
   array_list_t *GA_rev_fq_batch;
 
   array_list_t *bs_status;
-  bs_context_t bs_context;
+  bs_context_t *bs_context;
+  //  bs_context_t bs_context;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng);

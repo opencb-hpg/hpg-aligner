@@ -35,6 +35,11 @@
 #define LIMIT_INF   0.20
 #define LIMIT_SUP   0.30
 
+
+// macros for postproces
+
+
+
 //====================================================================================
 
 typedef struct metil_file {
@@ -84,6 +89,38 @@ void metil_file_init(metil_file_t *metil_file, char *dir, genome_t *genome);
  * Release the memory used by the structure, and close the files in use.
  */
 void metil_file_free(metil_file_t *metil_file);
+
+//====================================================================================
+
+typedef struct metil_data {
+  char*  query_name;                    /**<   */
+  char   status;                        /**<   */
+  int    chromosome;                    /**<   */
+  size_t start;                         /**<   */
+  char   context;                       /**<   */
+  int    strand;                        /**<   */
+  int    zone;                          /**<   */
+} metil_data_t;
+
+//====================================================================================
+
+/**
+ * @brief  
+ * @param  
+ * @param  
+ * @param  
+ * 
+ * 
+ */
+void metil_data_init(metil_data_t *metil_data, char *query, char status, int chromosome, size_t start, char context, int strand, int zone);
+
+/**
+ * @brief  
+ * @param  
+ * 
+ * 
+ */
+void metil_data_free(metil_data_t *metil_data);
 
 //====================================================================================
 
@@ -326,7 +363,7 @@ void write_metilation_status(array_list_t *array_list, metil_file_t *metil_file)
 //====================================================================================
 
 /**
- * @brief  Stage to determine the status of each Cytosine in the sequence alignment                                        
+ * @brief  Stage to determine the status of each Cytosine in the sequence alignment                                       
  * @param  batch                                                                                                           
  *                                                                                                                         
  *                                                                                                                         
@@ -342,8 +379,20 @@ int methylation_status_report(sw_server_input_t* input, batch_t *batch);
  *                                                                                                                         
  *                                                                                                                         
  */
+//void add_metilation_status(array_list_t *array_list, array_list_t *list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index, int conversion);
 void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, genome_t * genome, array_list_t * orig_seq, size_t index, int conversion);
 
+//====================================================================================                                     
+
+/**
+ * @brief  
+ * @param  
+ * @param  
+ *                                                                                                                         
+ *                                                                                                                         
+ */
+void postprocess_bs(char *query_name, char status, size_t chromosome, size_t start, char context, int strand, int region,
+		    array_list_t *list);
 
 //====================================================================================                                     
 

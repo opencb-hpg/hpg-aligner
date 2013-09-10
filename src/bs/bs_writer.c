@@ -3,9 +3,6 @@
 
 int bs_writer(void *data) {
 
-  //size_t reads_mapp = 0;
-  //size_t reads_no_mapp = 0;
-
   struct timeval start, end;
   double time;
   
@@ -16,11 +13,8 @@ int bs_writer(void *data) {
   array_list_t *array_list;
   size_t num_items;
   
-  //bam1_t *bam1;
-  //alignment_t *alig;
-  
   mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
-  bs_context_t *bs_context = &(mapping_batch->bs_context);
+  bs_context_t *bs_context = (mapping_batch->bs_context);
   
   // set the sequences of the mapping to the original
   revert_mappings_seqs(mapping_batch->mapping_lists, mapping_batch->mapping_lists2, mapping_batch->fq_batch);
@@ -47,7 +41,7 @@ int bs_writer(void *data) {
 
   array_list_t *bs_stat = mapping_batch->bs_status;
   char *bs_seq;
-  
+
   // process mapping_lists and mapping_lists2
   for (int k = 0; k < 2; k++) {
     //printf("\t-----> mapping_lists %i\n", k);
@@ -61,15 +55,11 @@ int bs_writer(void *data) {
 
       // mapped or not mapped ?	 
       if (num_items == 0) {
-	//total_mappings++;
-	//write_unmapped_read(fq_read, bam_file); //
 	if (mapping_lists[i]) {
 	  array_list_free(mapping_lists[i], NULL);
 	}
       } else {
 	found[i] = 1;
-	//num_mapped_reads++; //
-	//write_metilation_status(mapping_lists[i], metil_file);
 	write_mapped_read(mapping_lists[i], bam_file);
       }
     }
@@ -84,19 +74,6 @@ int bs_writer(void *data) {
       write_unmapped_read(fq_read, bam_file);
     }
   }
-
-  /*
-  num_items = array_list_size(bs_stat);
-  printf("bs_status elem before = %lu\n", num_items);
-  for (size_t i = 0; i < num_items; i++) {
-    //bs_seq = (char *)array_list_get(0, bs_stat);
-    bs_seq = (char *)array_list_remove_at(0, bs_stat);
-    printf("info = %s", bs_seq);
-    free(bs_seq);
-  }
-  num_items = array_list_size(bs_stat);
-  printf("bs_status elem after  = %lu\n", num_items);
-  */
 
   write_bs_context(metil_file, bs_context);
   
@@ -120,12 +97,7 @@ int bs_writer(void *data) {
   if (batch) batch_free(batch);
   
   if (found) free(found);
-  /*
-  if (bs_stat) {
-    array_list_clear(bs_stat, NULL);
-    array_list_free(bs_stat, NULL);
-  }
-  */
+
   basic_statistics_add(num_reads, num_mapped_reads, total_mappings, basic_st);
   
   if (time_on) { stop_timer(start, end, time); timing_add(time, BAM_WRITER, timing); }
