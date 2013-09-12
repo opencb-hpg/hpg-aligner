@@ -150,7 +150,7 @@ void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p) {
     cigar_op_t *last = cigar_code_get_last_op(p);
     if (last && last->name == op->name) {
       last->number += op->number;
-      //cigar_op_free(op);
+      cigar_op_free(op);
     } else {
       array_list_insert(op, p->ops);
     }
