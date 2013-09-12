@@ -338,7 +338,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '1ph'\n\n");
   
-  
+    
   num_reads_map = 0;
   num_reads     = 0;
   fprintf(stderr, "START WORKWFLOW '2ph'\n");
@@ -353,7 +353,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   workflow_run_with(options->num_cpu_threads, wf_input_buffer_hc, wf_hc);
   fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
-
+  
   /*options->num_cpu_threads*/
 
   //Write chromosome avls

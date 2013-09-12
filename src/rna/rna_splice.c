@@ -363,7 +363,7 @@ void allocate_start_node(unsigned int chromosome, unsigned char strand,
 
   if (start > end) { 
     fprintf(stderr, "ERROR [%i:%i]!!! START END AVL %lu vs %lu", 
-			      strand, chromosome, start, end); 
+	    strand, chromosome, start, end); 
     exit(-1); 
   }
 

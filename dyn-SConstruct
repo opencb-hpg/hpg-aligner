@@ -1,0 +1,158 @@
+
+import os
+
+# Initialize the environment with path variables, CFLAGS, and so on
+bioinfo_path = '#lib/bioinfo-libs'
+commons_path = '#lib/common-libs'
+#math_path = '#libs/math'
+
+vars = Variables('buildvars.py')
+
+compiler = ARGUMENTS.get('compiler', 'gcc')
+
+env = Environment(tools = ['default', 'packaging'],
+      		  CC = compiler,
+                  variables = vars,
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp ',
+                  CPPPATH = ['#', '#src', '#include', '/usr/include/libxml2', bioinfo_path, commons_path, "%s/commons/argtable" % commons_path, "%s/commons/config" % commons_path ],
+                  LIBPATH = ['#libs/common-libs/', commons_path],
+                  LIBS = ['m', 'z'],
+                  LINKFLAGS = ['-fopenmp'])
+                  
+
+if int(ARGUMENTS.get('debug', '0')) == 1:
+    debug = 1
+    env['CFLAGS'] += ' -O0 -g'
+else:
+    debug = 0
+    env['CFLAGS'] += ' -O3 -g'
+
+env.Decider('MD5-timestamp')
+
+main_obj = env.SharedObject(Glob('src/*.c') +
+			    Glob('src/build-index/*.c') + 
+			    Glob('src/dna/*.c') +
+			    Glob('src/rna/*.c'))
+
+# Targets
+commons_obj = env.SharedObject(Glob('lib/common-libs/commons/*.c'))
+containers_obj = env.SharedObject(Glob('lib/common-libs/containers/*.c'))
+
+# Compile containers/cprops objects but ONLY those used for our libraries
+env = Environment(CC = compiler,
+                  CFLAGS = '-D_REENTRANT -D_GNU_SOURCE -DHAVE_CONFIG_H ',
+                  CPPPATH = ['#', '/usr/include/libxml2', '.' ],
+                  LIBPATH = ['/usr/lib' ])
+
+env.Decider('MD5-timestamp')
+
+if debug == 1:
+    env['CFLAGS'] += '-O0 -g'
+else:
+    env['CFLAGS'] += '-O3'
+
+cprops_obj = env.SharedObject(['lib/common-libs/containers/cprops/avl.c', 
+	      		       'lib/common-libs/containers/cprops/collection.c', 
+			       'lib/common-libs/containers/cprops/hashlist.c', 
+			       'lib/common-libs/containers/cprops/hashtable.c', 
+			       'lib/common-libs/containers/cprops/heap.c', 
+			       'lib/common-libs/containers/cprops/linked_list.c', 
+			       'lib/common-libs/containers/cprops/log.c', 
+			       'lib/common-libs/containers/cprops/mempool.c', 
+			       'lib/common-libs/containers/cprops/rb.c', 
+			       'lib/common-libs/containers/cprops/util.c', 
+			       'lib/common-libs/containers/cprops/vector.c', 
+			       'lib/common-libs/containers/cprops/trie.c', 
+			       'lib/common-libs/containers/cprops/mtab.c'])
+
+# Compile commons/sqlite objects
+env = Environment(CC = compiler,
+                  CFLAGS = '-DHAVE_CONFIG_H -fPIC -DPIC ',
+                  CPPPATH = ['#', '.' ],
+                  LIBPATH = ['/usr/lib' ])
+
+env.Decider('MD5-timestamp')
+
+if debug == 1:
+    env['CFLAGS'] += '-O0 -g'
+else:
+    env['CFLAGS'] += '-O2 -g'
+
+sqlite_obj = env.SharedObject(Glob('lib/common-libs/commons/sqlite/*.c'))
+
+
+# Compile commons/argtable objects
+env = Environment(CC = compiler,
+                  CFLAGS = '-DHAVE_CONFIG_H -fPIC -DPIC ',
+                  CPPPATH = ['#', '.' ],
+                  LIBPATH = ['/usr/lib' ])
+
+env.Decider('MD5-timestamp')
+
+if debug == 1:
+    env['CFLAGS'] += '-O0 -g'
+else:
+    env['CFLAGS'] += '-O2 -g'
+
+argtable_obj = env.SharedObject(Glob('lib/common-libs/commons/argtable/*.c'))
+
+
+# Compile commons/config objects
+env = Environment(CC = compiler,
+                  CFLAGS = '-DHAVE_CONFIG_H -D_REENTRANT -Wall -Wshadow -Wextra -Wdeclaration-after-statement -Wno-unused-parameter ',
+                  CPPPATH = ['#', '.' ],
+                  LIBPATH = ['/usr/lib' ])
+
+env.Decider('MD5-timestamp')
+
+if debug == 1:
+    env['CFLAGS'] += '-O0 -g'
+else:
+    env['CFLAGS'] += '-O2 -g'
+
+config_obj = env.SharedObject(Glob('commons/config/*.c'))
+
+# bioformats
+
+env = Environment(CC = compiler, 
+                  CFLAGS = '-std=c99 -fopenmp -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -DVECTOR_O_64BIT_COMPRESSION -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_USE_KNETFILE -D_CURSES_LIB=1 ',
+                  CPPPATH = [os.getcwd(), '#', '.', commons_path, bioinfo_path ],
+                  LIBPATH = ['/usr/lib' ])
+
+env.Decider('MD5-timestamp')
+
+if debug == 1:
+    env['CFLAGS'] += '-O0 -g'
+else:
+    env['CFLAGS'] += '-O2 -g'
+
+bioformats_obj = env.SharedObject(Glob('lib/bioinfo-libs/bioformats/fastq/*.c') +
+	       	 		  Glob('lib/bioinfo-libs/bioformats/bam/*.c') +
+				  Glob('lib/bioinfo-libs/bioformats/samtools/*.c'))
+
+# aligners
+
+
+aligners_obj = env.SharedObject(['lib/bioinfo-libs/aligners/bwt/bwt.c', 
+			         'lib/bioinfo-libs/aligners/bwt/BW_io.c', 
+				 'lib/bioinfo-libs/aligners/bwt/BW_search.c', 
+				 'lib/bioinfo-libs/aligners/bwt/BW_preprocess.c', 
+				 'lib/bioinfo-libs/aligners/bwt/genome.c',
+				 'lib/bioinfo-libs/aligners/sw/macros.c',
+				 'lib/bioinfo-libs/aligners/sw/sse.c',
+				 'lib/bioinfo-libs/aligners/sw/smith_waterman.c'])
+
+
+env.SharedLibrary('#bin/hpg-aligner',
+	          source = [main_obj,
+			    commons_obj,
+			    containers_obj,
+			    cprops_obj,
+			    sqlite_obj,
+			    argtable_obj,
+			    config_obj,
+			    aligners_obj,
+			    bioformats_obj
+                      ]
+           )
+
