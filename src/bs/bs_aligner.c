@@ -152,48 +152,12 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
     printf("reopen Statistics file\n");
     STAT = fopen(metil_file->filenameSTAT, "a");
   }
-  /*
-  printf("\nNumber of Cytosines\n\tMethyl\tunMethyl\nCpG\t%lu\t%lu\nCHG\t%lu\t%lu\nCHH\t%lu\t%lu\n------------------------\nMUT\t%lu\n",
-         metil_file->CpG_methyl, metil_file->CpG_unmethyl,
-         metil_file->CHG_methyl, metil_file->CHG_unmethyl,
-         metil_file->CHH_methyl, metil_file->CHH_unmethyl,
-         metil_file->MUT_methyl);
-  */
-  fprintf(STAT, "\nNumber of Cytosines\n\tMethyl\tunMethyl\nCpG\t%lu\t%lu\nCHG\t%lu\t%lu\nCHH\t%lu\t%lu\n------------------------\nMUT\t%lu\n",
-	  metil_file->CpG_methyl, metil_file->CpG_unmethyl,
-	  metil_file->CHG_methyl, metil_file->CHG_unmethyl,
-	  metil_file->CHH_methyl, metil_file->CHH_unmethyl,
-	  metil_file->MUT_methyl);
 
-  // show percentage of cytosines methylated/unmethylated
-  //metil_file->num_bases += 1; // necesary if num_bases = 0
   size_t c_analysed = 
     metil_file->MUT_methyl +
     metil_file->CpG_methyl + metil_file->CpG_unmethyl +
     metil_file->CHG_methyl + metil_file->CHG_unmethyl +
     metil_file->CHH_methyl + metil_file->CHH_unmethyl;
-
-  printf("\nNumber of bases analysed:     %lu\n", metil_file->num_bases);
-  printf("Number of cytosines analysed: %lu\n", c_analysed);
-  printf("\nPercentage of Cytosines\n\tMethyl\tunMethyl\nCpG\t%7.2f\t%7.2f\nCHG\t%7.2f\t%7.2f\nCHH\t%7.2f\t%7.2f\n------------------------\nMUT\t%7.2f\n",
-         (float) metil_file->CpG_methyl / metil_file->num_bases * 100,
-         (float) metil_file->CpG_unmethyl / metil_file->num_bases * 100,
-         (float) metil_file->CHG_methyl / metil_file->num_bases * 100,
-         (float) metil_file->CHG_unmethyl / metil_file->num_bases * 100,
-         (float) metil_file->CHH_methyl / metil_file->num_bases * 100,
-         (float) metil_file->CHH_unmethyl / metil_file->num_bases * 100,
-         (float) metil_file->MUT_methyl / metil_file->num_bases * 100);
-
-  fprintf(STAT, "\nNumber of bases analysed: %lu\n", metil_file->num_bases);
-  fprintf(STAT, "Number of cytosines analysed: %lu\n", c_analysed);
-  fprintf(STAT, "\nPercentage of Cytosines\n\tMethyl\tunMethyl\nCpG\t%7.2f\t%7.2f\nCHG\t%7.2f\t%7.2f\nCHH\t%7.2f\t%7.2f\n------------------------\nMUT\t%7.2f\n",
-         (float) metil_file->CpG_methyl / metil_file->num_bases * 100,
-         (float) metil_file->CpG_unmethyl / metil_file->num_bases * 100,
-         (float) metil_file->CHG_methyl / metil_file->num_bases * 100,
-         (float) metil_file->CHG_unmethyl / metil_file->num_bases * 100,
-         (float) metil_file->CHH_methyl / metil_file->num_bases * 100,
-         (float) metil_file->CHH_unmethyl / metil_file->num_bases * 100,
-         (float) metil_file->MUT_methyl / metil_file->num_bases * 100);
 
   //--------------------------------------------------------------------------------------
   // Same data as Bismark
@@ -210,16 +174,7 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   printf("Total C to T conversions in CpG context: %lu\n", metil_file->CpG_unmethyl);
   printf("Total C to T conversions in CHG context: %lu\n", metil_file->CHG_unmethyl);
   printf("Total C to T conversions in CHH context: %lu\n", metil_file->CHH_unmethyl);
-  /*
-  printf("\n");
-  printf("C methylated in CpG context: %5.2f%c\n", (float) metil_file->CpG_methyl / metil_file->num_bases * 100, '%');
-  printf("C methylated in CHG context: %5.2f%c\n", (float) metil_file->CHG_methyl / metil_file->num_bases * 100, '%');
-  printf("C methylated in CHH context: %5.2f%c\n", (float) metil_file->CHH_methyl / metil_file->num_bases * 100, '%');
-  printf("\n");
-  printf("C methylated in CpG context: %5.2f%c\n", (float) metil_file->CpG_methyl / c_analysed * 100, '%');
-  printf("C methylated in CHG context: %5.2f%c\n", (float) metil_file->CHG_methyl / c_analysed * 100, '%');
-  printf("C methylated in CHH context: %5.2f%c\n", (float) metil_file->CHH_methyl / c_analysed * 100, '%');
-  */
+
   printf("\n");
   printf("C methylated in CpG context: %5.2f%c\n", (metil_file->CpG_methyl + metil_file->CpG_unmethyl == 0) ? 0.0 :
 	 (float) metil_file->CpG_methyl / (metil_file->CpG_methyl + metil_file->CpG_unmethyl)  * 100, '%');
@@ -241,16 +196,7 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   fprintf(STAT, "Total C to T conversions in CpG context: %lu\n", metil_file->CpG_unmethyl);
   fprintf(STAT, "Total C to T conversions in CHG context: %lu\n", metil_file->CHG_unmethyl);
   fprintf(STAT, "Total C to T conversions in CHH context: %lu\n", metil_file->CHH_unmethyl);
-  /*
-  fprintf(STAT, "\n");
-  fprintf(STAT, "C methylated in CpG context: %5.2f%c\n", (float) metil_file->CpG_methyl / metil_file->num_bases * 100, '%');
-  fprintf(STAT, "C methylated in CHG context: %5.2f%c\n", (float) metil_file->CHG_methyl / metil_file->num_bases * 100, '%');
-  fprintf(STAT, "C methylated in CHH context: %5.2f%c\n", (float) metil_file->CHH_methyl / metil_file->num_bases * 100, '%');
-  fprintf(STAT, "\n");
-  fprintf(STAT, "C methylated in CpG context: %5.2f%c\n", (float) metil_file->CpG_methyl / c_analysed * 100, '%');
-  fprintf(STAT, "C methylated in CHG context: %5.2f%c\n", (float) metil_file->CHG_methyl / c_analysed * 100, '%');
-  fprintf(STAT, "C methylated in CHH context: %5.2f%c\n", (float) metil_file->CHH_methyl / c_analysed * 100, '%');
-  */
+
   fprintf(STAT, "\n");
   fprintf(STAT, "C methylated in CpG context: %5.2f%c\n", (metil_file->CpG_methyl + metil_file->CpG_unmethyl == 0) ? 0.0 :
 	  (float) metil_file->CpG_methyl / (metil_file->CpG_methyl + metil_file->CpG_unmethyl)  * 100, '%');

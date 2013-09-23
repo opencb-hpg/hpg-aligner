@@ -22,6 +22,7 @@
 #include "pair_server.h"
 
 #include "hash_table.h"
+#include "array_list_bs.h"
 
 //====================================================================================
 
@@ -92,15 +93,19 @@ void metil_file_free(metil_file_t *metil_file);
 
 //====================================================================================
 
+// struct ported to the array_list_bs file to avoid conflicts
+
+/*
 typedef struct metil_data {
-  char*  query_name;                    /**<   */
-  char   status;                        /**<   */
-  int    chromosome;                    /**<   */
-  size_t start;                         /**<   */
-  char   context;                       /**<   */
-  int    strand;                        /**<   */
-  int    zone;                          /**<   */
+  char*  query_name;                    //
+  char   status;                        //
+  int    chromosome;                    //
+  size_t start;                         //
+  char   context;                       //
+  int    strand;                        //
+  int    zone;                          //
 } metil_data_t;
+*/
 
 //====================================================================================
 
@@ -393,6 +398,18 @@ void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, g
  */
 void postprocess_bs(char *query_name, char status, size_t chromosome, size_t start, char context, int strand, int region,
 		    array_list_t *list);
+
+//====================================================================================                                     
+
+/**
+ * @brief  
+ * @param  
+ * @param  
+ *                                                                                                                         
+ *                                                                                                                         
+ */
+void postproc_bs(char *query_name, char status, size_t chromosome, size_t start, char context, int strand, int region,
+		 array_list_bs_t *list);
 
 //====================================================================================                                     
 

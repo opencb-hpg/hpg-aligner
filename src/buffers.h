@@ -10,6 +10,7 @@
 #include "timing.h"
 #include "statistics.h"
 #include "commons/log.h"
+#include "bs/array_list_bs.h"
 
 //====================================================================================
 //  Workflow Vars
@@ -221,7 +222,11 @@ typedef struct bs_context {
   array_list_t *context_CHG;             /**< Array with the sequences from CHG context to write */
   array_list_t *context_CHH;             /**< Array with the sequences from CHH context to write */
   array_list_t *context_MUT;             /**< Array with the sequences from mutations to write   */
-  
+
+  array_list_bs_t *context_bs_CpG;             /**< Array with the sequences from CpG context to write */
+  array_list_bs_t *context_bs_CHG;             /**< Array with the sequences from CHG context to write */
+  array_list_bs_t *context_bs_CHH;             /**< Array with the sequences from CHH context to write */
+  array_list_bs_t *context_bs_MUT;             /**< Array with the sequences from mutations to write   */
 } bs_context_t;
 
 bs_context_t *bs_context_new(size_t num_reads);

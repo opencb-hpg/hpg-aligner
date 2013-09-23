@@ -395,7 +395,12 @@ bs_context_t *bs_context_new(size_t num_reads) {
   p->context_CHG = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   p->context_CHH = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   p->context_MUT = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-  
+  /*
+  p->context_bs_CpG = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_bs_CHG = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_bs_CHH = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_bs_MUT = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  */
   return p;
 }
 
@@ -404,6 +409,18 @@ bs_context_t *bs_context_new(size_t num_reads) {
 void bs_context_free(bs_context_t *p) {
   if (p) {
     // free lists...
+    /*
+    if (p->context_CpG != NULL) array_list_free(p->context_CpG, NULL);
+    if (p->context_CHG != NULL) array_list_free(p->context_CHG, NULL);
+    if (p->context_CHH != NULL) array_list_free(p->context_CHH, NULL);
+    if (p->context_MUT != NULL) array_list_free(p->context_MUT, NULL);
+    */
+    /*
+    if (p->context_bs_CpG) array_list_bs_free(p->context_bs_CpG, NULL);
+    if (p->context_bs_CHG) array_list_bs_free(p->context_bs_CHG, NULL);
+    if (p->context_bs_CHH) array_list_bs_free(p->context_bs_CHH, NULL);
+    if (p->context_bs_MUT) array_list_bs_free(p->context_bs_MUT, NULL);
+    */
     free(p);
   }
 }
