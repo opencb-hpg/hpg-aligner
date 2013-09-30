@@ -964,6 +964,7 @@ int methylation_status_report(sw_server_input_t* input, batch_t *batch) {
       // mapped or not mapped ?
       if (num_items != 0) {
 	add_metilation_status(mapping_lists[i], bs_context, genome, mapping_batch->fq_batch, i, k);
+	//add_metilation_status_bin(mapping_lists[i], bs_context, input->valuesCT, input->valuesGA, mapping_batch->fq_batch, i, k);
       }
     }
   }
@@ -1189,6 +1190,78 @@ void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, g
 
     }
 
+  }
+
+  /*
+  printf("\tMethyl\tunMethyl\nCpG\t%lu\t%lu\nCHG\t%lu\t%lu\nCHH\t%lu\t%lu\n------------------------\nMUT\t%lu\n",
+	 bs_context->CpG_methyl, bs_context->CpG_unmethyl,
+	 bs_context->CHG_methyl, bs_context->CHG_unmethyl,
+	 bs_context->CHH_methyl, bs_context->CHH_unmethyl,
+	 bs_context->MUT_methyl);
+  */
+}
+
+//====================================================================================
+
+void add_metilation_status_bin(array_list_t *array_list, bs_context_t *bs_context,
+			       unsigned long long **gen_binCT, unsigned long long **gen_binGA,
+			       array_list_t * orig_seq, size_t index, int conversion) {
+
+  //printf("Init add metilation status\n");
+
+  size_t num_items = array_list_size(array_list);
+  alignment_t *alig;
+  char *seq, *gen;
+  fastq_read_t *orig;
+  size_t len, end, start;
+  int new_strand;
+  char *new_stage;
+  metil_data_t *metil_data;
+  char posit = '+', negat = '-';
+
+  int write_file = 1;
+
+  orig = (fastq_read_t *) array_list_get(index, orig_seq);
+
+  for (size_t j = 0; j < num_items; j++) {
+
+    alig = (alignment_t *) array_list_get(j, array_list);
+
+    if (alig != NULL && alig->is_seq_mapped) {
+
+  /**************
+  comprobar esta funcion para optimizarla
+  **************/
+      seq = obtain_seq(alig, orig);
+
+      if (alig->seq_strand == 1) {
+	char *seq_dup = strdup(seq);
+	rev_comp(seq_dup, seq, orig->length);
+	free(seq_dup);
+      }
+
+      len = orig->length;
+
+      start = alig->position;
+      end = start + len;
+/*
+      if (end >= genome->chr_size[alig->chromosome]) {
+        end = genome->chr_size[alig->chromosome] - 1;
+      }
+*/
+      //printf("++++++++ CT = %llu -------- GA = %llu\n", gen_binCT[0][100000], gen_binGA[0][100000]);
+
+      if ((conversion == 1 && alig->seq_strand == 0) || (conversion == 0 && alig->seq_strand == 1)) {
+        search_methylation(alig->chromosome, start, end, gen_binCT, seq, bs_context, '+', 0, alig->query_name);
+      }
+      else {
+        search_methylation(alig->chromosome, start, end, gen_binCT, seq, bs_context, '-', 1, alig->query_name);
+      }
+
+      if (seq) free(seq);
+      if (gen) free(gen);
+
+    }
   }
 
   /*
@@ -1540,3 +1613,391 @@ void postproc_bs(char *query_name, char status, size_t chromosome, size_t start,
 }
 
 //====================================================================================
+
+void search_methylation(int c, size_t init, size_t end, unsigned long long **values, char *read, bs_context_t *bs_context, char strand, int type, char *query_name){
+  size_t init_num, end_num;
+  int i, init_num_pos, end_num_pos;
+  unsigned long long tmp, res;
+  size_t j, pos;
+  size_t algo = 0;
+
+  int write_file = 1;
+
+  int elem = (sizeof(unsigned long long) << 2);
+  //printf("elem = %i\n", elem);
+
+  init_num = init / elem;
+  init_num_pos = init % elem;
+  end_num = end / elem;
+  end_num_pos = end % elem;
+  char c1, c2;
+  if (type == 0) {
+    c1 = 'C'; c2 = 'T';
+  } else {
+    c1 = 'G'; c2 = 'A';
+  }
+  
+  /*
+  printf("Chromosome %2i (%10lu - %10lu)\n", c, init, end);
+  printf("From number\t= %10lu (%2i)\nTo number\t= %10lu (%2i)\n\n",
+	 init_num, init_num_pos, end_num, end_num_pos);
+  printf("value = %llu\n", values[c][init_num]);
+  */
+
+  // recorrer los valores de derecha a izquierda
+  tmp  = values[c][end_num];
+
+  // descartar los pares de bits menos significativos hasta llegar al valor donde termina la cadena
+  for (i = elem; i > end_num_pos; i--) {
+    tmp = tmp >> 2;
+    //tmp /= 4;
+  }
+
+
+  // recorrer los pares de bits comprobando el contexto del ultimo numero
+  for (i = end_num_pos, pos = 0; i >= 0; i--, pos++) {
+    search_gen();
+    //search_gen(tmp, read, pos, c1, c2);
+  }
+
+  // recorrer los numeros entre el primer y ultimo valor de la cadena
+  for (j = end_num - 1; j > init_num; j--) {
+    tmp  = values[c][j];
+    //printf("\tValue = %llu\n", tmp);
+    
+    // recorrer los elem pares de bits (elem letras del genoma) del numero en cuestion
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+    search_gen();
+  }
+  
+  // recorrer los n ultimos pares de bits del primer numero (inicio de la cadena)
+  tmp  = values[c][init_num];
+  //printf("\tValue = %llu\n", tmp);
+  for (i = elem; i >= init_num_pos; i--, pos++) {
+    search_gen();
+  }
+
+  //printf("\n");  
+  return;
+}
+
+//====================================================================================
+//====================================================================================
+//====================================================================================
+
+int encode_context(char* filename, char* directory) {
+
+  printf("Init Genome Compresion\n");
+
+  FILE *f1, *f2, *f3, *f4;
+  unsigned long long value, value2;
+  size_t size[50] = {0};
+  size_t size2;
+  int chromosome, i, cont, cont2;
+  char *line1, *line2;
+  char *tmp;
+  size_t contador = 100000000;
+
+  int elem = sizeof(unsigned long long) << 2;
+  //printf("Elem = %i\n", elem);
+
+  size2 = strlen(directory);
+  tmp = (char *)malloc((size2 + 40) * sizeof(char));
+  line1 = (char *)malloc(512 * sizeof(char));
+  line2 = (char *)malloc(512 * sizeof(char));
+
+  f1 = fopen (filename, "r");
+  if (f1==NULL) {
+    perror("No se puede abrir el fichero de entrada");
+    return -1;
+  }
+  sprintf(tmp, "%s/Genome_context_CT.bin", directory);
+  //printf("Fichero salida 1: %s\n", tmp);
+  f2 = fopen (tmp, "wb");
+  if (f2==NULL) {
+    perror("No se puede abrir el fichero de contexto CT");
+    return -1;
+  }
+  sprintf(tmp, "%s/Genome_context_GA.bin", directory);
+  //printf("Fichero salida 2: %s\n", tmp);
+  f3 = fopen (tmp, "wb");
+  if (f3==NULL) {
+    perror("No se puede abrir el fichero de contexto GA");
+    return -1;
+  }
+  sprintf(tmp, "%s/Genome_context_size.txt", directory);
+  //printf("Fichero salida 3: %s\n", tmp);
+  f4 = fopen (tmp, "w");
+  if (f4==NULL) {
+    perror("No se puede abrir el fichero de tamaños");
+    return -1;
+  }
+  
+  chromosome = 0;
+  size[chromosome] = 0;
+  cont  = 0;
+  cont2 = 0;
+
+  // descartar la primera linea
+  do {
+    fgets(line1, 512, f1);
+  } while(line1[0] == '>');
+  
+  
+  while (fgets(line2, 512, f1) != NULL && contador) {
+    contador--;
+    if (line1[0] == '>') {
+      size[chromosome]++;
+      printf("chromosomes = %2i, size = %10lu\n", chromosome, size[chromosome]);
+      chromosome++;
+      for (; cont > 0 && cont <= elem; cont++) {
+	  value = value << 2;
+      }
+      for (; cont2 > 0 && cont2 <= elem; cont2++) {
+	  value2 = value2 << 2;
+      }
+      fwrite(&value,  sizeof(unsigned long long), 1, f2);
+      fwrite(&value2, sizeof(unsigned long long), 1, f3);
+      cont  = 0;
+      cont2 = 0;
+    } else {
+      size2 = strlen(line1);
+      //size[chromosome] += size2;
+
+      // value for C->T conversion
+      for (i = 0; i < size2 - 2; i++, cont++) {
+	if (line1[i] == 'C') {
+	  if (line1[i + 1] == 'G') {
+	    value += 1;
+	  } else {
+	    if (line1[i + 2] == 'G') {
+	      value += 2;
+	    } else {
+	      value += 3;
+	    }
+	  }
+	}
+	if (cont == elem) {
+	  cont = 0;
+	  size[chromosome]++;
+	  fwrite(&value, sizeof(unsigned long long), 1, f2);
+	} else {
+	  value = value << 2;
+	}
+      }
+      
+      if (line1[size2 - 2] == 'C') {
+	if (line1[size2 - 1] == 'G') {
+	  value += 1;
+	} else {
+	  if (line2[0] == 'G') {
+	    value += 2;
+	  } else {
+	    value += 3;
+	  }
+	}
+      }
+      if (cont == elem) {
+	cont = 0;
+	size[chromosome]++;
+	fwrite(&value, sizeof(unsigned long long), 1, f2);
+      } else {
+	  value = value << 2;
+      }
+      cont++;
+
+      if (line1[size2 - 1] == 'C') {
+	if (line2[0] == 'G') {
+	  value += 1;
+	} else {
+	  if (line2[1] == 'G') {
+	    value += 2;
+	  } else {
+	    value += 3;
+	  }
+	}
+      }
+      if (cont == elem) {
+	cont = 0;
+	size[chromosome]++;
+	fwrite(&value, sizeof(unsigned long long), 1, f2);
+      } else {
+	  value = value << 2;
+      }
+      cont++;
+      // end value for C->T conversion
+
+      // value for G->A conversion
+      for (i = 2; i < size2; i++, cont2++) {
+	if (line1[i] == 'G') {
+	  if (line1[i - 1] == 'C') {
+	    value2 += 1;
+	  } else {
+	    if (line1[i - 2] == 'C') {
+	      value2 += 2;
+	    } else {
+	      value2 += 3;
+	    }
+	  }
+	}
+	if (cont2 == elem) {
+	  cont2 = 0;
+	  fwrite(&value2, sizeof(unsigned long long), 1, f3);
+	} else {
+	  value2 = value2 << 2;
+	}
+      }
+      
+      if (line2[0] == 'G') {
+	if (line1[size2 - 1] == 'C') {
+	  value2 += 1;
+	} else {
+	  if (line1[size2 - 2] == 'C') {
+	    value2 += 2;
+	  } else {
+	    value2 += 3;
+	  }
+	}
+      }
+      if (cont2 == elem) {
+	cont2 = 0;
+	fwrite(&value2, sizeof(unsigned long long), 1, f3);
+      } else {
+	value2 = value2 << 2;
+      }
+      cont2++;
+
+      if (line2[1] == 'G') {
+	if (line2[0] == 'C') {
+	  value2 += 1;
+	} else {
+	  if (line1[size2 - 1] == 'C') {
+	    value2 += 2;
+	  } else {
+	    value2 += 3;
+	  }
+	}
+      }
+      if (cont2 == elem) {
+	cont2 = 0;
+	fwrite(&value2, sizeof(unsigned long long), 1, f3);
+      } else {
+	value2 = value2 << 2;
+      }
+      cont2++;
+      // end value for G->A conversion
+
+    }
+    free(line1);
+    line1 = strdup(line2);
+  }
+
+  //printf("chromosomes = %i\n", chromosome);  
+  fprintf(f4, "%i\n", chromosome);
+  for (i = 0; i < chromosome; i++) {
+    fprintf(f4, "%lu\n", size[i]);
+  }
+
+  free(tmp);
+  free(line1);
+  free(line2);
+  fclose(f1);
+  fclose(f2);
+  fclose(f3);
+  fclose(f4);
+
+  printf("End Genome Compresion\n");
+
+  return 0;
+}
+
+//====================================================================================
+
+int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned long long **valuesGA) {
+
+  //printf("Init Load Genome\n");
+
+  FILE *f2, *f3, *f4;
+  size_t size, size2 = strlen(directory);
+  char *tmp = (char *)malloc((size2 + 40) * sizeof(char));
+  int chromosome, i;
+
+  sprintf(tmp, "%s/Genome_context_CT.bin", directory);
+  //printf("Fichero salida 1: %s\n", tmp);
+  f2 = fopen (tmp, "rb");
+  if (f2==NULL) {
+    perror("No se puede abrir el fichero de contexto CT");
+    return -1;
+  }
+  sprintf(tmp, "%s/Genome_context_GA.bin", directory);
+  f3 = fopen (tmp, "rb");
+  if (f3==NULL) {
+    perror("No se puede abrir el fichero de contexto GA");
+    return -1;
+  }
+  sprintf(tmp, "%s/Genome_context_size.txt", directory);
+  //printf("Fichero salida 3: %s\n", tmp);
+  f4 = fopen (tmp, "r");
+  if (f4==NULL) {
+    perror("No se puede abrir el fichero de tamaños");
+    return -1;
+  }
+
+  fscanf(f4, "%i\n", &chromosome);
+  //printf("chromosomes %2i\n", chromosome);
+
+  for (i = 0; i < chromosome; i++) {
+    fscanf(f4, "%lu\n", &size);
+    //printf("\tchromosome %2i (%10lu)\n", i, size);
+
+    valuesCT[i] = (unsigned long long *)calloc(size, sizeof(unsigned long long));
+    fread (valuesCT[i], sizeof(unsigned long long), size, f2);
+
+    valuesGA[i] = (unsigned long long *)calloc(size, sizeof(unsigned long long));
+    fread (valuesGA[i], sizeof(unsigned long long), size, f3);
+  }
+
+  free(tmp);
+  fclose(f2);
+  fclose(f3);
+  fclose(f4);
+
+  //printf("--------\nCT = %llu\n--------\nGA = %llu\n", valuesCT[0][100000], valuesGA[0][100000]);
+  //printf("End Load Genome\n");
+
+  return chromosome;
+}
+
+//====================================================================================
+
+

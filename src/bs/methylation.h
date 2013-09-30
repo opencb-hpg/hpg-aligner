@@ -39,6 +39,55 @@
 
 // macros for postproces
 
+#define search_gen()							\
+  ({res = tmp & (unsigned long long)3;					\
+    switch(res){							\
+    case 0:								\
+      break;								\
+    case 1:								\
+      if (read[pos] == c1){						\
+	postprocess_bs(query_name, '+', c, init + pos, 'Z', strand, 0, bs_context->context_CpG); \
+	bs_context->CpG_methyl++;					\
+      } else {								\
+	if (read[pos] == c2) {					\
+	  postprocess_bs(query_name, '-', c, init + pos, 'z', strand, 0, bs_context->context_CpG); \
+	  bs_context->CpG_unmethyl++;					\
+	} else {							\
+	  postprocess_bs(query_name, '.', c, init + pos, 'M', strand, 3, bs_context->context_MUT); \
+	  bs_context->MUT_methyl++;					\
+	}								\
+      }									\
+      break;								\
+    case 2:								\
+      if (read[pos] == c1) {					\
+	postprocess_bs(query_name, '+', c, init + pos, 'X', strand, 0, bs_context->context_CHG); \
+	bs_context->CHG_methyl++;					\
+      } else {								\
+	if (read[pos] == c2) {					\
+	  postprocess_bs(query_name, '-', c, init + pos, 'x', strand, 0, bs_context->context_CHG); \
+	  bs_context->CHG_unmethyl++;					\
+	} else {							\
+	  postprocess_bs(query_name, '.', c, init + pos, 'M', strand, 3, bs_context->context_MUT); \
+	  bs_context->MUT_methyl++;					\
+	}								\
+      }									\
+      break;								\
+    case 3:								\
+      if (read[pos] == c1) {						\
+	postprocess_bs(query_name, '+', c, init + pos, 'H', strand, 2, bs_context->context_CHH); \
+	bs_context->CHH_methyl++;					\
+      } else {								\
+	if (read[pos] == c2) {					\
+	  postprocess_bs(query_name, '-', c, init + pos, 'h', strand, 2, bs_context->context_CHH); \
+	  bs_context->CHH_unmethyl++;					\
+	} else {							\
+	  postprocess_bs(query_name, '.', c, init + pos, 'M', strand, 3, bs_context->context_MUT); \
+	  bs_context->MUT_methyl++;					\
+	}								\
+      }									\
+      break;								\
+    }									\
+    tmp = tmp >> 2;})
 
 
 //====================================================================================
@@ -390,6 +439,30 @@ void add_metilation_status(array_list_t *array_list, bs_context_t *bs_context, g
 //====================================================================================                                     
 
 /**
+ * @brief  Add the metilation status of each Cytosine to the write list
+ * @param  array_list
+ * @param  bs_status
+ *
+ *
+ */
+void add_metilation_status_bin(array_list_t *array_list, bs_context_t *bs_context,
+			       unsigned long long **gen_binCT, unsigned long long **gen_binGA,
+			       array_list_t * orig_seq, size_t index, int conversion);
+
+//====================================================================================                                     
+
+/**
+ * @brief  
+ * @param  
+ * @param  
+ *
+ *
+ */
+void search_methylation(int c, size_t init, size_t end, unsigned long long **values, char *read, bs_context_t *bs_context, char strand, int type, char *query_name);
+
+//====================================================================================                                     
+
+/**
  * @brief  
  * @param  
  * @param  
@@ -421,6 +494,14 @@ void postproc_bs(char *query_name, char status, size_t chromosome, size_t start,
  * 
  */
 void write_bs_context(metil_file_t *metil_file, bs_context_t *bs_context);
+
+//====================================================================================
+
+int encode_context(char* filename, char* directory);
+
+//====================================================================================
+
+int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned long long **valuesGA);
 
 //====================================================================================
 

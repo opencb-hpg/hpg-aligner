@@ -54,6 +54,8 @@ struct sw_server_input {
      genome_t* genome_or_p;  /**< Pointer to the original genome structure to get the reference sequences for bisulfite. */
      bwt_optarg_t* bwt_optarg_p;
      allocate_splice_elements_t *chromosome_avls_p;
+  unsigned long long **valuesCT;
+  unsigned long long **valuesGA;
 };
 
 //------------------------------------------------------------------------------------

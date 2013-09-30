@@ -92,9 +92,14 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   sw_server_input_init(NULL, NULL, 0, options->match, options->mismatch, 
 		       options->gap_open, options->gap_extend, options->min_score, 
 		       options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
-  //		       options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, &sw_input);
   sw_input.genome1_p = genome1;
   sw_input.genome2_p = genome2;
+
+  sw_input.valuesCT = (unsigned long long **)malloc(50 * sizeof(unsigned long long *));
+  sw_input.valuesGA = (unsigned long long **)malloc(50 * sizeof(unsigned long long *));
+  load_encode_context(options->bwt_dirname, sw_input.valuesCT, sw_input.valuesGA);
+  //printf("-------- CT = %llu -------- GA = %llu\n", sw_input.valuesCT[0][100000], sw_input.valuesGA[0][100000]);
+  //return;
 
   //--------------------------------------------------------------------------------------
   // workflow management
