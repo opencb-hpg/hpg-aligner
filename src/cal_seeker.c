@@ -145,7 +145,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
     min_distance = read_len*0.2;
 
     LOG_DEBUG_F(">>>>> read %s\n", read->id);
-    printf(">>>>> read %s\n", read->id);
+    //    printf(">>>>> read %s\n", read->id);
 
     // processing each CAL from this read
     for(size_t j = 0; j < num_cals; j++) {
@@ -163,7 +163,7 @@ void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	  size_t start = s->genome_start;// + 1;
 	  size_t end = s->genome_end;// + 1;
 	  size_t len = end - start + 1;
-	  printf(":::::::::: %lu - %lu = %i ::::::::::::\n", end, start, len );
+	  //	  printf(":::::::::: %lu - %lu = %i ::::::::::::\n", end, start, len );
 	  char *ref = (char *) malloc((len + 1) * sizeof(char));
 	  genome_read_sequence_by_chr_index(ref, 0, cal->chromosome_id - 1, 
 					    &start, &end, genome);

@@ -140,13 +140,13 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
     if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 0 || 
 	array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 1) {
       //Flag 0 Case, Not anchors found, Make normal seeds      
-      //printf("Normal Case 0. Not anchors found!\n");
+      //      printf("***** Normal Case 0. Not anchors found!\n");
       for (int j = array_list_size(mapping_batch->mapping_lists[targets[i]]) - 1; j >= 0; j--) {
 	bwt_anchor = array_list_remove_at(j, mapping_batch->mapping_lists[targets[i]]);
 	array_list_insert(bwt_anchor, array_list_aux);
       }
       num_mappings = 0;
-      /*
+
       num_mappings = bwt_map_exact_seeds_seq(0,
 					     0,
 					     read->sequence,
@@ -155,7 +155,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 					     input->bwt_optarg_p, 
 					     input->bwt_index_p, 
 					     mapping_batch->mapping_lists[targets[i]],
-					     0);*/
+					     0);
       if (num_mappings > 0) {
 	array_list_set_flag(0, mapping_batch->mapping_lists[targets[i]]);
 	targets[new_num_targets++] = targets[i];
@@ -163,7 +163,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       }
     } else if (array_list_get_flag(mapping_batch->mapping_lists[targets[i]]) == 1) {
       //Flag 1 Case, One anchor found, Make displacements seeds                  
-      //printf("Case 1. One anchor found!\n");
+      printf("***** Case 1. One anchor found!\n");
       for (int j = array_list_size(mapping_batch->mapping_lists[targets[i]]) - 1; j >= 0; j--) {
 	bwt_anchor = array_list_remove_at(j, mapping_batch->mapping_lists[targets[i]]);
 	array_list_insert(bwt_anchor, array_list_aux);
@@ -185,16 +185,19 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	extra_seed = EXTRA_SEED_START;
       }
 
+      printf("end_start %i - start_search %i = %i >= seed_size %i\n", end_search, start_search, end_search - start_search, seed_size);
       if (end_search - start_search >= seed_size) {
-	//	LOG_DEBUG_F("00 --> searching from %i to %i\n", start_search, end_search);
-	/*	num_mappings = bwt_map_exact_seeds_between_coords(start_search,
+	printf("00 bwt_map_exact_seeds_between_coords --> searching from %i to %i\n", start_search, end_search);
+	/*
+		num_mappings = bwt_map_exact_seeds_between_coords(start_search,
 							  end_search,
 							  read->sequence, 
 							  seed_size, min_seed_size,
 							  input->bwt_optarg_p, 
 							  input->bwt_index_p, 
 							  mapping_batch->mapping_lists[targets[i]],
-							  extra_seed, &seed_id);*/
+							  extra_seed, &seed_id);
+	*/
       }
 
       if (bwt_anchor->type == FORWARD_ANCHOR) {
@@ -226,7 +229,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
       targets[new_num_targets++] = targets[i];
     } else {
       //Flag 2 Case, Pair of anchors found
-      //printf("Case 2. Double anchor found!\n");
+      printf("***** Case 2. Double anchor found!\n");
       bwt_anchor_t *bwt_anchor;
       bwt_anchor_t *bwt_anchor_forw, *bwt_anchor_back;
       bwt_anchor_t *best_anchor_forw, *best_anchor_back;
@@ -308,7 +311,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	  }
 	}
 
-	//printf("%i, %i\n", big_gap - 2, seed_size);
+	printf("%i, %i\n", big_gap - 2, seed_size);
 	if (big_gap - 2 > seed_size) {
 	  //if (anchor_type == FORWARD_ANCHOR && anchor_strand == 0 || 
 	  //  anchor_type == BACKWARD_ANCHOR && anchor_strand == 1 ) {
@@ -320,15 +323,17 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 	    //}
 	  
 	    //printf("Seeding between anchors... gap=%i\n", big_gap);
-	    //	    LOG_DEBUG_F("11 --> searching from %li to %li\n", start_search, end_search);
-	    /*num_mappings = bwt_map_exact_seeds_between_coords(start_search,
+	    printf("11 bwt_map_exact_seeds_between_coords --> searching from %li to %li\n", start_search, end_search);
+	    /*
+	    num_mappings = bwt_map_exact_seeds_between_coords(start_search,
 							      end_search,
 							      read->sequence, seed_size, min_seed_size,
 							      input->bwt_optarg_p, 
 							      input->bwt_index_p, 
 							      mapping_batch->mapping_lists[targets[i]],
 							      EXTRA_SEED_NONE,
-							      &seed_id);*/
+							      &seed_id);
+	    */
 	}
 
 	//printf("Making seeds anchors...\n");
