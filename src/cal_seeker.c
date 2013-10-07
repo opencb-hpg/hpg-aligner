@@ -881,7 +881,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   genome_t *genome = input->genome;
   size_t *targets_aux;
   int min_seeds, max_seeds;
-  int seed_size = 16;
+  int seed_size = input->cal_optarg->seed_size;
   array_list_t *cal_list, *list;
   cal_t *cal;
   //array_list_t *region_list;
@@ -911,12 +911,12 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 					     1.25f, 
 					     COLLECTION_MODE_ASYNCHRONIZED);
   
-  extern pthread_mutex_t bwt_mutex;
-  extern size_t seeding_reads;
+  extern pthread_mutex_t mutex_sp;
+  extern size_t TOTAL_READS_SEEDING, TOTAL_READS_SEEDING2;
 
-  pthread_mutex_lock(&bwt_mutex);
-  seeding_reads += num_targets;
-  pthread_mutex_unlock(&bwt_mutex);
+  pthread_mutex_lock(&mutex_sp);
+  TOTAL_READS_SEEDING += num_targets;
+  pthread_mutex_unlock(&mutex_sp);
 
   for (size_t i = 0; i < num_targets; i++) {
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
@@ -932,26 +932,36 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 				 bwt_index, list);
     
     if (num_cals == 0) {
-      //printf("NO CALS\n");
       int seed_size = 24;
       //First, Delete old regions
-      array_list_clear(region_list, region_bwt_free);
-            
+      array_list_clear(region_list, (void *)region_bwt_free);
+      
       //Second, Create new regions with seed_size 24 and 1 Mismatch
-
+      
       bwt_map_inexact_seeds_seq(read->sequence, seed_size, seed_size/2,
 				bwt_optarg, bwt_index, 
 				region_list);
       
       max_seeds = (read->length / 15)*2 + 10;
-      
+      int prev_min_cal = input->cal_optarg->min_cal_size;
+      //input->cal_optarg->min_cal_size = seed_size + seed_size / 2;
+      //printf("NO CALS, new seeds %lu\n", array_list_size(region_list));
+
       num_cals = bwt_generate_cal_list_linked_list(region_list,
 						   input->cal_optarg,
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
 						   list, read->length);
+
+      //input->cal_optarg->min_cal_size = prev_min_cal;
+
+      pthread_mutex_lock(&mutex_sp);
+      TOTAL_READS_SEEDING2++;
+      pthread_mutex_unlock(&mutex_sp);
+
     }
-    
+    array_list_clear(region_list, (void *)region_bwt_free);
+
     //filter-incoherent CALs
     int founds[num_cals], found = 0;
     for (size_t j = 0; j < num_cals; j++) {
@@ -968,6 +978,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 	  seed_region_t *s = list_item->item;
 	  
 	  LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
+	  LOG_DEBUG_F("\t\t:: read_star %lu > read_end %lu \n", s->read_start, s->read_end);
 	  if (start > s->read_start || s->read_start >= s->read_end) {
 	    LOG_DEBUG("\t\t\t:: remove\n");
 	    found++;
@@ -1013,13 +1024,16 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     }
 
     mapping_batch->mapping_lists[mapping_batch->targets[i]] = list;
+    num_cals = array_list_size(list);
 
+    int max = 100;
+    if (num_cals > max) {
+      select_cals = num_cals - max;
+      for(int j = num_cals - 1; j >= max; j--) {
+	cal_free(array_list_remove_at(j, mapping_batch->mapping_lists[mapping_batch->targets[i]]));
+      }
+    }
 
-    //if (num_cals > MAX_RNA_CALS) {
-    //select_cals = num_cals - MAX_RNA_CALS;
-    //for(int j = num_cals - 1; j >= MAX_RNA_CALS; j--) {
-    //cal_free(array_list_remove_at(j, mapping_batch->mapping_lists[mapping_batch->targets[i]]));
-    //}
     //mapping_batch->targets[target_pos++] = mapping_batch->targets[i];
     //} //else if (num_cals > 0) {
 

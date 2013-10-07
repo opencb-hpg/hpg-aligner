@@ -221,7 +221,7 @@ int apply_seeding(region_seeker_input_t* input, batch_t *batch) {
 				seed_id);	  
 	array_list_insert(region, mapping_batch->mapping_lists[targets[i]]);
       } 
-      array_list_clear(array_list_aux, bwt_anchor_free); 
+      array_list_clear(array_list_aux, (void *)bwt_anchor_free); 
       array_list_set_flag(0, mapping_batch->mapping_lists[targets[i]]);
       targets[new_num_targets++] = targets[i];
     } else {

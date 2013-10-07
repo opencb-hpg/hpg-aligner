@@ -435,7 +435,7 @@ buffer_item_t *buffer_item_new() {
 }
 
 
-buffer_item_t *buffer_item_complete_new(fastq_read_t *fastq_read, array_list_t *items_list, void *aux_data) {
+/*buffer_item_t *buffer_item_complete_new(fastq_read_t *fastq_read, array_list_t *items_list, void *aux_data) {
   buffer_item_t *buffer_item = buffer_item_new();
   buffer_item->read = fastq_read;
   buffer_item->items_list = array_list_new(array_list_size(items_list), 
@@ -451,7 +451,145 @@ buffer_item_t *buffer_item_complete_new(fastq_read_t *fastq_read, array_list_t *
   return buffer_item;
   
 }
+*/
+void insert_file_item(fastq_read_t *fq_read, array_list_t *items, FILE *f_sa) {
+  size_t head_size = strlen(fq_read->id);
+  size_t seq_size  = fq_read->length;
+  size_t num_items = array_list_size(items);
 
+  //Write binary file 
+  //[size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  size_t items_sizes[3] = {head_size, seq_size, num_items};
+
+  //printf("NUM items %i\n", num_items);
+  //printf("Insert-id  (%i): %s\n", head_size, fq_read->id);
+  //printf("Insert-seq (%i): %s\n", seq_size, fq_read->sequence);
+  //printf("Insert-qua (%i): %s\n", seq_size, fq_read->quality);
+
+  //[size head][size seq][num items]
+  fwrite(items_sizes, sizeof(size_t), 3, f_sa);
+  //fwrite(&head_size, sizeof(size_t), 1, f_sa);
+  //fwrite(&seq_size,  sizeof(size_t), 1, f_sa);
+  //fwrite(&num_items, sizeof(size_t), 1, f_sa);
+  
+  //[HEAD][SEQUENCE][QUALITY]
+  size_t total_size = head_size + 2*seq_size;
+  char *buffer = (char *)malloc(sizeof(char)*total_size);
+  
+
+  memcpy(buffer, fq_read->id, head_size);
+  memcpy(&buffer[head_size], fq_read->sequence, seq_size);
+  memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
+  fwrite(buffer, sizeof(char), total_size, f_sa);
+  /*
+  fwrite(fq_read->id, sizeof(char), head_size, f_sa);
+  fwrite(fq_read->sequence, sizeof(char), seq_size, f_sa);
+  fwrite(fq_read->quality, sizeof(char), seq_size, f_sa);
+  */
+  
+  bwt_anchor_t bwt_anchor[num_items];
+  memset(bwt_anchor, 0, sizeof(bwt_anchor_t)*num_items);
+
+  for (int i = 0; i < num_items; i++) {
+    cal_t *cal = array_list_get(i, items);
+    bwt_anchor[i].strand     = cal->strand;
+    bwt_anchor[i].chromosome = cal->chromosome_id - 1;
+    bwt_anchor[i].start      = cal->start;
+    bwt_anchor[i].end        = cal->start + (cal->end - cal->start + 1);
+    seed_region_t *seed = linked_list_get_first(cal->sr_list);
+    if (seed->read_start == 0) {
+      bwt_anchor[i].type = FORWARD_ANCHOR;
+    } else {
+      bwt_anchor[i].type = BACKWARD_ANCHOR;
+    }
+  }
+
+  fwrite(bwt_anchor, sizeof(bwt_anchor_t), num_items, f_sa);
+  
+  free(buffer);
+
+}
+
+void insert_file_item_2(fastq_read_t *fq_read, array_list_t *items, FILE *f_hc) {
+  size_t head_size = strlen(fq_read->id);
+  size_t seq_size  = fq_read->length;
+  size_t num_items = array_list_size(items);
+  size_t max_len = num_items * 1024;
+  char *cigar_buffer = (char *)calloc(max_len, sizeof(char));
+  size_t tot_len = 0;
+
+  simple_alignment_t simple_alignment[num_items];
+  simple_alignment_t *simple_a;
+  memset(simple_alignment, 0, sizeof(simple_alignment_t)*num_items);
+  for (int i = 0; i < num_items; i++) {
+    meta_alignment_t *meta_alignment = array_list_get(i, items);
+    cal_t *first_cal = array_list_get(0, meta_alignment->cals_list);
+    cal_t *last_cal = array_list_get(meta_alignment->cals_list->size - 1, meta_alignment->cals_list);
+    seed_region_t *first_seed = linked_list_get_first(first_cal->sr_list);
+    seed_region_t *last_seed  = linked_list_get_last(last_cal->sr_list);
+    cigar_code_t *cigar_code = meta_alignment->cigar_code;    
+    char *cigar_str = new_cigar_code_string(cigar_code);
+    int cigar_len = strlen(cigar_str);
+
+    simple_a = &simple_alignment[i];
+
+    if (meta_alignment->cigar_left !=  NULL) {
+      //printf("LEFT CIGAR: %s\n", new_cigar_code_string(meta_alignment->cigar_left));
+      simple_a->gap_start = 0;
+    } else {
+      simple_a->gap_start = first_seed->read_start;
+    }
+
+    if (meta_alignment->cigar_right !=  NULL) {
+      //printf("RIGHT CIGAR: %s\n", new_cigar_code_string(meta_alignment->cigar_right));
+      simple_a->gap_end = 0;
+    } else {
+      simple_a->gap_end = seq_size - last_seed->read_end - 1;
+    }
+
+    simple_a->map_strand = first_cal->strand;
+    simple_a->map_chromosome = first_cal->chromosome_id;
+    simple_a->map_start = first_cal->start;
+    simple_a->map_distance = cigar_code->distance;
+    simple_a->cigar_len = cigar_len;
+    
+    //printf(" [%i:%lu] INSERT CIGAR(%i): %s\n", simple_a->map_chromosome, 
+    //	   simple_a->map_start, cigar_len, cigar_str);
+
+    memcpy(&cigar_buffer[tot_len], cigar_str, cigar_len);
+    tot_len += cigar_len;
+
+    if (tot_len >= max_len) { 
+      max_len = max_len * 2;
+      cigar_buffer = realloc(cigar_buffer, max_len); 
+    }
+
+  }
+
+  //Write binary file 
+  //[size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  size_t items_sizes[3] = {head_size, seq_size, num_items};
+
+  //[size head][size seq][num items]
+  fwrite(items_sizes, sizeof(size_t), 3, f_hc);
+  
+  //[HEAD][SEQUENCE][QUALITY]
+  size_t total_size = head_size + 2*seq_size;
+  char *buffer = (char *)malloc(sizeof(char)*total_size);
+  
+  memcpy(buffer, fq_read->id, head_size);
+  memcpy(&buffer[head_size], fq_read->sequence, seq_size);
+  memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
+
+  fwrite(buffer, sizeof(char), total_size, f_hc);  
+  fwrite(simple_alignment, sizeof(simple_alignment_t), num_items, f_hc);
+  fwrite(cigar_buffer, sizeof(char), tot_len, f_hc);  
+
+  free(buffer);
+  free(cigar_buffer);
+}
+
+/*
 void buffer_item_insert_new_item(fastq_read_t *fq_read, 
 				 linked_list_t *items_list, 
 				 void *data,
@@ -471,7 +609,9 @@ void buffer_item_insert_new_item(fastq_read_t *fq_read,
   int end;
 
   if (phase == 1) {
-    linked_list_insert(buffer_item, buffer_hc);
+    if (type_items == BITEM_SINGLE_ANCHORS) {
+      linked_list_insert(buffer_item, buffer_hc);
+    }
     return;
   } else {
     linked_list_insert(buffer_item, buffer);
@@ -580,3 +720,4 @@ void buffer_item_free(buffer_item_t *buffer_item) {
   free(buffer_item);
   
 }
+*/

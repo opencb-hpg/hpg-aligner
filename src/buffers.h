@@ -451,6 +451,9 @@ void buffer_item_insert_new_item(fastq_read_t *fq_read,
                                  int phase);
 void buffer_item_free(buffer_item_t *buffer_item);
 
+void insert_file_item(fastq_read_t *fq_read, array_list_t *items, FILE *f_sa);
+
+void insert_file_item_2(fastq_read_t *fq_read, array_list_t *items, FILE *f_hc);
 //======================================================================================
 
 typedef struct meta_alignment {
@@ -468,5 +471,15 @@ typedef struct meta_alignment {
   cigar_code_t *cigar_right;
   cigar_code_t *cigar_code;
 } meta_alignment_t;
+
+typedef struct simple_alignment {
+  int gap_start;
+  int gap_end;
+  int map_strand;
+  int map_chromosome;
+  size_t map_start;
+  int map_distance;
+  int cigar_len;
+} simple_alignment_t;
 
 #endif // BUFFERS_H

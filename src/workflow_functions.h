@@ -32,6 +32,8 @@ extern int global_status;
 
 void *fastq_reader(void *input);
 void *buffer_reader(void *input);
+void *file_reader(void *input);
+void *file_reader_2(void *input);
 
 //--------------------------------------------------------------------
 // workflow consumer
@@ -75,13 +77,23 @@ typedef struct wf_input_buffer {
   batch_t *batch;
 } wf_input_buffer_t;
 
+typedef struct wf_input_file {
+  FILE *file;
+  batch_t *batch;
+} wf_input_file_t;
+
 wf_input_t *wf_input_new(fastq_batch_reader_input_t *fq_reader_input,
                          batch_t *batch);
 
 wf_input_buffer_t *wf_input_buffer_new(linked_list_t *buffer,
 				       batch_t *batch);
 
+wf_input_file_t *wf_input_file_new(FILE *fd,
+				   batch_t *batch);
+
 void wf_input_free(wf_input_t *wfi);
+
+void wf_input_file_free(wf_input_file_t *wfi);
 
 //------------------------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 #include "index_builder.h"
 
+
 //------------------------------------------------------------------------------------
 
 void check_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio) {

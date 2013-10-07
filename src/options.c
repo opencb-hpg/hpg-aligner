@@ -84,9 +84,9 @@ void validate_options(options_t *options, char *mode) {
   }else if (strcmp("rna", mode) == 0) {
     strcpy(options->mode, "RNA");
     DEFAULT_READ_BATCH_SIZE = 200000;
-    DEFAULT_SEED_SIZE = 0;
+    DEFAULT_SEED_SIZE = 16;
     DEFAULT_FLANK_LENGTH = 30;
-    DEFAULT_MIN_SEED_SIZE = 15;
+    DEFAULT_MIN_SEED_SIZE = 16;
     DEFAULT_MIN_CAL_SIZE = 20;
     DEFAULT_SEEDS_MAX_DISTANCE = 60;
     options->pair_max_distance = DEFAULT_PAIR_MAX_DISTANCE + options->max_intron_length;
@@ -121,11 +121,11 @@ void validate_options(options_t *options, char *mode) {
     options->batch_size = DEFAULT_READ_BATCH_SIZE;
   }
    
-  if (!options->min_seed_size) {
+  if (options->min_seed_size <= 10) {
     options->min_seed_size = DEFAULT_MIN_SEED_SIZE;
   }
   
-  if (!options->seed_size) {
+  if (options->seed_size <= 10) {
     options->seed_size = DEFAULT_SEED_SIZE;
   }
 

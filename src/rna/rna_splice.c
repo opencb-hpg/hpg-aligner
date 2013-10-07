@@ -32,8 +32,8 @@ void avl_end_process(cp_avlnode *node) {
   if (node->left) { avl_end_process(node->left); }
   avl_node_t *avl_node = (avl_node_t *)node->value;
   end_data_t *data = avl_node->data;
-  for (int i = 0; i < array_list_size(data->list_starts); i++) {
-    size_t end_sp = array_list_get(i, data->list_starts);
+  for (size_t i = 0; i < array_list_size(data->list_starts); i++) {
+    size_t end_sp = (size_t)array_list_get(i, data->list_starts);
     printf("%i-%i\n", end_sp, avl_node->position);
   }
   if (node->right) { avl_end_process(node->right); }
@@ -73,7 +73,7 @@ inline void insert_starts(unsigned char strand, end_data_t *end_data, size_t end
   int num_starts = array_list_size(end_data->list_starts);
 
   for(size_t i = 0; i < num_starts; i++) {
-    size_t start = array_list_get(i, end_data->list_starts);
+    size_t start = (size_t)array_list_get(i, end_data->list_starts);
     intron_t *new_intron = intron_new(strand, 0, start - 1, end + 1);
     array_list_insert(new_intron, intron_list);
   }
@@ -258,7 +258,7 @@ start_data_t *start_data_new() {
 }
 
 void start_data_free(start_data_t *data) {
-  array_list_free(data->list_ends, splice_end_free);
+  array_list_free(data->list_ends, (void *)splice_end_free);
   free(data);
 }
 
@@ -339,11 +339,11 @@ void allocate_start_splice(size_t start, end_data_t *data) {
   size_t start_list;
 
   for (int i = 0; i < num_starts; i++) {
-    start_list = array_list_get(i, data->list_starts);
+    start_list = (size_t)array_list_get(i, data->list_starts);
     if (start == start_list) { return; }    
   }
 
-  array_list_insert(start, data->list_starts);
+  array_list_insert((void *)start, data->list_starts);
 
   return;
 }
@@ -373,12 +373,12 @@ void allocate_start_node(unsigned int chromosome, unsigned char strand,
 
   node_start = (avl_node_t *)cp_avltree_get(avl, (void *)start);
   if(node_start == NULL) {
-    //printf("\tNot Exist\n");
+    //printf("\tNot Exist S\n");
     node_start = cp_avltree_insert(avl, (void *)start, (void *)start);
     start_data = (start_data_t *)node_start->data;
     start_data->start_extend = start_extend;
   } else {
-    //printf("\tExist\n");
+    //printf("\tExist S\n");
     start_data = (start_data_t *)node_start->data;
     if (start_data->start_extend > start_extend) {
     start_data->start_extend = start_extend;
@@ -392,8 +392,11 @@ void allocate_start_node(unsigned int chromosome, unsigned char strand,
   node_end = (avl_node_t *)cp_avltree_get(avl, (void *)end);
 
   if(node_end == NULL) {
+    //printf("\tNot Exist E\n");
     node_end = cp_avltree_insert(avl, (void *)end, (void *)end);
-  } 
+  }  //else {
+  //printf("\tExist E\n");
+  //}
 
   allocate_start_splice(start, (end_data_t *)node_end->data);
 

@@ -41,7 +41,7 @@ intron_t *intron_new(unsigned char strand, unsigned int chromosome, size_t start
 void intron_free(intron_t *intron);
 
 //Candidate Splice Junction
-typedef struct CSJ {
+/*typedef struct CSJ {
   unsigned char sp_signal;
   unsigned int r_extend;
   unsigned int l_extend;
@@ -51,21 +51,21 @@ typedef struct CSJ {
 } CSJ_t;
 CSJ_t *CSJ_new(alignment_t *alignment,  cigar_code_t *cigar_code, 
 	       array_list_t *introns_list, unsigned char sp_signal, unsigned int l_extend, unsigned int r_extend);
-
+*/
 /*CSJ_t *CSJ_new(unsigned char strand, size_t chromosome, int start, 
 	       cigar_code_t *cigar_code, array_list_t *introns_list, 
 	       unsigned char sp_signal, unsigned int r_extend, unsigned int l_extend);*/
-void CSJ_free(CSJ_t *CSJ);
+//void CSJ_free(CSJ_t *CSJ);
 
 //Buffer item
-typedef struct read_CSJs {
+/*typedef struct read_CSJs {
   array_list_t *CSJs_list;
   array_list_t *alignments_list;
   fastq_read_t *read;
 } read_CSJs_t;
 read_CSJs_t *read_CSJs_new(array_list_t *CSJs_list, array_list_t *alignments_list, fastq_read_t *read);
 void read_CSJs_free(read_CSJs_t *read_CSJs);
-
+*/
 //===============================================================================================================
 
 void avl_process(cp_avlnode *node);
