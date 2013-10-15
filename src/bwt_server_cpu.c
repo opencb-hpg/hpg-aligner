@@ -326,14 +326,10 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch) {
   mapping_batch->num_targets = num_unmapped;
     
   if (batch->mapping_batch->num_targets > 0) {
-    return SEEDING_STAGE;
+    return CAL_STAGE;
   }
 
-  if (batch->mapping_mode == RNA_MODE) {
-    return RNA_POST_PAIR_STAGE;
-  } else {
-    return DNA_POST_PAIR_STAGE;
-  }    
+  return DNA_POST_PAIR_STAGE;
 }
 
 //------------------------------------------------------------------------------------

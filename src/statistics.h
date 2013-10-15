@@ -48,7 +48,7 @@ void statistics_add(unsigned int section, unsigned int subsection, size_t value,
 
 void statistics_display(statistics_t* statistics_p);
 
-void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, float total_time);
+void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, float alig_time, float load_time);
 
 void basic_statistics_init(size_t total_reads, size_t num_mapped_reads, size_t total_mappings, basic_statistics_t *statistics);
 

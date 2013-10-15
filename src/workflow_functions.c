@@ -693,11 +693,14 @@ int seeding_stage(void *data) {
 int cal_stage(void *data) {
      batch_t *batch = (batch_t *) data;
 
+     return apply_caling_rna(batch->cal_input, batch);
+     /*
      if (batch->mapping_mode == DNA_MODE) {
        return apply_caling(batch->cal_input, batch);
      } else {
        return apply_caling_rna(batch->cal_input, batch);
      }
+     */
 }
 
 //--------------------------------------------------------------------

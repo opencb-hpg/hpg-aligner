@@ -86,7 +86,7 @@ cp_trie *dna_dataset_to_trie(char * file, trie_result_t* result) {
     if (buffer[0] != '@') continue;
     
     id = strdup(&buffer[1]);
-    id[strlen(id) - 1] = 0;
+    id[strlen(id) - 3] = 0;
 
     // insert tot the list
     array_list_insert(id, id_list);

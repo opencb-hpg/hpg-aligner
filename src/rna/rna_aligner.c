@@ -351,13 +351,18 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 
   tot_reads_in = 0;
   tot_reads_out = 0;
+
+  extern double time_alig;
+  extern struct timeval time_start_alig, time_end_alig;
+
+  start_timer(time_start_alig);
   fprintf(stderr, "START WORKWFLOW '1ph'\n");
   workflow_run_with(options->num_cpu_threads, wf_input, wf);
   //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '1ph'\n\n");
   
-  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
-  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+  //fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  //fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
 
   tot_reads_in = 0;
   tot_reads_out = 0;  
@@ -369,8 +374,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '2ph'\n\n");
 
-  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
-  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+  //fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  //fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
   
   //num_reads_map = 0;
   //num_reads     = 0;
@@ -382,8 +387,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
   
-  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
-  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+  //fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  //fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
 
   //extern size_t w2_3_r;    
   //extern size_t w2_r;
@@ -400,9 +405,6 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     stop_timer(start, end, time);
     timing_add(time, TOTAL_TIME, timing);
     }*/
-
-  extern double time_alig;
-  extern struct timeval time_start_alig, time_end_alig;
 
   stop_timer(time_start_alig, time_end_alig, time_alig);
 

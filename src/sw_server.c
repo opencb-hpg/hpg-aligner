@@ -250,7 +250,13 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
 	// create an alignment and insert it into the list
 	alignment = alignment_new();
 
-	alignment_init_single_end(strdup(&read->id[1]), match_seq, match_qual, 
+	//read_id = malloc(read->length);
+	size_t header_len = strlen(read->id);
+	char *head_id = (char *) malloc(header_len + 1);
+
+	get_to_first_blank(read->id, header_len, head_id);
+
+	alignment_init_single_end(head_id, match_seq, match_qual, 
 				  cal->strand, cal->chromosome_id - 1, cal->start - 1,
 				  new_cigar_code_string(cigar_code), 
 				  cigar_code_get_num_ops(cigar_code), 

@@ -46,11 +46,10 @@
 //--------  DEFINE WORKFLOW DNA VARS  -----------
 
 
-#define SEEDING_STAGE           1
-#define CAL_STAGE               2
-#define PRE_PAIR_STAGE          3
-#define SW_STAGE                4
-#define DNA_POST_PAIR_STAGE     5
+#define CAL_STAGE               1
+#define PRE_PAIR_STAGE          2
+#define SW_STAGE                3
+#define DNA_POST_PAIR_STAGE     4
 
 
 //--------  DEFINE WORKFLOW RNA VARS   -----------

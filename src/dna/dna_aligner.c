@@ -89,8 +89,8 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      //
      //
      // timing
-     struct timeval start, end;
-     extern double main_time;
+     extern double time_alig;
+     extern struct timeval time_start_alig, time_end_alig;
 
      batch_t *batch = batch_new(&bwt_input, &region_input, &cal_input, 
 				&pair_input, NULL, &sw_input, &writer_input, DNA_MODE, NULL);
@@ -100,25 +100,18 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      // create and initialize workflow
      workflow_t *wf = workflow_new();
      
-     workflow_stage_function_t stage_functions[] = {bwt_stage, seeding_stage, cal_stage, 
+     workflow_stage_function_t stage_functions[] = {bwt_stage, cal_stage, 
 						    pre_pair_stage, sw_stage, post_pair_stage};
-     char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-     workflow_set_stages(6, (workflow_stage_function_t *)&stage_functions, stage_labels, wf);
+     char *stage_labels[] = {"BWT", "CAL", "PRE PAIR", "SW", "POST PAIR"};
+     workflow_set_stages(5, (workflow_stage_function_t *)&stage_functions, stage_labels, wf);
      
      // optional producer and consumer functions
      workflow_set_producer((workflow_producer_function_t *)fastq_reader, "FastQ reader", wf);
      workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf);
-     
-     //if (time_on) {
-     start_timer(start);
-       //}
 
+     start_timer(time_start_alig);
      workflow_run_with(options->num_cpu_threads, wf_input, wf);
-
-     //if (time_on) {
-     stop_timer(start, end, main_time);
-       //printf("Total Time: %4.04f sec\n", time / 1000000);
-       //}
+     stop_timer(time_start_alig, time_end_alig, time_alig);
      
      // free memory
      workflow_free(wf);

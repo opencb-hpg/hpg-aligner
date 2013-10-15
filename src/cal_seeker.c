@@ -931,7 +931,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     num_cals = bwt_generate_cals(read->sequence, seed_size, bwt_optarg,
 				 bwt_index, list);
     
-    if (num_cals == 0) {
+    if (num_cals == 1000000000) {
       int seed_size = 24;
       //First, Delete old regions
       array_list_clear(region_list, (void *)region_bwt_free);
@@ -1057,7 +1057,18 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 
   LOG_DEBUG("========= APPLY CALING RNA END =========\n");
 
-  return RNA_STAGE;
+  //  return RNA_STAGE;
+  if (batch->mapping_mode == RNA_MODE) {
+    return RNA_STAGE;
+  }
+
+  if (batch->pair_input->pair_mng->pair_mode != SINGLE_END_MODE) {
+    return PRE_PAIR_STAGE;
+  } else if (batch->mapping_batch->num_targets > 0) {
+    return SW_STAGE;
+  }
+  
+  return DNA_POST_PAIR_STAGE;
 
 }
 

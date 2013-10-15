@@ -117,7 +117,7 @@ void timing_and_statistics_display(statistics_t* statistics_p, timing_t *t_p) {
 
 //---------------------------------------------------------------------------------------
 
-void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, float total_time) {
+void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, float alig_time, float load_time) {
   size_t total_reads = statistics->total_reads;
   size_t num_mapped_reads = statistics->num_mapped_reads;
   size_t total_mappings = statistics->total_mappings;
@@ -140,7 +140,11 @@ void basic_statistics_display(basic_statistics_t *statistics, int rna_mode, floa
   printf("+--------------------------------------------------------------------------------------+\n");
   printf("|                                     GLOBAL STATISTICS                                |\n");
   printf("+--------------------------------------------------------------------------------------+\n");
-  printf("| Alignment Time (s): %-65.2f", total_time);
+  printf("| Loading Time (s)  : %-65.2f", load_time);
+  printf("|\n");
+  printf("| Alignment Time (s): %-65.2f", alig_time);
+  printf("|\n");
+  printf("| Total Time (s)    : %-65.2f", load_time + alig_time);
   printf("|\n");
   printf("========================================================================================\n");
   printf("| Total Reads Processed: %-62llu", total_reads);
