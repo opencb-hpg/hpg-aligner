@@ -6,7 +6,7 @@
 #include "pair_server.h"
 
 #define MAX_CALS 200
-#define MAX_RNA_CALS 40
+#define MAX_RNA_CALS 200
 
 extern size_t reads_max_cals;
 extern size_t reads_no_cals;
@@ -78,6 +78,15 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch);
 void merge_seed_regions(mapping_batch_t *mapping_batch);
 
 //--------------------------------------------------------------------------------------
+
+void fill_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg, 
+	       genome_t *genome, int min_gap, int min_distance);
+
+void merge_seed_regions(mapping_batch_t *mapping_batch);
+
+void fill_end_gaps(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg, 
+		   genome_t *genome, int min_H, int min_distance);
+
 //--------------------------------------------------------------------------------------
 
 #endif  // CAL_SEEKER_H

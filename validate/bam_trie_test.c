@@ -4,7 +4,7 @@
 #define DEFAULT_MAX_DISTANCE_SIZE		500
 
 
-#define BAM_TRIE_USAGE_HELP "Usage: bam_trie_test --ref-align <fastq_file> --bam <bam_file>\n"
+#define BAM_TRIE_USAGE_HELP "Usage: bam_trie_test --ref-align <fastq_file> --bam <bam_file> --mode <dna|rna> \n"
 
 /* **********************************************
  *
@@ -19,29 +19,33 @@ int main(int argc, char **argv) {
   
   static struct option long_options[]={
     {"ref-align",		required_argument, 0, 'a'},
+    {"transcriptome",		required_argument, 0, 't'},
     {"ref-bam", 		required_argument, 0, 'b'},
     {"bam",			required_argument, 0, 'c'},
     {"margin-length",		required_argument, 0, 'm'},
     {"log-file",		required_argument, 0, 'd'},
+    {"mode",		        required_argument, 0, 'e'},
     {0,0,0,0}
   };
   
   int argc_with_file_options = 0;
   char ** argv_with_file_options = NULL;
   //		char ** argv_from_file_options = NULL;
-  char* token[100];
-  
-  
-  char * ref_file;
-  char * bam_file;
+  char *token[100];
+  char *transcriptome_file;
+  char *ref_file;
+  char *bam_file;
   int log = 1;
   int margin = 0;
   trie_result_t *result;
   int align_bam = 0; // align_bam = 0 => Align, align_bam=1 => BAM
+  int mode;
+
   if(argc < 5) {
     printf(BAM_TRIE_USAGE_HELP);	
     exit(0);
   }
+
   argc_with_file_options = argc;
   argv_with_file_options = argv;
   
@@ -74,24 +78,66 @@ int main(int argc, char **argv) {
       margin = atoi(optarg);
       break;
 
+    case 'e':
+      if (strcmp(optarg, "dna") == 0) {
+	mode = 0;
+      } else if (strcmp(optarg, "rna") == 0) {
+	mode = 1;
+      } else {
+	printf("Unknown mode %s\n", optarg);
+	printf(BAM_TRIE_USAGE_HELP);
+	exit(-1);
+      }
+      break;
+    case 't':
+      transcriptome_file = (char*) calloc(strlen(optarg) + 1, sizeof(char));
+      strcpy(transcriptome_file, optarg);
+      break;
+      
     default:	
       break;
     }				/* -----  end switch  ----- */
+
   }
   
   result = (trie_result_t*) calloc(1, sizeof(trie_result_t));
   id_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
 
-  //  if (align_bam == 0) {
+  if (mode == 1) {
+    printf("Loading transcriptome file '%s' ...\n", transcriptome_file);
+    cp_hashtable *t = load_transcriptome_validate(transcriptome_file);
+    printf("Load transcriptome file done!\n", transcriptome_file);
+    
+    printf("Loading FASTQ file '%s' ...\n", ref_file);
+    trie = rna_dataset_to_trie(ref_file, result);
+    printf("Load FASTQ file done!\n", transcriptome_file);
+
+    //for(int i = 0; i < pos; i++) {
+    printf("Validating BAM file '%s' ...\n\n", token[0]);
+    rna_intersection(trie, margin, token[0], result, t);
+    print_result(result, log);
+    printf("\nValidate BAM file done!\nDONE!\n");
+  } else {
+    printf("Loading FASTQ file '%s' ...\n", ref_file);
     trie = dna_dataset_to_trie(ref_file, result);
-  //  } else if (align_bam == 1) {
-  //    trie = dna_bam_to_trie(ref_file);		
-  //  }
-  
-  for(int i = 0; i < pos; i++) {
-    dna_intersection(trie, margin, token[i], result);
-    print_result(result,log);
+    printf("Load FASTQ file done!\n", transcriptome_file);
+
+    for(int i = 0; i < pos; i++) {
+      dna_intersection(trie, margin, token[i], result);
+      print_result(result,log);
+    }
+
   }
+
+  /*
+  array_list_t *list = cp_hashtable_get(t, "ENST00000539153");
+  printf("SEARCH RESULTS 'ENST00000539153': \n");
+  for (int i = 0; i < list->size; i++) {
+    exon_coords_t *coords = array_list_get(i, list);
+    printf("\t[%lu-%lu]\n", coords->start, coords->end);
+  }
+  */  
+
 
   // free memory
   free(result);

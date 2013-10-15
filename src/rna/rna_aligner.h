@@ -10,6 +10,8 @@
 #include <getopt.h>
 #include <unistd.h>
 
+#include "containers/cprops/trie.h"
+
 #include "commons/log.h"
 #include "commons/file_utils.h"
 
@@ -17,11 +19,11 @@
 
 #include "bioformats/fastq/fastq_batch_reader.h"
 
+#include "batch_writer.h"
 #include "error.h"
 #include "timing.h"
 #include "buffers.h"
 #include "bwt_server.h"
-#include "batch_writer.h"
 #include "region_seeker.h"
 #include "cal_seeker.h"
 #include "sw_server.h"
@@ -114,5 +116,8 @@ static inline void exon_display(exon_t *p) {
 	   p->transcript_id, p->exon_number, p->exon_id);
   }
 }
+
+void load_transcriptome(char *filename, genome_t *genome, 
+			avls_list_t *avls_list, metaexons_t *metaexons);
 
 #endif

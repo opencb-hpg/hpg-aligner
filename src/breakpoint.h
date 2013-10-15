@@ -82,6 +82,8 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
 				  int *distance, int ref_type);
 int cigar_code_validate(int read_length, cigar_code_t *p);
 int cigar_code_validate_(fastq_read_t *fq_read, cigar_code_t *p);
+void cigar_code_update(cigar_code_t *p);
+
 //cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int map_len,
 //				  unsigned int query_start, unsigned int query_len, 
 //				  int *distance);
@@ -152,28 +154,42 @@ void metaexon_free(metaexon_t *metaexon);
 
 //--------------------------------------------------------------------------------------
 
+typedef struct metaexon_pair {
+  linked_list_item_t *first;
+  linked_list_item_t *last;  
+} metaexon_pair_t;
+
 typedef struct metaexons {
-  unsigned int chunk_size;
-  unsigned int num_chromosomes;
-  size_t *num_chunks;
-  linked_list_t ****metaexons_table;  
-  pthread_mutex_t *mutex;
+  //unsigned int       chunk_shift;
+  unsigned int       num_chromosomes;
+  size_t             *num_chunks;
+  pthread_mutex_t    *mutex;
+  linked_list_t      **metaexons_list;  
+  metaexon_pair_t    **bypass_pointer;
+
+  //linked_list_t      ***metaexons_x;  
 } metaexons_t;
 
 metaexons_t *metaexons_new(genome_t *genome);
 
 void metaexons_free(metaexons_t *metaexons);
 
-void metaexon_insert(unsigned int strand, unsigned int chromosome,
+int metaexon_insert(unsigned int strand, unsigned int chromosome,
                      size_t metaexon_start, size_t metaexon_end, int min_intron_size,
                      unsigned char type, void *info_break, metaexons_t *metaexons);
+
+int metaexon_insert_2(unsigned int strand, unsigned int chromosome,
+		      size_t metaexon_start, size_t metaexon_end, int min_intron_size,
+		      unsigned char type, void *info_break, metaexons_t *metaexons);
 
 //Return if the position is between metaexon coords
 int metaexon_search(unsigned int strand, unsigned int chromosome,
 		    size_t start, size_t end, metaexon_t **metaexon_found,
 		    metaexons_t *metaexons);
 
-void metaexons_show(metaexons_t *metaexons);
+void metaexons_print(metaexons_t *metaexons);
+
+void metaexons_print_chr(metaexons_t *metaexons, int chr);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

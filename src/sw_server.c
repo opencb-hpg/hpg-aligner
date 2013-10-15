@@ -49,7 +49,8 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 			  avls_list_t *avls_list,
 			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
 			  metaexons_t *metaexons, linked_list_t *buffer, 
-			  linked_list_t *buffer_hc, sw_server_input_t* input) {
+			  linked_list_t *buffer_hc, FILE *f_sa, FILE *f_hc,
+			  int pair_mode, sw_server_input_t* input) {
   
   input->sw_list_p = sw_list;
   input->alignment_list_p = alignment_list;
@@ -80,6 +81,11 @@ void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int 
 
   input->buffer = buffer;
   input->buffer_hc = buffer_hc;
+
+  input->f_sa = f_sa;
+  input->f_hc = f_hc;
+
+  input->pair_mode = pair_mode;
 }
 
 //====================================================================================
@@ -249,7 +255,7 @@ int apply_sw(sw_server_input_t* input, batch_t *batch) {
 				  new_cigar_code_string(cigar_code), 
 				  cigar_code_get_num_ops(cigar_code), 
 				  norm_score * 254, 1, (num_cals > 1),
-				  optional_fields_length, optional_fields, 0, alignment);
+				  optional_fields_length, optional_fields, alignment);
 
 	array_list_insert(alignment, alignment_list);
       }

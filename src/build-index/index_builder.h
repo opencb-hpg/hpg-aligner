@@ -10,5 +10,6 @@
 #include "commons/file_utils.h"
 
 void run_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio);
+void help_index_builder();
 
 #endif // INDEX_BUILDER_H

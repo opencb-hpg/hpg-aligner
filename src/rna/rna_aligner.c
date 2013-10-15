@@ -7,8 +7,6 @@
 //--------------------------------------------------------------------  
 extern int splice_junction_type(char nt_start_1, char nt_start_2, char nt_end_1, char nt_end_2);
 
-void load_transcriptome(char *filename, genome_t *genome, 
-			avls_list_t *avls_list, metaexons_t *metaexons);
 
 //--------------------------------------------------------------------
 
@@ -174,6 +172,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   free(exact_junctions);
 
 
+  extern FILE *fd_log;
+  fd_log = fopen(log_filename, "w");
+
   LOG_DEBUG("Auto Thread Configuration Done !");
 
   // timing
@@ -197,13 +198,26 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //allocate_splice_elements_t chromosome_avls[genome->num_chromosomes];
   //init_allocate_splice_elements(chromosome_avls, genome->num_chromosomes);
   avls_list_t* avls_list = avls_list_new(genome->num_chromosomes);
+  printf("Loading transcriptome...\n");
   if (options->transcriptome_filename != NULL) {
     load_transcriptome(options->transcriptome_filename, genome, avls_list, metaexons);
     //    LOG_FATAL_F("transcriptome filename = %s\n", options->transcriptome_filename);
   }
-
+  printf("Load done!\n");
   linked_list_t *buffer    = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
   linked_list_t *buffer_hc = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
+
+  FILE *f_sa, *f_hc;
+
+  f_sa = fopen("buffer_sa.tmp", "w+b");
+  if (f_sa == NULL) {
+    LOG_FATAL("Error opening file 'buffer_sa.tmp' \n");
+  }
+
+  f_hc = fopen("buffer_hc.tmp", "w+b");
+  if (f_hc == NULL) {
+    LOG_FATAL("Error opening file 'buffer_hc.tmp' \n");
+  }
 
   fastq_batch_reader_input_t reader_input;
   fastq_batch_reader_input_init(options->in_filename, options->in_filename2, 
@@ -245,13 +259,12 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, 
 			bwt_optarg, bwt_index, metaexons, &cal_input);
   
-  preprocess_rna_input_t preprocess_rna;
-  
+  preprocess_rna_input_t preprocess_rna;  
   preprocess_rna_input_init(options->max_intron_length, options->flank_length, 
 			    options->seeds_max_distance, options->seed_size, genome, 
 			    &preprocess_rna);
 
-  
+  int pair_mode = pair_mng->pair_mode;
   sw_server_input_t sw_input;
   sw_server_input_init(NULL, NULL, 0,  options->match,  
 		       options->mismatch,  options->gap_open, options->gap_extend,  
@@ -259,7 +272,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->max_intron_length, options->min_intron_length,  
 		       options->seeds_max_distance,  bwt_optarg, avls_list, 
 		       cal_optarg, bwt_index, metaexons, buffer, buffer_hc, 
-		       &sw_input);
+		       f_sa, f_hc, pair_mode, &sw_input);
   
 
   pair_server_input_t pair_input;
@@ -282,7 +295,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   //
   //
   // timing
-  struct timeval start, end;
+  //struct timeval start, end;
   extern double main_time;
 
 
@@ -290,32 +303,34 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 			     &pair_input, &preprocess_rna, &sw_input, &writer_input, RNA_MODE, NULL);
 
   wf_input_t *wf_input = wf_input_new(&reader_input, batch);
-  wf_input_buffer_t *wf_input_buffer = wf_input_new(buffer, batch);  
-  wf_input_buffer_t *wf_input_buffer_hc = wf_input_new(buffer_hc, batch);  
+
+  wf_input_file_t *wf_input_file = wf_input_file_new(f_sa, batch); 
+ 
+  wf_input_file_t *wf_input_file_hc = wf_input_file_new(f_hc, batch);  
 
   //create and initialize workflow
   workflow_t *wf = workflow_new();
   workflow_stage_function_t stage_functions[] = {bwt_stage, cal_stage, 
 						 sw_stage, post_pair_stage};
   char *stage_labels[] = {"BWT", "CAL", "SW", "POST PAIR"};
-  workflow_set_stages(4, &stage_functions, stage_labels, wf);
+  workflow_set_stages(4, (workflow_stage_function_t *)&stage_functions, stage_labels, wf);
   // optional producer and consumer functions
-  workflow_set_producer(fastq_reader, "FastQ reader", wf);
-  workflow_set_consumer(bam_writer, "BAM writer", wf);
+  workflow_set_producer((workflow_producer_function_t *)fastq_reader, "FastQ reader", wf);
+  workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf);
   
   workflow_t *wf_last = workflow_new();
   workflow_stage_function_t stage_functions_last[] = {rna_last_stage, post_pair_stage};
   char *stage_labels_last[] = {"RNA LAST STAGE", "POST PAIR"};
-  workflow_set_stages(2, &stage_functions_last, stage_labels_last, wf_last);
-  workflow_set_producer(buffer_reader, "Buffer reader", wf_last);
-  workflow_set_consumer(bam_writer, "BAM writer", wf_last);
+  workflow_set_stages(2, (workflow_stage_function_t *)&stage_functions_last, stage_labels_last, wf_last);
+  workflow_set_producer((workflow_producer_function_t *)file_reader, "Buffer reader", wf_last);
+  workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf_last);
 
   workflow_t *wf_hc = workflow_new();
   workflow_stage_function_t stage_functions_hc[] = {rna_last_hc_stage, post_pair_stage};
   char *stage_labels_hc[] = {"RNA HARD CLIPPINGS", "POST PAIR"};
-  workflow_set_stages(2, &stage_functions_hc, stage_labels_hc, wf_hc);
-  workflow_set_producer(buffer_reader, "Buffer reader", wf_hc);
-  workflow_set_consumer(bam_writer, "BAM writer", wf_hc);
+  workflow_set_stages(2, (workflow_stage_function_t *)&stage_functions_hc, stage_labels_hc, wf_hc);
+  workflow_set_producer((workflow_producer_function_t *)file_reader_2, "Buffer reader", wf_hc);
+  workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf_hc);
  
 
   // Create new thread POSIX for search extra Splice Junctions
@@ -325,46 +340,71 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   void *status;
   int ret;
 
-  start_timer(start);
-
   //Run workflow
-  extern size_t num_reads_map;
-  extern size_t num_reads;
+  //extern size_t num_reads_map;
+  //extern size_t num_reads;
+  
+  //num_reads_map = 0;
+  //num_reads     = 0;
+  extern size_t tot_reads_in;
+  extern size_t tot_reads_out;
 
-  num_reads_map = 0;
-  num_reads     = 0;
+  tot_reads_in = 0;
+  tot_reads_out = 0;
   fprintf(stderr, "START WORKWFLOW '1ph'\n");
   workflow_run_with(options->num_cpu_threads, wf_input, wf);
-  fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
+  //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '1ph'\n\n");
   
-    
-  num_reads_map = 0;
-  num_reads     = 0;
+  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+
+  tot_reads_in = 0;
+  tot_reads_out = 0;  
+  //num_reads_map = 0;
+  //num_reads     = 0;
   fprintf(stderr, "START WORKWFLOW '2ph'\n");
-  workflow_run_with(options->num_cpu_threads, wf_input_buffer, wf_last);
-  fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
+  rewind(f_sa);
+  workflow_run_with(options->num_cpu_threads, wf_input_file, wf_last);
+  //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '2ph'\n\n");
 
+  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
   
-  num_reads_map = 0;
-  num_reads     = 0;
+  //num_reads_map = 0;
+  //num_reads     = 0;
+  tot_reads_in = 0;
+  tot_reads_out = 0;  
   fprintf(stderr, "START WORKWFLOW '3ph'\n");
-  workflow_run_with(options->num_cpu_threads, wf_input_buffer_hc, wf_hc);
-  fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
+  rewind(f_hc);
+  workflow_run_with(options->num_cpu_threads, wf_input_file_hc, wf_hc);
+  //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
   
+  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+
+  //extern size_t w2_3_r;    
+  //extern size_t w2_r;
+  //extern size_t w3_r;
+  //fprintf(stderr, "w2_r = %lu, w3_r = %lu, w2_3_r = %lu\n", w2_r, w3_r, w2_3_r);
+
   /*options->num_cpu_threads*/
 
   //Write chromosome avls
   write_chromosome_avls(extend_filename,
                         exact_filename, genome->num_chromosomes, avls_list);
 
-  stop_timer(start, end, main_time);
   /*if (time_on) { 
     stop_timer(start, end, time);
     timing_add(time, TOTAL_TIME, timing);
     }*/
+
+  extern double time_alig;
+  extern struct timeval time_start_alig, time_end_alig;
+
+  stop_timer(time_start_alig, time_end_alig, time_alig);
 
   printf("= = = = T I M I N G    W O R K F L O W    '1' = = = =\n");
   workflow_display_timing(wf);
@@ -378,6 +418,14 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   workflow_display_timing(wf_hc); 
   printf("= = = = - - - - - - - - - - - - - - - - - - - = = = =\n\n");
 
+  extern size_t TOTAL_SW,
+    TOTAL_READS_PROCESS,
+    TOTAL_READS_SEEDING,
+    TOTAL_READS_SEEDING2,
+    TOTAL_READS_SA;
+
+  printf("TOTAL READS PROCESS = %lu,\n TOTAL READS SEEDING x1 = %lu,\n TOTAL READS SEEDING x2 = %lu,\n TOTAL SW = %lu,\n TOTAL READS SINGLE ANCHOR FINAL = %lu\n\n",
+	 TOTAL_READS_PROCESS, TOTAL_READS_SEEDING, TOTAL_READS_SEEDING2, TOTAL_SW, TOTAL_READS_SA);
 
   //closing files
   if (options->pair_mode == SINGLE_END_MODE) {
@@ -386,7 +434,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     fastq_fclose(reader_input.fq_file1);
     fastq_fclose(reader_input.fq_file2);
   }
-
+  
   bam_fclose(writer_input.bam_file);
     
   // free memory
@@ -395,9 +443,10 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   workflow_free(wf_hc);
 
   wf_input_free(wf_input);
-  wf_input_free(wf_input_buffer);
-  wf_input_free(wf_input_buffer_hc);
+  wf_input_file_free(wf_input_file);
+  wf_input_file_free(wf_input_file_hc);
 
+  
   //avls_list_free();
   batch_free(batch);
 
@@ -406,7 +455,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   // end of workflow management
   //--------------------------------------------------------------------------------------
 
-  printf("========== FINAL BUFFER %i =========\n", linked_list_size(buffer));
+  //printf("========== FINAL BUFFER %i =========\n", linked_list_size(buffer));
 
   free(log_filename);
   free(output_filename);
@@ -594,7 +643,7 @@ void load_transcriptome(char *filename, genome_t *genome,
 	
 	//LOG_FATAL_F("nt_start = %s, nt_end = %s, type = %i\n", nt_start, nt_end, type);
 	
-	LOG_DEBUG_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
+	//LOG_DEBUG_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
 	if (exon2->start - 1 < exon1->end + 1) {
 	  LOG_FATAL_F("start_splice = %lu - end_splice = %lu (%s, %s, %s)\n", exon1->end, exon2->start, exon1->transcript_id, exon2->transcript_id, transcript_id);
 	}
@@ -612,10 +661,10 @@ void load_transcriptome(char *filename, genome_t *genome,
 			    &avl_node_end, 
 			    avls_list);
 	
-	metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
+	metaexon_insert(0/*exon1->strand*/, exon1->chr, exon1->start, exon1->end, 40,
 			METAEXON_RIGHT_END, avl_node_start, metaexons);
 	
-	metaexon_insert(exon2->strand, exon2->chr, exon2->start, exon2->end, 40,
+	metaexon_insert(0/*exon2->strand*/, exon2->chr, exon2->start, exon2->end, 40,
 			METAEXON_LEFT_END, avl_node_end, metaexons);
 	
 	// ...and then, free exon1 and update it to exon2
@@ -627,7 +676,7 @@ void load_transcriptome(char *filename, genome_t *genome,
 	// (otherwise, it was already processed, there was a splice)
 	if (exon1->exon_number == 1) {
 	  //	  printf("Process Exon1[%lu-%lu]\n", exon1->start, exon1->end);
-	  metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
+	  metaexon_insert(0/*exon1->strand*/, exon1->chr, exon1->start, exon1->end, 40,
 			  METAEXON_NORMAL, NULL, metaexons);
 	}
 	// and free and exit
@@ -643,7 +692,7 @@ void load_transcriptome(char *filename, genome_t *genome,
       // (otherwise, it was already processed, there was a splice)
       if (exon1->exon_number == 1) {
 	//	printf("Process Exon1[%lu-%lu]\n", exon1->start, exon1->end);
-	metaexon_insert(exon1->strand, exon1->chr, exon1->start, exon1->end, 40,
+	metaexon_insert(0/*exon1->strand*/, exon1->chr, exon1->start, exon1->end, 40,
 			METAEXON_NORMAL, NULL, metaexons);
       }
       // and free and exit
@@ -654,32 +703,10 @@ void load_transcriptome(char *filename, genome_t *genome,
   } // end while
 
   fclose(f);
+  array_list_free(list, NULL);
 
   LOG_DEBUG_F("Number of processed exons: %i", count);
 
-  //metaexons_show(metaexons);
-  //exit(-1);
-
-    /*
-    if (!found) continue;
-
-    found = 0;
-    for (chr = 0; chr < genome->num_chromosomes; chr++) {
-      if (strcmp(value, genome->chr_name[chr]) == 0) { found = 1; break; }
-    }
-
-    // we have an exon ready to be processed !!
-    if (splice) {
-      // exon with splices
-      
-    } else {
-      // exon without splices
-      metaexon_insert(strand, chr, exon_start1, exon_end1, 40,
-		      METAEXON_NORMAL, NULL, metaexons);
-    }
-
-    */
-  //  }
 }
 
 //--------------------------------------------------------------------

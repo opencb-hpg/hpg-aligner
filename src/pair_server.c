@@ -11,6 +11,12 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 
 //------------------------------------------------------------------------------------
 
+inline void filter_alignments(char report_all, 
+			      size_t report_n_best, 
+			      size_t report_n_hits,
+			      int report_best,
+			      array_list_t *mapping_list);
+
 //unsigned long alignment_hash_code(void *p);
 //int alignment_compare(void *p1, void *p2);
 
@@ -209,7 +215,7 @@ static void prepare_single_alignments(pair_server_input_t *input, mapping_batch_
 				sw_output->chromosome - 1, 
 				pos,
 				cigar, num_cigar_ops, sw_output->norm_score * 254, 1, (num_items > 1),
-				optional_fields_length, optional_fields, 0, alignment);
+				optional_fields_length, optional_fields, alignment);
 
       array_list_insert(alignment, alignment_list);
 

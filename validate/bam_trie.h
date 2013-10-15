@@ -7,6 +7,7 @@
 //#include "commons.h"
 //#include "bam.h"
 
+#include "breakpoint.h"
 #include "containers/array_list.h"
 #include "containers/cprops/trie.h"
 
@@ -27,6 +28,7 @@ cp_trie *trie;
 
 //--------------------------------------------------------------------
 
+
 typedef struct trie_node {
   uint32_t  mapped;
   uint32_t  right_mapped;
@@ -36,6 +38,9 @@ typedef struct trie_node {
   uint32_t  not_mapped;
   uint32_t  right_not_mapped;
   uint32_t  wrong_not_mapped;
+
+  uint32_t  right_sj;
+  uint32_t  wrong_sj;
 
   size_t num_mappings;
   void *info;
@@ -54,6 +59,9 @@ static inline trie_node_t *trie_node_new(void *info) {
   p->not_mapped = 0;
   p->right_not_mapped = 0;
   p->wrong_not_mapped = 0;
+
+  p->right_sj = 0;
+  p->wrong_sj = 0;
 
   return p;
 }
@@ -88,6 +96,8 @@ typedef struct trie_result {
   uint32_t  multi_wrong_mapped;
 
   int margin;
+  int right_sj;
+  int wrong_sj;
 } trie_result_t;
 
 
@@ -106,6 +116,8 @@ static inline void trie_result_init(trie_result_t *p) {
     p->multi_mapped = 0;
     p->multi_right_mapped = 0;
     p->multi_wrong_mapped = 0;
+    p->right_sj = 0;
+    p->wrong_sj = 0;
     //    memset(p, sizeof(trie_result_t), 0);
   }
 }
@@ -170,7 +182,37 @@ void dna_intersection(cp_trie* trie, int margin, char* filename, trie_result_t* 
 
 //--------------------------------------------------------------------
 
+void rna_intersection(cp_trie* trie, int margin, char* filename, 
+		      trie_result_t* result, cp_hashtable *t);
+
+//--------------------------------------------------------------------
+
 void print_result(trie_result_t* result, int log);
 
 //--------------------------------------------------------------------
+
+cp_hashtable *load_transcriptome_validate(char *f);
+
+cp_trie *rna_dataset_to_trie(char * file, trie_result_t* result);
+
+typedef struct exon_coords {
+  int start;
+  int end;
+} exon_coords_t;
+
+typedef struct exon_data {
+  int strand;
+  int start;
+  int end;
+  char *transcript_id;
+} exon_data_t;
+
+exon_coords_t *new_exon_coords(int start, int end);
+void exon_coords_free(exon_coords_t *p);
+exon_data_t *exon_data_new(int strand, 
+			   int start, int end,
+			   char *transcript_id);
+void exon_data_free(exon_data_t *p);
+
 //--------------------------------------------------------------------
+
