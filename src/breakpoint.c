@@ -547,6 +547,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   // hard clipping start
 
   if (query_start > 0) {
+    dist += query_start;
     if (ref_type == FIRST_SW) {
       //Normal Case
       cigar_code_append_op(cigar_op_new(query_start, 'H'), p);
@@ -569,7 +570,10 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
       }
     }
   } else if (ref_start > 0) {
-    cigar_code_append_op(cigar_op_new(ref_start, 'D'), p);
+    if (ref_type != FIRST_SW) {
+      cigar_code_append_op(cigar_op_new(ref_start, 'D'), p);
+      dist += ref_start;
+    } 
   }
   
   // first Status
@@ -662,7 +666,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
   //if (last_h < query_len) {
   //cigar_code_append_op(cigar_op_new(query_len - last_h, 'H'), p);
   //}
-
+  //printf("IN-->SW CIGAR %s\n", new_cigar_code_string(p));
   //printf("deletions_tot = %i, insertions_tot = %i\n", deletions_tot, insertions_tot);
 
   map_seq_len  = ((map_len - deletions_tot) + query_start);
@@ -673,6 +677,7 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
 
   if (map_seq_len < query_len) {
     last_h = query_len - map_seq_len;
+    dist += last_h;
     //printf("last_h = %i\n", last_h);
     if (ref_type == LAST_SW) {
       //Normal Case
@@ -699,7 +704,10 @@ cigar_code_t *generate_cigar_code(char *query_map, char *ref_map, unsigned int m
       }
     }
   } else if (map_ref_len < ref_len) {
-    cigar_code_append_op(cigar_op_new(ref_len - map_ref_len, 'D'), p);
+    if (ref_type != LAST_SW) {
+      dist += (ref_len - map_ref_len);
+      cigar_code_append_op(cigar_op_new(ref_len - map_ref_len, 'D'), p);
+    }
   }
   
   //printf("%d-%d\n", length, *number_op_tot);
@@ -1158,6 +1166,8 @@ int metaexon_insert(unsigned int strand, unsigned int chromosome,
 	metaexons->bypass_pointer[chromosome][ck2].first = list_item_ref;
 	metaexons->bypass_pointer[chromosome][ck2].last = list_item_ref;
       }
+      
+
 
       //Updating bypass_pointers structure
       //Update bypass_pointer chromosome ck_start.first?
@@ -1165,7 +1175,7 @@ int metaexon_insert(unsigned int strand, unsigned int chromosome,
       /*if (!metaexons->bypass_pointer[chromosome][ck_start].first) {
 	metaexons->bypass_pointer[chromosome][ck_start].first = list_item_ref;
       } else if (metaexon_ref->start <= ((metaexon_t *)list_item->item)->start) {
-	printf("YES!\n");
+	//printf("YES!\n");
 	metaexons->bypass_pointer[chromosome][ck_start].first = list_item_ref;
       }
 
@@ -1176,11 +1186,11 @@ int metaexon_insert(unsigned int strand, unsigned int chromosome,
 	metaexons->bypass_pointer[chromosome][ck_end].last = list_item_ref;
       }
 	
-      //ck_start.last and ck_end.first are always updated
-      //if (ck_start != ck_end) {
+      //ck_start.last and ck_end.first are always updated if ck_start != ck_end
+      if (ck_start != ck_end) {
 	metaexons->bypass_pointer[chromosome][ck_start].last = list_item_ref;	
 	metaexons->bypass_pointer[chromosome][ck_end].first  = list_item_ref;	
-      //}
+      }
 
       for (int ck2 = ck_start + 1; ck2 < ck_end; ck2++) {
 	//Inner bypass_pointers are always updated

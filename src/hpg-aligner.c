@@ -57,6 +57,16 @@ size_t TOTAL_SW,
 struct timeval time_start_alig, time_end_alig;
 double time_alig;
 
+size_t w2_r = 0;
+size_t w3_r = 0;
+size_t w2_3_r = 0;
+
+size_t tot_reads_in = 0;
+size_t tot_reads_out = 0;
+
+FILE *fd_log;
+size_t junction_id;
+
 /*
 pthread_mutex_t sw_mutex;
 size_t *histogram_sw;
@@ -288,6 +298,37 @@ int main(int argc, char* argv[]) {
   }
 
   basic_statistics_display(basic_st, !strcmp(command, "rna"), time_alig / 1000000);
+
+  if (!strcmp(command, "rna") && fd_log != NULL) {
+    char str_log[2048];
+    if (options->in_filename) {
+      sprintf(str_log, "FILE INPUT 0: %s\n\0", options->in_filename);
+      fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+    }
+
+    if (options->in_filename2) {
+      sprintf(str_log, "FILE INPUT 1: %s\n\0", options->in_filename2);
+      fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+    }
+
+    sprintf(str_log, "TOTAL READS PROCESSED: %i\n\0", basic_st->total_reads);
+    fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+
+    sprintf(str_log, "    TOTAL READS MAPPED: %0.2f%%\n\0", basic_st->num_mapped_reads * 100.0 / basic_st->total_reads);
+    fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+
+    sprintf(str_log, "    TOTAL READS UNMAPPED: %0.2f%%\n\0", (basic_st->total_reads - basic_st->num_mapped_reads) * 100.0 / basic_st->total_reads);
+    fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+
+    sprintf(str_log, "    TOTAL SPLICE JUNCTIONS FOUND: %i\n\0", junction_id);
+    fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+
+    sprintf(str_log, "TIME ALIGNER: %0.2f (s)\n\0", time_alig / 1000000);
+    fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+
+    fclose(fd_log);
+
+  }
 
   if (time_on){ timing_free(timing); }
 

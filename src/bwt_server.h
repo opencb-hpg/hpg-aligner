@@ -72,7 +72,6 @@ void bwt_server_cpu(bwt_server_input_t* input, pair_mng_t *pair_mng);
 
 int apply_bwt(bwt_server_input_t* input, batch_t *batch_p);
 int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch);
-cal_t *convert_bwt_anchor_to_CAL(bwt_anchor_t *bwt_anchor, size_t read_start, size_t read_end);
 
 //int first_phase(bwt_server_input_t* input, batch_t *batch);
 

@@ -1,6 +1,6 @@
 #include "rna_splice.h"
 
-size_t junction_id = 0;
+extern size_t junction_id;
 size_t cannonical_sp = 0;
 size_t semi_cannonical_sp = 0;
 size_t total_splice = 0;

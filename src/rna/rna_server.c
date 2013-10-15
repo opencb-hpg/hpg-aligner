@@ -124,6 +124,9 @@ int ii = -1;
 extern size_t TOTAL_READS_PROCESS, TOTAL_SW, TOTAL_READS_SA;
 extern pthread_mutex_t mutex_sp; 
 
+extern size_t tot_reads_in;
+extern size_t tot_reads_out;
+
 
 cigar_code_t *search_left_single_anchor(int gap_close, 
 					cal_t *cal,
@@ -863,7 +866,6 @@ float generate_cals_score(array_list_t *cals_list, int read_length) {
     cal = array_list_get(i, cals_list);
     //printf("\tCAL (%i)[%i:%lu - %lu]:\n", cal->strand, cal->chromosome_id, cal->start, cal->end);
     // s_prev = NULL;
-
     linked_list_iterator_init(cal->sr_list, &itr);
     s = (seed_region_t *) linked_list_iterator_curr(&itr);
     while (s != NULL) {
@@ -970,6 +972,8 @@ int merge_and_filter_cals(array_list_t *cals_targets,
 
   const float MIN_CAL_SCORE = 60.0;
   register int i, j;
+
+  if (!num_cals) { return 0; }
 
   //===== Step-1: Concatenate CALs =====//
   LOG_DEBUG("STEP-1: CONCATENATE CALS");
@@ -2159,8 +2163,8 @@ void sw_depth_process(sw_optarg_t *sw_optarg, sw_multi_output_t *output,
       sw_item_t *sw_item = sw_depth->items[i];     
       cal_t *cal_prev = sw_item->cal_prev;
       cal_t *cal_next = sw_item->cal_next;
-      //printf("QUE: %s(%i)\n", output->query_map_p[i], output->query_start_p[i]);
-      //printf("REF: %s(%i)\n", output->ref_map_p[i], output->ref_start_p[i]);
+      //printf("-QUE: %s(%i)\n", output->query_map_p[i], output->query_start_p[i]);
+      //printf("-REF: %s(%i)\n", output->ref_map_p[i], output->ref_start_p[i]);
       
       if (sw_item->type_sw == EXTREM_SW_LEFT) {	
 	norm_score = NORM_SCORE(output->score_p[i], strlen(sw_depth->q[i]), match);
@@ -2172,15 +2176,16 @@ void sw_depth_process(sw_optarg_t *sw_optarg, sw_multi_output_t *output,
 					   output->query_start_p[i], output->ref_start_p[i],
 					   strlen(sw_depth->q[i]), strlen(sw_depth->r[i]),
 					   &distance, FIRST_SW);
+	  //printf("SW CIGAR %s\n", new_cigar_code_string(cigar_code));
 	  //printf("....>%s\n", new_cigar_code_string(cigar_code));
-	} //else {
+	} 
 	  //cigar_code_free(cigar_code);
 	  //meta_alignment_insert_cigar(NULL, CIGAR_ANCHOR_RIGHT, sw_item->cal_id, sw_item->meta_alignment); 
 	//}
 	meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_RIGHT, sw_item->cal_id, sw_item->meta_alignment); 
       } else if (sw_item->type_sw == EXTREM_SW_RIGHT) {
 	norm_score = NORM_SCORE(output->score_p[i], strlen(sw_depth->q[i]), match);
-	//printf("EXTREM SW LEFT SCORE %f\n", norm_score);
+	//printf("EXTREM SW RIGHT SCORE %f\n", norm_score);
 	cigar_code_t *cigar_code = NULL;
 	if (norm_score >= 0.3) {
 	  cigar_code = generate_cigar_code(output->query_map_p[i], output->ref_map_p[i],
@@ -2188,6 +2193,7 @@ void sw_depth_process(sw_optarg_t *sw_optarg, sw_multi_output_t *output,
 					   output->query_start_p[i], output->ref_start_p[i],
 					   strlen(sw_depth->q[i]), strlen(sw_depth->r[i]),
 					   &distance, LAST_SW);	
+	  //printf("SW CIGAR %s\n", new_cigar_code_string(cigar_code));
 	} 
 	meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_LEFT, sw_item->cal_id, sw_item->meta_alignment); 
       } else if (sw_item->type_sw == SIMPLE_SW) {
@@ -3097,9 +3103,9 @@ cigar_code_t *search_left_single_anchor(int gap_close,
 			    str_sp_type, 
 			    &avl_node_start,
 			    &avl_node_end, 
-			    avls_list);
-	
+			    avls_list);	
       }
+
       //printf("\tADD %i%c\n", op->number, op->name);
       cigar_code_append_op(op, cigar_code);
       pos_prev = pos_next + 1;
@@ -3604,7 +3610,7 @@ cigar_code_t *search_double_anchors_cal(char *query_map,
 
     //1st Search posible starts splice junctions
     if (array_list_size(first_metaexon->right_breaks) > 200) {
-      printf("OVERFLOW 1 [%lu-%lu]:%i\n", first_metaexon->start, first_metaexon->end, 
+      /*    printf("OVERFLOW 1 [%lu-%lu]:%i\n", first_metaexon->start, first_metaexon->end, 
 	     array_list_size(first_metaexon->right_breaks));
 
       if (metaexons->bypass_pointer[first_cal->chromosome_id - 1][first_cal->start / 1024].first) {
@@ -3625,7 +3631,7 @@ cigar_code_t *search_double_anchors_cal(char *query_map,
 	  printf("\n");
 	}
       }
-
+      */
       //return NULL;
       //exit(-1);
     }
@@ -3640,7 +3646,7 @@ cigar_code_t *search_double_anchors_cal(char *query_map,
     }
     
     if (array_list_size(last_metaexon->left_breaks) > 200) {
-      printf("OVERFLOW 2 [%lu-%lu]:%i\n", last_metaexon->start, last_metaexon->end, 
+      /*printf("OVERFLOW 2 [%lu-%lu]:%i\n", last_metaexon->start, last_metaexon->end, 
 	     array_list_size(last_metaexon->left_breaks));
 
       if (metaexons->bypass_pointer[last_cal->chromosome_id - 1][last_cal->start / 1024].first) {
@@ -3661,7 +3667,7 @@ cigar_code_t *search_double_anchors_cal(char *query_map,
 	  printf("\n");
 	}
       }
-
+      */
       //return NULL;
       //exit(-1);
     }
@@ -4331,7 +4337,9 @@ void meta_alignment_complete_free(meta_alignment_t *meta_alignment) {
 
 //NEW FUNCTION!
 int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
+
   LOG_DEBUG("========= SPLICE JUNCTION SEARCH =========\n");
+
   size_t max_intron_size = 500000;  
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   sw_optarg_t *sw_optarg = &input_p->sw_optarg;
@@ -4345,7 +4353,6 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   bwt_index_t *bwt_index = input_p->bwt_index_p;
 
   //if (!bwt_index->dirname) { exit(-1); }
-
   linked_list_t *buffer = input_p->buffer;
   linked_list_t *buffer_hc = input_p->buffer_hc;
   FILE *f_sa = input_p->f_sa;
@@ -4449,11 +4456,17 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   int make_seeds = 0;
 
   array_list_t *cals_targets = array_list_new(500, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+
   int *post_process_reads = (int *)calloc(num_reads, sizeof(int));
+  int *data_type  = (int *)calloc(num_reads, sizeof(int));
+  //array_list_t **data_file_reads = (array_list_t **)calloc(num_reads, sizeof(array_list_t *));
+
   float **scores_ranking = (float **)calloc(num_reads, sizeof(float *));//[num_reads][200];
   int read_nt;
 
   int seed_size = cal_optarg->seed_size;
+
+  int pair_mode = input_p->pair_mode;
   /*for (int i = 0; i < num_reads; i++) {
     //sw_items_list[i]   = array_list_new(20, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
     //alignments_list[i] = array_list_new(20, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
@@ -4480,7 +4493,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   TOTAL_READS_PROCESS += num_reads;
   pthread_mutex_unlock(&mutex_sp);
   
-  for (i = 0; i < num_reads; i++) {
+  for (i = 0; i < num_reads; i++) {    
     cals_list = mapping_batch->mapping_lists[i];
     flag = array_list_get_flag(cals_list);
     fq_read = array_list_get(i, mapping_batch->fq_batch);
@@ -4489,8 +4502,12 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
     meta_alignments_list[i] = array_list_new(num_cals,
 				     1.25f,
 				     COLLECTION_MODE_ASYNCHRONIZED);
+
     scores_ranking[i] = (float *)calloc(num_cals + 10, sizeof(float));//[num_reads][200];
+
     //printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
+    //if (flag == ALIGNMENTS_FOUND || flag == ALIGNMENTS_EXCEEDED) {
+    //data_type[i] = ALIGNMENT_TYPE;
     if (flag == DOUBLE_ANCHORS) {
       //printf("\tWK_1ph: -- DOUBLE ANCHOR PROOCESS --\n");
       //printf("<<<<@ %s\n", fq_read->id);
@@ -4679,7 +4696,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 		//nt = 0;
 		if (nt < 40 && nt > 0) {
 		  fprintf(stderr, ":( ERROR!!! INTRON < 40: %s\n", fq_read->id);
-		  exit(-1);
+		  //exit(-1);
 		}
 
 		if (nt) {
@@ -4824,135 +4841,27 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	if (!meta_alignment) { array_list_insert((void *)p, delete_targets); } 
 
       }
-
-      
-      //if (!map) { array_list_insert((void *)p, delete_targets); }
-      /*
-      //metaexons_show(metaexons);
-      if (metaexon_search(cal->strand, cal->chromosome_id - 1,
-      cal->start, cal->end, &first_metaexon,
-      metaexons)) {	  
-      //printf("Found!\n");
-      if (read_nt <= 20) {
-      meta_alignment = meta_alignment_new();
-      if (s_prev->read_start == 0) {
-      cigar_code = fill_extrem_gap(query_map, 
-      cal,
-      FILL_GAP_RIGHT,
-      genome,
-      first_metaexon,
-      metaexons, 
-      avls_list);
-      if (cigar_code) {
-      meta_alignment->cigar_right = cigar_code;
-      }
-      } else {
-      cigar_code = fill_extrem_gap(query_map, 
-					   cal,
-					   FILL_GAP_LEFT,
-					   genome,
-					   first_metaexon,
-					   metaexons, 
-					   avls_list);
-	      if (cigar_code) {
-		//printf("Read map!\n");
-		meta_alignment->cigar_left = cigar_code;
-	      }
-	    }
-
-	    meta_alignment_insert_cal(cal, meta_alignment);
-	    meta_alignment_fill_gaps(META_ALIGNMENT_NONE,
-				     meta_alignment, query_map, genome,
-				     sw_optarg, output, metaexons, 
-				     &sw_depth, avls_list);
-	    array_list_insert(meta_alignment, meta_alignments_list[i]); 
-	    map = 1;
-	  } else {
-	    int distance;
-	    meta_alignment = NULL;
-	    //printf("START WITH SEARCH IN METAEXONS!!\n");
-	    array_list_clear(final_positions, (void *)NULL);
-	    //cigar_code = NULL;
-	    if (s_prev->read_start == 0) {
-	      if (first_metaexon->right_closed) {
-		//printf(" LEFT SEARCH\n");
-		cigar_code = search_left_single_anchor(read_nt, 
-						       cal,
-						       0,
-						       first_metaexon->right_breaks,
-						       query_map, metaexons, genome, avls_list);
-	      } else {
-		cigar_code = fill_extrem_gap(query_map, 
-					     cal,
-					     FILL_GAP_RIGHT,
-					     genome,
-					     first_metaexon,
-					     metaexons,
-					     avls_list);	   
-	      }
-
-	      if (cigar_code != NULL) {
-		//printf(" :::: LEFT CIGAR %s\n", new_cigar_code_string(cigar_code));
-		meta_alignment = meta_alignment_new();
-		meta_alignment_insert_cal(cal, meta_alignment);
-		meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
-		meta_alignment_fill_gaps(META_ALIGNMENT_LEFT,
-					 meta_alignment, query_map, genome,
-					 sw_optarg, output, metaexons, 
-					 &sw_depth, avls_list);	
-	      }
-	    } else {
-	      if (first_metaexon->left_closed) { 
-		//printf(" RIGHT SEARCH \n");
-		cigar_code = search_right_single_anchor(read_nt,
-							cal, 
-							0,
-							first_metaexon->left_breaks,
-							query_map, metaexons, genome, 
-							avls_list);
-	      } else {
-		cigar_code = fill_extrem_gap(query_map, 
-					     cal,
-					     FILL_GAP_LEFT,
-					     genome,
-					     first_metaexon,
-					     metaexons,
-					     avls_list);  
-	      }
-
-	      if (cigar_code != NULL) {
-		//printf(" :::: RIGHT CIGAR %s\n", new_cigar_code_string(cigar_code));
-		meta_alignment = meta_alignment_new();
-		meta_alignment_insert_cal(cal, meta_alignment);
-		meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
-		meta_alignment_fill_gaps(META_ALIGNMENT_RIGHT,
-					 meta_alignment, query_map, genome,
-					 sw_optarg, output, metaexons, 
-					 &sw_depth, avls_list);
-	      }
-	    }
-
-	    if (meta_alignment != NULL) {
-	      //Report mapping
-	      map = 1;
-	      array_list_insert((void *)meta_alignment, meta_alignments_list[i]); 	  	    
-	    } 
-	  }
-	  } //else { metaexons_show_chr(cal->chromosome_id - 1, metaexons); printf("Not in metaexons!!\n"); }*/
-      //}
 	
       //---------------------------------//
       
       if (array_list_size(meta_alignments_list[i]) <= 0) { 
 	post_process_reads[i] = 1;
+	data_type[i] = CAL_TYPE;
+	//pthread_mutex_lock(&mutex_sp);
+	//insert_file_item(fq_read, cals_list, f_sa);
+	//pthread_mutex_unlock(&mutex_sp);
 
+	//array_list_clear(cals_targets, (void*)NULL);	
 	pthread_mutex_lock(&mutex_sp);
-	insert_file_item(fq_read, cals_list, f_sa);
+	extern size_t w2_r;
+	w2_r++;
+	//file_write_items(fq_read, mapping_batch->mapping_lists[i],
+	//		 CAL_TYPE, f_sa, f_hc, 0);
 	pthread_mutex_unlock(&mutex_sp);
-
-	array_list_clear(cals_targets, (void*)NULL);	
-	array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
-
+	
+	//No clear ??
+	//array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
+	
 	pthread_mutex_lock(&mutex_sp);
 	TOTAL_READS_SA++;
 	pthread_mutex_unlock(&mutex_sp);
@@ -5131,7 +5040,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 
 	      if (nt < 40 && nt > 0) {
 		fprintf(stderr, ":( ERROR!!! INTRON < 40: %s\n", fq_read->id);
-		exit(-1);
+		//exit(-1);
 	      }			 
 	      if (nt) {
 		//printf("Found Splice simple\n");
@@ -5261,9 +5170,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
       }
     
       
-      if (array_list_size(meta_alignments_list[i]) <= 0) {
-	post_process_reads[i] = 1;	
-      } else {
+      if (array_list_size(meta_alignments_list[i]) > 0) {
 	for (int j = 0; j < array_list_size(cals_targets); j++) {
 	  array_list_t *fusion_list = array_list_get(j, cals_targets);
 	  array_list_free(fusion_list, NULL);
@@ -5343,6 +5250,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
     int map = 0;
     meta_alignment_t *meta_alignment = array_list_get(0, meta_alignments_list[i]);
     if (meta_alignment->flag == 1) {      
+      data_type[i] = ALIGNMENT_TYPE;
       for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
 	meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);
    	map = 1;
@@ -5425,20 +5333,21 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	memcpy(header_match, header_id, header_len);
 
 	if (!cigar_code_validate_(fq_read, cigar_code)) {
-	  meta_alignment_complete_free(meta_alignment);
-	  free(header_match);
+	  //meta_alignment_complete_free(meta_alignment);
+	  //free(header_match);
 	  continue;
 	}
 
 	alignment = alignment_new();
-	alignment_init_single_end(header_match, 
+	alignment_init_single_end(header_match/*strdup(header_id)*/, 
 				  strdup(query),//match_seq
 				  strdup(quality),//match_qual
-				  first_cal->strand, first_cal->chromosome_id - 1, start_mapping,
+				  first_cal->strand, first_cal->chromosome_id - 1, start_mapping - 1,
 				  strdup(new_cigar_code_string(cigar_code)),//strdup(cigar_fake)
 				  cigar_code_get_num_ops(cigar_code),//1
-				  norm_score * 254, 1, (array_list_size(meta_alignments_list[i]) < 1),
-				  cigar_code->distance, NULL, 0, alignment);
+				  254, 1, 
+				  (array_list_size(meta_alignments_list[i]) < 1),
+				  cigar_code->distance, NULL, alignment);
 	//alignment_print(alignment);
 	
 	array_list_insert(alignment, mapping_batch->mapping_lists[i]);
@@ -5446,7 +5355,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	
       }
     } else {
-
+      //data_type[i] = META_ALIGNMENT_TYPE;
       int num_items = array_list_size(meta_alignments_list[i]);
       int num_oks = 0;
 
@@ -5471,17 +5380,39 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 
       if (array_list_size(meta_alignments_list[i]) > 0) {
 	post_process_reads[i] = 1; 
+	data_type[i] = META_ALIGNMENT_TYPE;
+	for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
+	  meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);
+	  array_list_insert(meta_alignment, mapping_batch->mapping_lists[i]);
+	}
+
 	pthread_mutex_lock(&mutex_sp);
-	insert_file_item_2(fq_read, meta_alignments_list[i], f_hc);
+	extern size_t w3_r;
+	w3_r++;
 	pthread_mutex_unlock(&mutex_sp);
 
-	array_list_clear(meta_alignments_list[i], (void*)meta_alignment_complete_free);
+	//array_list_clear(meta_alignments_list[i], NULL);
+	//pthread_mutex_lock(&mutex_sp);
+	//insert_file_item_2(fq_read, meta_alignments_list[i], f_hc);
+	//pthread_mutex_unlock(&mutex_sp);
+
+	//pthread_mutex_lock(&mutex_sp);
+	//extern size_t w2_r;
+	//w2_r++;
+	//file_write_items(fq_read, meta_alignments_list[i],
+	//		 META_ALIGNMENT_TYPE, f_sa, f_hc, 0);
+	//pthread_mutex_unlock(&mutex_sp);
+	//array_list_clear(meta_alignments_list[i], (void*)meta_alignment_complete_free);
       } else {
+	//printf(" ******************** No meta-alignment *****************\n");
 	array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);
       }
+
     }
 
-    int n_alignments = array_list_size(mapping_batch->mapping_lists[i]);
+    if (data_type[i] == META_ALIGNMENT_TYPE) { continue; }
+
+    size_t n_alignments = array_list_size(mapping_batch->mapping_lists[i]);
     int final_distance;
     for (size_t a = 0; a < n_alignments; a++) {
       alignment_t *alignment = (alignment_t *)array_list_get(a, mapping_batch->mapping_lists[i]);
@@ -5513,29 +5444,133 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
       alignment->optional_fields_length = optional_fields_length;
       alignment->optional_fields = optional_fields;
     }
+
   }
 
-  //printf("WK_1ph: =============== REPORT ALIGNMENTS END =====================\n");
-
+  //printf("WK_1ph: =============== REPORT ALIGNMENTS END =====================\n"); 
   array_list_t *new_fq_batch = array_list_new(num_reads, 
 					      1.25f, 
 					      COLLECTION_MODE_ASYNCHRONIZED);
   int num_new_reads = 0;
-  for (i = 0; i < num_reads; i++) {
-    fq_read = array_list_get(i, mapping_batch->fq_batch);
-    array_list_t *alignments_list = mapping_batch->mapping_lists[i];
-    if (post_process_reads[i] == 0) {
-      mapping_batch->mapping_lists[num_new_reads++] = alignments_list;
-      array_list_insert(fq_read, new_fq_batch);
-    } else {
-      fastq_read_free(fq_read);
-      array_list_free(alignments_list, NULL);
+ 
+  if (pair_mode == PAIRED_END_MODE || 
+      pair_mode == MATE_PAIR_MODE) {
+    //Pair end or Mate pair mode
+    for (i = 0; i < num_reads; i +=2) {
+      fastq_read_t *fq_read0 = array_list_get(i, mapping_batch->fq_batch);
+      fastq_read_t *fq_read1 = array_list_get(i + 1, mapping_batch->fq_batch);
+      if (data_type[i]     == CAL_TYPE || 
+	  data_type[i + 1] == CAL_TYPE || 
+	  data_type[i]     == META_ALIGNMENT_TYPE || 
+	  data_type[i + 1] == META_ALIGNMENT_TYPE) {
+	
+	int mode;
+	if (data_type[i] == CAL_TYPE || 
+	    data_type[i + 1] == CAL_TYPE) {
+	  mode = 0;
+	} else {
+	  mode = 1;
+	}
+
+	pthread_mutex_lock(&mutex_sp);
+	file_write_items(fq_read0, mapping_batch->mapping_lists[i],
+			 data_type[i], f_sa, f_hc, mode);
+	file_write_items(fq_read1, mapping_batch->mapping_lists[i + 1],
+			 data_type[i + 1], f_sa, f_hc, mode);
+	pthread_mutex_unlock(&mutex_sp);
+
+	if (data_type[i] == CAL_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)cal_free);
+	} else if (data_type[i] == META_ALIGNMENT_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)meta_alignment_complete_free);
+	} else {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)alignment_free);
+	}
+     
+	if (data_type[i + 1] == CAL_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)cal_free);
+	} else if (data_type[i + 1] == META_ALIGNMENT_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)meta_alignment_complete_free);
+	} else {
+	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)alignment_free);
+	}
+      }
+
+      array_list_free(meta_alignments_list[i], NULL);
+      if (rev_comp[i]) { free(rev_comp[i]); }
+      free(scores_ranking[i]);
+
+      array_list_free(meta_alignments_list[i + 1], NULL);
+      if (rev_comp[i + 1]) { free(rev_comp[i + 1]); }
+      free(scores_ranking[i + 1]);
+
+      if (post_process_reads[i] == 1 || post_process_reads[i + 1] == 1) {
+	pthread_mutex_lock(&mutex_sp);
+	extern size_t tot_reads_out;
+	tot_reads_out += 2;
+	pthread_mutex_unlock(&mutex_sp);
+
+	fastq_read_free(fq_read0);
+	array_list_free(mapping_batch->mapping_lists[i], NULL);
+
+	fastq_read_free(fq_read1);
+	array_list_free(mapping_batch->mapping_lists[i + 1], NULL);
+      } else {
+	pthread_mutex_lock(&mutex_sp);
+	extern size_t tot_reads_in;
+	tot_reads_in += 2;
+	pthread_mutex_unlock(&mutex_sp);
+
+	array_list_set_flag(1, mapping_batch->mapping_lists[i]);
+	mapping_batch->mapping_lists[num_new_reads++] = mapping_batch->mapping_lists[i];
+	array_list_insert(fq_read0, new_fq_batch);
+
+	array_list_set_flag(1, mapping_batch->mapping_lists[i + 1]);
+	mapping_batch->mapping_lists[num_new_reads++] = mapping_batch->mapping_lists[i + 1];
+	array_list_insert(fq_read1, new_fq_batch);
+      }
     }
-    free(scores_ranking[i]);
+  } else {
+    //Single end mode
+    for (i = 0; i < num_reads; i++) {
+      array_list_free(meta_alignments_list[i], NULL);
+      if (rev_comp[i]) { free(rev_comp[i]); }
+      free(scores_ranking[i]);
+
+      fq_read = array_list_get(i, mapping_batch->fq_batch);      
+      if (data_type[i] == CAL_TYPE || 
+	  data_type[i] == META_ALIGNMENT_TYPE) {
+	int mode;
+	if (data_type[i] == CAL_TYPE) {
+	  mode = 0;
+	} else {
+	  mode = 1;
+	}
+	pthread_mutex_lock(&mutex_sp);
+	file_write_items(fq_read, mapping_batch->mapping_lists[i],
+			 data_type[i], f_sa, f_hc, mode);
+	pthread_mutex_unlock(&mutex_sp);
+	
+	if (data_type[i] == CAL_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)cal_free);
+	} else if (data_type[i] == META_ALIGNMENT_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)meta_alignment_complete_free);
+	}
+      }
+      //array_list_clear(alignments_list, alignment_free);      
+      if (post_process_reads[i] == 0) {
+	mapping_batch->mapping_lists[num_new_reads++] =  mapping_batch->mapping_lists[i];
+	array_list_insert(fq_read, new_fq_batch);
+      } else {
+	fastq_read_free(fq_read);
+	array_list_free(mapping_batch->mapping_lists[i], NULL);
+      }      
+    }
   }
 
   free(scores_ranking);
   free(post_process_reads);
+  free(data_type);
   array_list_free(mapping_batch->fq_batch, NULL);
   mapping_batch->fq_batch = new_fq_batch;
 
@@ -5545,11 +5580,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   sw_multi_output_free(output);
   array_list_free(cals_targets, NULL);
 
-  for (i = 0; i < num_reads; i++) {
-    array_list_free(meta_alignments_list[i], NULL);
-    if (rev_comp) { free(rev_comp[i]); }
-  }
-
+  
   free(meta_alignments_list);
   free(rev_comp);
 
@@ -5644,7 +5675,8 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
   bwt_index_t *bwt_index = input_p->bwt_index_p;
   linked_list_t *buffer = input_p->buffer;
   linked_list_t *buffer_hc = input_p->buffer_hc;
-
+  int pair_mode = input_p->pair_mode;
+  FILE *f_sa = input_p->f_sa;
   FILE *f_hc = input_p->f_hc;
   //fprintf(stderr, "APPLY RNA LAST START... %i\n", num_reads);
 
@@ -5748,28 +5780,32 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
   //float scores_ranking[num_reads][100];
   float **scores_ranking = (float **)calloc(num_reads, sizeof(float *));//[num_reads][200];
   int read_nt;
-
+  int *data_type  = (int *)calloc(num_reads, sizeof(int));
   struct timeval t_start, t_end;
   double time_s = 0;
 
   int from_single_anchors;
   int seed_size = cal_optarg->seed_size;
 
-  for (int i = 0; i < num_reads; i++) {
-    meta_alignments_list[i] = array_list_new(20, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-  }
-
   //Delete!!!!
   //array_list_free(cals_targets, NULL);
-
+  //printf("workflow w2 %i\n", w2_r);
+  //  exit(-1);
   //1st - MAP THE EASY READS
+  
+
   for (i = 0; i < num_reads; i++) {
+    meta_alignments_list[i] = array_list_new(20, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
     fq_read = array_list_get(i, mapping_batch->fq_batch);
     cals_list = mapping_batch->mapping_lists[i];
     scores_ranking[i] = (float *)calloc(200, sizeof(float));
     from_single_anchors = 0;
 
     //printf("WK_2ph-Process: == (%i CALs)Read %s ==\n", array_list_size(cals_list), fq_read->id);
+    
+    //array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
+    //continue;
+
     /* 
     if (array_list_size(cals_list) == 0) { continue; }
     if (array_list_get_flag(cals_list) == BITEM_SINGLE_ANCHORS) {
@@ -5786,286 +5822,188 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
     continue;
     */
 
-    if (array_list_size(cals_list) > 0) {
-      if (array_list_get_flag(cals_list) == BITEM_SINGLE_ANCHORS) {
-	//SINGLE ANCHORS FOUND
-	//printf("\tSINGLE ANCHOR\n");
-	int map_read = 0, map = 0;      
-	int read_nt;
-	int seeds_process = 0;
-	cigar_code_t *cigar_code_res;
+    if (array_list_get_flag(cals_list) != BITEM_SINGLE_ANCHORS) { 
+      if (array_list_get_flag(cals_list) == BITEM_META_ALIGNMENTS) {
+	post_process_reads[i] = 1; 
+	data_type[i] = META_ALIGNMENT_TYPE;
+      }
+      continue;
+    }
+    
+    //if (array_list_size(cals_list) > 0) {
+    assert(array_list_size(cals_list) > 0);
 
-	for (int p = 0; p < array_list_size(cals_list); p++) {
-	  cal = array_list_get(p, cals_list);
-	  //cal_print(cal);
-	  cigar_code_res = NULL;
-	  make_seeds = 0;
-	  if (cal->strand == 1) {
-	    if (!rev_comp[i]) {
-	      rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
-	      strcpy(rev_comp[i], fq_read->sequence);
-	      seq_reverse_complementary(rev_comp[i], fq_read->length);
-	    }
-	    query_map = rev_comp[i];
-	  } else {
-	    query_map = fq_read->sequence;
-	  }
+    //if (array_list_get_flag(cals_list) == BITEM_SINGLE_ANCHORS) {
+      //SINGLE ANCHORS FOUND
 
-	  s_prev = linked_list_get_last(cal->sr_list);
-	  if (s_prev->read_start == 0) {
-	    read_nt = fq_read->length - (s_prev->read_end + 1);
-	  } else {
-	    read_nt = s_prev->read_start;
-	  }
+    int map_read = 0, map = 0;      
+    int read_nt;
+    int seeds_process = 0;
+    cigar_code_t *cigar_code_res;
 
-	  if (s_prev->read_start == 0) {
-	    cigar_code_res = fill_extrem_gap(query_map, 
-					     cal,
-					     FILL_GAP_RIGHT,
-					     genome,
-					     metaexons, 
-					     avls_list);
-	  } else {
-	    cigar_code_res = fill_extrem_gap(query_map, 
-					     cal,
-					     FILL_GAP_LEFT,
-					     genome,
-					     metaexons, 
-					     avls_list);	
-	  }
+    for (int p = 0; p < array_list_size(cals_list); p++) {
+      cal = array_list_get(p, cals_list);
+      //cal_print(cal);
+      cigar_code_res = NULL;
+      make_seeds = 0;
+      if (cal->strand == 1) {
+	if (!rev_comp[i]) {
+	  rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
+	  strcpy(rev_comp[i], fq_read->sequence);
+	  seq_reverse_complementary(rev_comp[i], fq_read->length);
+	}
+	query_map = rev_comp[i];
+      } else {
+	query_map = fq_read->sequence;
+      }
 
-	  if (cigar_code_res) {
-	    meta_alignment = meta_alignment_new();
-	    meta_alignment_insert_cal(cal, meta_alignment);
+      s_prev = linked_list_get_last(cal->sr_list);
+      if (s_prev->read_start == 0) {
+	read_nt = fq_read->length - (s_prev->read_end + 1);
+      } else {
+	read_nt = s_prev->read_start;
+      }
+      if (s_prev->read_start == 0) {
+	cigar_code_res = fill_extrem_gap(query_map, 
+					 cal,
+					 FILL_GAP_RIGHT,
+					 genome,
+					 metaexons, 
+					 avls_list);
+      } else {
+	cigar_code_res = fill_extrem_gap(query_map, 
+					 cal,
+					 FILL_GAP_LEFT,
+					 genome,
+					 metaexons, 
+					 avls_list);	
+      }
+      if (cigar_code_res) {
+	meta_alignment = meta_alignment_new();
+	meta_alignment_insert_cal(cal, meta_alignment);
 	  
-	    if (s_prev->read_start == 0) {
-	      meta_alignment->cigar_right = cigar_code_res;
-	    } else {
-	      meta_alignment->cigar_left = cigar_code_res;
-	    }
-	    
-	    meta_alignment_fill_gaps(META_ALIGNMENT_RIGHT,
-				     meta_alignment, query_map, genome,
-				     sw_optarg, output, metaexons, 
-				     &sw_depth, avls_list);
-	    
-	    array_list_insert((void *)meta_alignment, meta_alignments_list[i]);
-	    
-	  }
-	
-	  /*
-	  //cal_print(cal);
-	  //metaexons_show(metaexons);
-	  if (metaexon_search(cal->strand, cal->chromosome_id - 1,
-			      cal->start, cal->end, &first_metaexon,
-			      metaexons) && first_metaexon) {	  
-	    if (read_nt <= 20) {
-	      meta_alignment = meta_alignment_new();
-	      if (s_prev->read_start == 0) {
-		cigar_code = fill_extrem_gap(query_map, 
-					     cal,
-					     FILL_GAP_RIGHT,
-					     genome,
-					     metaexons, avls_list);
-		if (cigar_code) {
-		  meta_alignment->cigar_right = cigar_code;
-		}
-	      } else {
-		cigar_code = fill_extrem_gap(query_map, 
-					     cal,
-					     FILL_GAP_LEFT,
-					     genome,
-					     metaexons, avls_list);
-		if (cigar_code) {
-		  meta_alignment->cigar_left = cigar_code;
-		}
-	      }
-
-	      meta_alignment_insert_cal(cal, meta_alignment);
-	      meta_alignment_fill_gaps(META_ALIGNMENT_NONE,
-				       meta_alignment, query_map, genome,
-				       sw_optarg, output, metaexons, 
-				       &sw_depth, avls_list);
-	      array_list_insert(meta_alignment, meta_alignments_list[i]); 	  
-	    } else {
-	      int distance;
-	      meta_alignment = NULL;
-	      //printf("START WITH SEARCH IN METAEXONS!!\n");
-	      array_list_clear(final_positions, (void*)NULL);
-	      //cigar_code = NULL;
-	      if (s_prev->read_start == 0) {
-		if (first_metaexon->right_closed) {
-		  //printf(" LEFT SEARCH\n");
-		  cigar_code = search_left_single_anchor(read_nt, 
-							 cal,
-							 0,
-							 first_metaexon->right_breaks,
-							 query_map, metaexons, genome, 
-							 avls_list);
-		} else {
-		  cigar_code = fill_extrem_gap(query_map, 
-					       cal,
-					       FILL_GAP_RIGHT,
-					       genome,				
-					       metaexons, 
-					       avls_list);	   
-		}
-
-		if (cigar_code != NULL) {
-		  //printf(" :::: LEFT CIGAR %s", new_cigar_code_string(cigar_code));
-		  meta_alignment = meta_alignment_new();
-		  meta_alignment_insert_cal(cal, meta_alignment);
-		  meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
-		  meta_alignment_fill_gaps(META_ALIGNMENT_LEFT,
-					   meta_alignment, query_map, genome,
-					   sw_optarg, output, metaexons, 
-					   &sw_depth, avls_list);	
-		}
-	      } else {
-		if (first_metaexon->left_closed) { 
-		  //printf(" RIGHT SEARCH \n");
-		  cigar_code = search_right_single_anchor(read_nt,
-							  cal, 
-							  0,
-							  first_metaexon->left_breaks,
-							  query_map, metaexons, genome, 
-							  avls_list);
-		} else {
-		  cigar_code = fill_extrem_gap(query_map, 
-					       cal,
-					       FILL_GAP_LEFT,
-					       genome,
-					       metaexons, 
-					       avls_list);	   
-		}
-		if (cigar_code != NULL) {
-		  meta_alignment = meta_alignment_new();
-		  meta_alignment_insert_cal(cal, meta_alignment);
-		  meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
-		  meta_alignment_fill_gaps(META_ALIGNMENT_RIGHT,
-					   meta_alignment, query_map, genome,
-					   sw_optarg, output, metaexons, 
-					   &sw_depth, avls_list);	
-		}
-	      }
-
-	      if (meta_alignment != NULL) {
-		//Report mapping
-		array_list_insert(meta_alignment, meta_alignments_list[i]); 	  	    
-	      }
-	    }
-	  }
+	if (s_prev->read_start == 0) {
+	  meta_alignment->cigar_right = cigar_code_res;
+	} else {
+	  meta_alignment->cigar_left = cigar_code_res;
 	}
-	  */
-	}
+	    
+	meta_alignment_fill_gaps(META_ALIGNMENT_RIGHT,
+				 meta_alignment, query_map, genome,
+				 sw_optarg, output, metaexons, 
+				 &sw_depth, avls_list);
+	    
+	array_list_insert((void *)meta_alignment, meta_alignments_list[i]);
+	    
+      }
+    }
 
-	if (array_list_size(meta_alignments_list[i]) <= 0) {	
-	  //Make Seeding and Caling
-	  array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
+    //if (array_list_size(meta_alignments_list[i]) <= 0) {	
+    //array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
+    //} 
+ 
+    //continue;
 
-	  //array_list_clear(cals_list, NULL);
-	  array_list_t *new_cals_list = mapping_batch->mapping_lists[i];
-	  //int seed_size = 16;
-	  num_cals = bwt_generate_cals(fq_read->sequence, seed_size, bwt_optarg,
-				       bwt_index, new_cals_list);
-	  //filter-incoherent CALs
-	  int founds[num_cals], found = 0;
+    if (array_list_size(meta_alignments_list[i]) <= 0) {	
+      //Make Seeding and Caling
+      array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
 
-	  for (size_t j = 0; j < num_cals; j++) {
-	    founds[j] = 0;
-	    cal = array_list_get(j, new_cals_list);
-	    LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
-			j, num_cals, cal->sr_list->size, cal->num_seeds,
-			cal->chromosome_id, cal->start, cal->end);
-	    if (cal->sr_list->size > 0) {
-	      int start = 0;
-	      size_t genome_start = 0;
-	      int  first = 1;
-	      for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
-		seed_region_t *s = list_item->item;
+      //array_list_clear(cals_list, NULL);
+      array_list_t *new_cals_list = mapping_batch->mapping_lists[i];
+      //int seed_size = 16;
+      num_cals = bwt_generate_cals(fq_read->sequence, seed_size, bwt_optarg,
+				   bwt_index, new_cals_list);
+      //filter-incoherent CALs
+      int founds[num_cals], found = 0;
+      for (size_t j = 0; j < num_cals; j++) {
+	founds[j] = 0;
+	cal = array_list_get(j, new_cals_list);
+	LOG_DEBUG_F("\tcal %i of %i: sr_list size = %i (cal->num_seeds = %i) %i:%lu-%lu\n", 
+		    j, num_cals, cal->sr_list->size, cal->num_seeds,
+		    cal->chromosome_id, cal->start, cal->end);
+	if (cal->sr_list->size > 0) {
+	  int start = 0;
+	  size_t genome_start = 0;
+	  int  first = 1;
+	  for (linked_list_item_t *list_item = cal->sr_list->first; list_item != NULL; list_item = list_item->next) {
+	    seed_region_t *s = list_item->item;
 	      
-		LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
-		if (start > s->read_start || 
-		    s->read_start >= s->read_end) {
-		  LOG_DEBUG("\t\t\t:: remove\n");
-		  found++;
-		  founds[j] = 1;
-		}
-		if (!first && 
-		    ((s->genome_start < genome_start) || 
-		     (s->genome_start - genome_start) > 2*fq_read->length)) {
-		  //printf("Remove (genome_start = %i s->genome_start = %i)\n", genome_start, s->genome_start);
-		  //cal_print(cal);
-		  found++;
-		  founds[j] = 1;
-		}
-
-		first = 0;
-		start = s->read_end + 1;
-		genome_start = s->genome_end + 1;
-	      }
-	    } else {
+	    LOG_DEBUG_F("\t\t:: star %lu > %lu s->read_start\n", start, s->read_start);
+	    if (start > s->read_start || 
+		s->read_start >= s->read_end) {
+	      LOG_DEBUG("\t\t\t:: remove\n");
 	      found++;
 	      founds[j] = 1;
 	    }
-	  }
-
-	  array_list_t *cal_list_aux;
-	  if (found) {
-	    int min_seeds = 100000;
-	    int max_seeds = 0;
-	    cal_list_aux = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-	    for (size_t j = 0; j < num_cals; j++) {
-	      if (!founds[j]) {
-		cal = array_list_get(j, new_cals_list);
-		cal->num_seeds = cal->sr_list->size;
-		if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
-		if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
-		array_list_insert(cal, cal_list_aux);
-		array_list_set(j, NULL, new_cals_list);
-	      }
+	    if (!first && 
+		((s->genome_start < genome_start) || 
+		 (s->genome_start - genome_start) > 2*fq_read->length)) {
+	      //printf("Remove (genome_start = %i s->genome_start = %i)\n", genome_start, s->genome_start);
+	      //cal_print(cal);
+	      found++;
+	      founds[j] = 1;
 	    }
-	    array_list_free(new_cals_list, (void *) cal_free);
-	    num_cals = array_list_size(cal_list_aux);
-	    new_cals_list = cal_list_aux;
-	    mapping_batch->mapping_lists[i] = cal_list_aux;
-	    //if (num_cals) {
-	    //mapping_batch->mapping_lists[i] = new_cals_list;
-	    //}
-	  }	
 
-	  if (!num_cals) {
-	    //array_list_set_flag(BITEM_NO_CALS, new_cals_list);
-	    //printf("NO CALS\n");
-	    //array_list_free(new_cals_list, cal_free);
-	  } else {
-	    int max = 100;
-	    if (num_cals > max) {
-	      int select_cals = num_cals - max;
-	      for(int j = num_cals - 1; j >= max; j--) {
-		cal_free(array_list_remove_at(j, new_cals_list));
-	      }
-	    }
-	    from_single_anchors = 1;
-	    array_list_set_flag(BITEM_CALS, new_cals_list);	  
-	    cals_list = new_cals_list;
-	    array_list_clear(cals_targets, (void*)NULL);
-	    merge_and_filter_cals(cals_targets, cals_list, fq_read, 
-				  bwt_optarg, bwt_index, genome, 
-				  scores_ranking[i]);	    
+	    first = 0;
+	    start = s->read_end + 1;
+	    genome_start = s->genome_end + 1;
 	  }
+	} else {
+	  found++;
+	  founds[j] = 1;
 	}
       }
 
-      //if (array_list_get_flag(cals_list) == 0) { continue; }
-      if (array_list_get_flag(cals_list) == BITEM_CALS) {    
-	//CALS FOUND
-	//printf("\tWK_2ph: -- CALS PROCESS --\n");
-
-	if (!from_single_anchors) {
-	  cals_targets = cals_list;
+      array_list_t *cal_list_aux;
+      if (found) {
+	int min_seeds = 100000;
+	int max_seeds = 0;
+	cal_list_aux = array_list_new(MAX_CALS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+	for (size_t j = 0; j < num_cals; j++) {
+	  if (!founds[j]) {
+	    cal = array_list_get(j, new_cals_list);
+	    cal->num_seeds = cal->sr_list->size;
+	    if (cal->num_seeds > max_seeds) max_seeds = cal->num_seeds;
+	    if (cal->num_seeds < min_seeds) min_seeds = cal->num_seeds;
+	    array_list_insert(cal, cal_list_aux);
+	    array_list_set(j, NULL, new_cals_list);
+	  }
 	}
-	
+
+	array_list_free(new_cals_list, (void *) cal_free);
+	num_cals = array_list_size(cal_list_aux);
+	new_cals_list = cal_list_aux;
+	mapping_batch->mapping_lists[i] = cal_list_aux;
+      }
+
+      if (num_cals) {
+	int max = 100;
+	if (num_cals > max) {
+	  int select_cals = num_cals - max;
+	  for(int j = num_cals - 1; j >= max; j--) {
+	    cal_free(array_list_remove_at(j, new_cals_list));
+	  }
+	}
+      }
+    
+
+      cals_list = mapping_batch->mapping_lists[i];
+      
+      if (array_list_size(cals_list) > 0) { 
+	//if (array_list_get_flag(cals_list) == BITEM_CALS) {    
+	//CALS FOUND
+	//printf("\tWK_2ph: -- CALS PROCESS --\n");     
+	//if (array_list_size(meta_alignments_list[i]) > 0) {	
+	//array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);
+	//}// else {
+	//if (!from_single_anchors) {
+	//cals_targets = cals_list;
+	array_list_clear(cals_targets, (void*)NULL);
+	merge_and_filter_cals(cals_targets, cals_list, fq_read, 
+			      bwt_optarg, bwt_index, genome, 
+			      scores_ranking[i]);	    
+
+	//}	
 	//start_timer(t_start); 
 	//===== Step-2: Generate CALs Score =====//
 	LOG_DEBUG("STEP-2: GENERATE CALS SCORE");
@@ -6121,7 +6059,14 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
 	    array_list_free(fusion_list, (void *)cal_free);
 	    continue; 
 	  }
-
+	  /*
+	  printf("==== FUSION CALS PROCESS ====\n");
+	  for (int t = 0; t < array_list_size(fusion_list); t++) {
+	    cal_t *cal_aux = array_list_get(t, fusion_list);
+	    cal_print(cal_aux);
+	  }
+	  printf("==== ------------------- ====\n");
+	  */
 	  first_cal = array_list_get(0, fusion_list);
 	  last_cal = array_list_get(array_list_size(fusion_list) - 1, fusion_list);
 	  if (first_cal->strand == 1) {
@@ -6275,115 +6220,122 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
 	  }
 	  array_list_free(fusion_list, NULL);	  
 	}
-	
-	//printf("::::AFTER CALS %i\n", num_process);
-	//stop_timer(t_start, t_end, time_s);
-	//extern double seeding_time_2;
-	//extern pthread_mutex_t mutex_sp; 
-	//pthread_mutex_lock(&mutex_sp);
-	//seeding_time_2 += time_s;
-	//time_s = 0;
-	//pthread_mutex_unlock(&mutex_sp);
-
-      } else if (array_list_get_flag(cals_list) == BITEM_META_ALIGNMENTS) {
-
-	//META ALIGNMENTS
-	//printf("\tWK_2ph: -- META-ALIGNMENTS PROCESS -- \n");
-	//fprintf(stderr, "\tMETA ALIGNMENTS\n");
-	for (int j = 0; j < array_list_size(cals_list); j++) {
-	  meta_alignment = array_list_get(j, cals_list);
-
-	  //printf("SCORE IN : %i\n", meta_alignment->score);
-	  array_list_t *fusion_list = meta_alignment->cals_list;
-	  cal_t *first_cal = array_list_get(0, fusion_list);
-	  cal_t *last_cal  = array_list_get(array_list_size(fusion_list) - 1, fusion_list);	    
-	  seed_region_t *s_prev = linked_list_get_first(first_cal->sr_list);
-	  seed_region_t *s_next = linked_list_get_last(last_cal->sr_list);
-	  cigar_code_t *cc_left, *cc_right;
-
-	  if (first_cal->strand == 1) {
-	    if (!rev_comp[i]) {
-	      rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
-	      strcpy(rev_comp[i], fq_read->sequence);
-	      seq_reverse_complementary(rev_comp[i], fq_read->length);
-	    }
-	    query_map = rev_comp[i];
-	  } else {
-	    query_map = fq_read->sequence;
-	  }
-
-	  if (s_prev->read_start != 0 && 
-	      meta_alignment->cigar_left == NULL) {
-	    metaexon_search(first_cal->strand, first_cal->chromosome_id - 1,
-			    first_cal->start, first_cal->end, &first_metaexon,
-			    metaexons);
-	    cc_left = fill_extrem_gap(query_map, 
-				      first_cal,
-				      FILL_GAP_LEFT,
-				      genome,
-				      metaexons, 
-				      avls_list); 
-	    assert(meta_alignment != NULL);
-	    meta_alignment_insert_cigar(cc_left, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
-	  }
-	
-	  if (s_next->read_end != fq_read->length - 1 &&
-	      meta_alignment->cigar_right == NULL) {
-	    metaexon_search(last_cal->strand, last_cal->chromosome_id - 1,
-			    last_cal->start, last_cal->end, &first_metaexon,
-			    metaexons);	    
-	    cc_right = fill_extrem_gap(query_map, 
-				       last_cal,
-				       FILL_GAP_RIGHT,
-				       genome,
-				       metaexons, 
-				       avls_list); 
-	    //printf("RESULT CIGAR %s\n", new_cigar_code_string(cc_right));
-	    meta_alignment_insert_cigar(cc_right, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
-	  }	
-	}
-      } else {
-	//NO CALS FOUND
-	//printf("\tWK_2ph: -- NOT CALS FOUND --\n");
-	//fprintf(stderr, "\tNO CALS\n");
       }
     }
-
+  
+    array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);
+	
+    //printf("::::AFTER CALS %i\n", num_process);
+    //stop_timer(t_start, t_end, time_s);
+    //extern double seeding_time_2;
+    //extern pthread_mutex_t mutex_sp; 
+    //pthread_mutex_lock(&mutex_sp);
+    //seeding_time_2 += time_s;
+    //time_s = 0;
+    //pthread_mutex_unlock(&mutex_sp);
+    
+    
+    /*else if (array_list_get_flag(cals_list) == BITEM_META_ALIGNMENTS) {
+      
+    //META ALIGNMENTS
+    //printf("\tWK_2ph: -- META-ALIGNMENTS PROCESS -- \n");
+    //fprintf(stderr, "\tMETA ALIGNMENTS\n");
+    for (int j = 0; j < array_list_size(cals_list); j++) {
+    meta_alignment = array_list_get(j, cals_list);
+    
+    //printf("SCORE IN : %i\n", meta_alignment->score);
+    array_list_t *fusion_list = meta_alignment->cals_list;
+    cal_t *first_cal = array_list_get(0, fusion_list);
+    cal_t *last_cal  = array_list_get(array_list_size(fusion_list) - 1, fusion_list);	    
+    seed_region_t *s_prev = linked_list_get_first(first_cal->sr_list);
+    seed_region_t *s_next = linked_list_get_last(last_cal->sr_list);
+    cigar_code_t *cc_left, *cc_right;
+    
+    if (first_cal->strand == 1) {
+    if (!rev_comp[i]) {
+    rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
+    strcpy(rev_comp[i], fq_read->sequence);
+    seq_reverse_complementary(rev_comp[i], fq_read->length);
+    }
+    query_map = rev_comp[i];
+    } else {
+    query_map = fq_read->sequence;
+    }
+	  
+    if (s_prev->read_start != 0 && 
+    meta_alignment->cigar_left == NULL) {
+    metaexon_search(first_cal->strand, first_cal->chromosome_id - 1,
+    first_cal->start, first_cal->end, &first_metaexon,
+    metaexons);
+    cc_left = fill_extrem_gap(query_map, 
+    first_cal,
+    FILL_GAP_LEFT,
+    genome,
+    metaexons, 
+    avls_list); 
+    assert(meta_alignment != NULL);
+    meta_alignment_insert_cigar(cc_left, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
+    }
+    
+    if (s_next->read_end != fq_read->length - 1 &&
+    meta_alignment->cigar_right == NULL) {
+    metaexon_search(last_cal->strand, last_cal->chromosome_id - 1,
+    last_cal->start, last_cal->end, &first_metaexon,
+    metaexons);	    
+    cc_right = fill_extrem_gap(query_map, 
+    last_cal,
+    FILL_GAP_RIGHT,
+    genome,
+    metaexons, 
+    avls_list); 
+    //printf("RESULT CIGAR %s\n", new_cigar_code_string(cc_right));
+    meta_alignment_insert_cigar(cc_right, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
+    }	
+    }
+    } else {
+    //NO CALS FOUND
+    //printf("\tWK_2ph: -- NOT CALS FOUND --\n");
+    //fprintf(stderr, "\tNO CALS\n");
+    }*/
+    //}
+    //array_list_set_flag(BITEM_SINGLE_ANCHORS, mapping_batch->mapping_lists[i]);
   }
-
   
   sw_depth_process(sw_optarg, output, 
 		   &sw_depth, avls_list, metaexons, 
 		   SW_FINAL, genome);
 
-  
   //fprintf(stderr, "CLOSE META ALIGNMENTS\n");
   for (int i = 0; i < num_reads; i++) {
     fq_read = array_list_get(i, mapping_batch->fq_batch);
+
+    if (array_list_size(meta_alignments_list[i]) <= 0 ||
+	array_list_get_flag(mapping_batch->mapping_lists[i]) != BITEM_SINGLE_ANCHORS) { 
+      continue;
+    }
+
     //printf(".SECOND. : %s\n", fq_read->id);
-    if (array_list_get_flag(mapping_batch->mapping_lists[i]) != BITEM_META_ALIGNMENTS) {
-      array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);    
-      //printf("<<<<CLOSE META (%i) %s\n", array_list_size(meta_alignments_list[i]), fq_read->id);
-      for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
-	meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);
-	//printf("Status %i == %i\n", meta_alignment_get_status(meta_alignment), META_OPEN);
-	if (meta_alignment_get_status(meta_alignment) == META_OPEN ) {
-	  meta_alignment_close(meta_alignment);
-	  //printf("CIGAR CLOSE %i: %s\n", m, new_cigar_code_string(meta_alignment->cigar_code));
-	}
-      }
-    } else {      
-      for (int j  = array_list_size(mapping_batch->mapping_lists[i]) - 1; j >= 0; j--) {
-	meta_alignment_t *meta_alignment = array_list_remove_at(j, mapping_batch->mapping_lists[i]);
+    //if (array_list_get_flag(mapping_batch->mapping_lists[i]) != BITEM_META_ALIGNMENTS) {
+    //array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);    
+    //printf("<<<<CLOSE META (%i) %s\n", array_list_size(meta_alignments_list[i]), fq_read->id);
+    for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
+      meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);
+      //printf("Status %i == %i\n", meta_alignment_get_status(meta_alignment), META_OPEN);
+      if (meta_alignment_get_status(meta_alignment) == META_OPEN ) {
 	meta_alignment_close(meta_alignment);
-	//printf("CLOSE META %i : %s\n", j, new_cigar_code_string(meta_alignment->cigar_code));
-	meta_alignment_calculate_score(meta_alignment);
-	//printf("\n2: SCORE-META %i\n", meta_alignment->score);
-	array_list_insert(meta_alignment, meta_alignments_list[i]);
+	//printf("CIGAR CLOSE %i: %s\n", m, new_cigar_code_string(meta_alignment->cigar_code));
       }
     }
-    
-    if (array_list_size(meta_alignments_list[i]) == 0) { continue; }
+
+    //} else {      
+    //for (int j  = array_list_size(mapping_batch->mapping_lists[i]) - 1; j >= 0; j--) {
+    //meta_alignment_t *meta_alignment = array_list_remove_at(j, mapping_batch->mapping_lists[i]);
+    //meta_alignment_close(meta_alignment);
+    //printf("CLOSE META %i : %s\n", j, new_cigar_code_string(meta_alignment->cigar_code));
+    //meta_alignment_calculate_score(meta_alignment);
+    //printf("\n2: SCORE-META %i\n", meta_alignment->score);
+    //array_list_insert(meta_alignment, meta_alignments_list[i]);
+    //}
 
     int no_map = 1;
     for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
@@ -6395,22 +6347,34 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
     }
     
     meta_alignment_t *meta_alignment = array_list_get(0, meta_alignments_list[i]);
-    if (no_map) {      
+    if (no_map) { 
       meta_alignment->flag = 1;
       //printf("\t.SECOND-NO-MAP. :%s\n", fq_read->id);
     } else {
       meta_alignment->flag = 0;
       //printf("\t.SECOND-MAP. :%s\n", fq_read->id);
     }
+
   }
 
   size_t start_mapping;
   //printf("WK_2ph: =============== REPORT ALIGNMENTS =====================\n");
   //fprintf(stderr, "REPORT META ALIGNMENTS\n");
   for (int i = 0; i < num_reads; i++) {
-    if (array_list_size(meta_alignments_list[i]) <= 0) { continue; }
-
     fq_read = array_list_get(i, mapping_batch->fq_batch);
+    //printf("WK_2ph-Meta_Report:  %s >>>>\n", fq_read->id);
+    //printf("Meta alignments flag value if (%i == 0|| %i != %i)\n",
+    //   array_list_size(meta_alignments_list[i]),
+    //	   array_list_get_flag(mapping_batch->mapping_lists[i]),
+    //	   BITEM_SINGLE_ANCHORS);
+
+    if (array_list_size(meta_alignments_list[i]) <= 0 ||
+	array_list_get_flag(mapping_batch->mapping_lists[i]) != BITEM_SINGLE_ANCHORS) { 
+      //printf("Continue...\n");
+      continue;
+    }
+
+    //printf("QUE: %s\nQUA: %s\n", fq_read->sequence, fq_read->quality);
     assert(fq_read->id != NULL);
 
     char query[2048];
@@ -6420,8 +6384,8 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
     //meta_alignment_t *meta_alignment = array_list_get(0, meta_alignments_list[i]);
     //if (meta_alignment->score == fq_read->length) {
     meta_alignment_t *meta_alignment = array_list_get(0, meta_alignments_list[i]);      
-    //printf("WK_2ph-Meta_Report:  %s >>>>\n", fq_read->id);
     if (meta_alignment->flag == 0) {
+      data_type[i] = ALIGNMENT_TYPE;
       for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
 	//printf("Report meta %i\n", m);
 	meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);      
@@ -6430,15 +6394,14 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
 	  optional_fields_length = 0;
 	  optional_fields = NULL;
 	  
-	  first_cal = meta_alignment_get_first_cal(meta_alignment);
 	  //printf("= SHOWING CALS  =\n");
 	  //cal_print(first_cal);
 	  //printf("= SHOWING ENDS  =\n");
-	  
+	  cal_t *first_cal = meta_alignment_get_first_cal(meta_alignment);
 	  s_prev = linked_list_get_first(first_cal->sr_list);
 	  int h_left = s_prev->read_start;
 	    
-	  last_cal = meta_alignment_get_last_cal(meta_alignment);
+	  cal_t *last_cal = meta_alignment_get_last_cal(meta_alignment);
 	  s_next = linked_list_get_last(last_cal->sr_list);
 	  int h_right = (fq_read->length - 1) - s_next->read_end;
 	    
@@ -6539,14 +6502,14 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
 	    //fprintf(stderr, "META ALIGNMENT REPORT %i: %s\n", m, new_cigar_code_string(cigar_code));
 	    //printf("WK_2ph: * * * M E T A    A L I G N M E N T    R E P O R T  [%i:%lu]  %s* * *\n", 
 	    //	   first_cal->chromosome_id, first_cal->start, new_cigar_code_string(cigar_code));
-	    alignment_init_single_end(header_match, 
-				      strdup(query)/*match_seq*/,
-				      strdup(quality)/*match_qual*/,
-				      first_cal->strand, first_cal->chromosome_id - 1, start_mapping,
-				      strdup(new_cigar_code_string(cigar_code))/*strdup(cigar_fake)*/,
-				      cigar_code_get_num_ops(cigar_code)/*1*/,
-				      norm_score * 254, 1, (array_list_size(meta_alignments_list[i]) < 1),
-				      cigar_code->distance, NULL, 0, alignment);
+	  alignment_init_single_end(header_match, 
+				    strdup(query)/*match_seq*/,
+				    strdup(quality)/*match_qual*/,
+				    first_cal->strand, first_cal->chromosome_id - 1, start_mapping - 1,
+				    strdup(new_cigar_code_string(cigar_code))/*strdup(cigar_fake)*/,
+				    cigar_code_get_num_ops(cigar_code)/*1*/,
+				    norm_score * 254, 1, (array_list_size(meta_alignments_list[i]) < 1),
+				    cigar_code->distance, NULL, alignment);
 	    //fprintf(stderr, "OK INSERT\n");
 	    //alignment_print(alignment);
 	    //}
@@ -6581,16 +6544,28 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
       }
 
       if (array_list_size(meta_alignments_list[i]) > 0) {
-	post_process_reads[i] = 1; 
-	pthread_mutex_lock(&mutex_sp);
-	insert_file_item_2(fq_read, meta_alignments_list[i], f_hc);
-	pthread_mutex_unlock(&mutex_sp);
+	//pthread_mutex_lock(&mutex_sp);
+	//insert_file_item_2(fq_read, meta_alignments_list[i], f_hc);
+	//pthread_mutex_unlock(&mutex_sp);
+	//pthread_mutex_lock(&mutex_sp);
+	//file_write_items(fq_read, meta_alignments_list[i],
+	//		 META_ALIGNMENT_TYPE, f_sa, f_hc, 0);
+	//pthread_mutex_unlock(&mutex_sp);
 
-	array_list_clear(meta_alignments_list[i], (void*)meta_alignment_complete_free);
+	post_process_reads[i] = 1; 
+	data_type[i] = META_ALIGNMENT_TYPE;
+	for (int m1 = 0; m1 < array_list_size(meta_alignments_list[i]); m1++) {
+	  meta_alignment_t *meta_alignment = array_list_get(m1, meta_alignments_list[i]);
+	  array_list_insert(meta_alignment, mapping_batch->mapping_lists[i]);
+	}	
+	//array_list_clear(meta_alignments_list[i], (void*)meta_alignment_complete_free);
+	//array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);
       } else {
 	array_list_clear(mapping_batch->mapping_lists[i], (void*)NULL);
       }
     }
+
+    if (data_type[i] == META_ALIGNMENT_TYPE) { continue; }
 
     size_t n_alignments = array_list_size(mapping_batch->mapping_lists[i]);
     int final_distance;
@@ -6623,43 +6598,235 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
       alignment->optional_fields_length = optional_fields_length;
       alignment->optional_fields = optional_fields;
     }
-
   }
-
-
-  //printf("WK_2ph: =============== REPORT ALIGNMENTS END =====================\n");
 
   array_list_t *new_fq_batch = array_list_new(num_reads, 
 					      1.25f, 
 					      COLLECTION_MODE_ASYNCHRONIZED);
   int num_new_reads = 0;
-  for (i = 0; i < num_reads; i++) {
-    fq_read = array_list_get(i, mapping_batch->fq_batch);
-    array_list_t *alignments_list = mapping_batch->mapping_lists[i];
-    if (post_process_reads[i] == 0) {
-      mapping_batch->mapping_lists[num_new_reads++] = alignments_list;
-      array_list_insert(fq_read, new_fq_batch);
-    } else {
-      array_list_free(alignments_list, NULL);
+  if (pair_mode == PAIRED_END_MODE || 
+      pair_mode == MATE_PAIR_MODE) {
+    //Pair end or Mate pair mode
+    for (i = 0; i < num_reads; i +=2) {
+      fastq_read_t *fq_read0 = array_list_get(i, mapping_batch->fq_batch);
+      fastq_read_t *fq_read1 = array_list_get(i + 1, mapping_batch->fq_batch);
+      if (data_type[i]     == CAL_TYPE || 
+	  data_type[i + 1] == CAL_TYPE || 
+	  data_type[i]     == META_ALIGNMENT_TYPE || 
+	  data_type[i + 1] == META_ALIGNMENT_TYPE) {
+	
+	int mode;
+	if (data_type[i] == CAL_TYPE || 
+	    data_type[i + 1] == CAL_TYPE) {
+	  mode = 0;
+	} else {
+	  mode = 1;
+	}
+
+	pthread_mutex_lock(&mutex_sp);
+	//printf("\n====\n(0)%s\n(1)%s\n====\n(0)%i-Insert num items %i\n(1)%i-Insert num items %i\n\n", fq_read0->id, fq_read1->id, data_type[i], array_list_size(mapping_batch->mapping_lists[i]), data_type[i+1], array_list_size(mapping_batch->mapping_lists[i + 1]));
+	
+	file_write_items(fq_read0, mapping_batch->mapping_lists[i],
+			 data_type[i], f_sa, f_hc, mode);
+	file_write_items(fq_read1, mapping_batch->mapping_lists[i + 1],
+			 data_type[i + 1], f_sa, f_hc, mode);
+	pthread_mutex_unlock(&mutex_sp);
+
+	if (data_type[i] == CAL_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)cal_free);
+	} else if (data_type[i] == META_ALIGNMENT_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)meta_alignment_complete_free);
+	} else {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)alignment_free);
+	}
+     
+	if (data_type[i + 1] == CAL_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)cal_free);
+	} else if (data_type[i + 1] == META_ALIGNMENT_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)meta_alignment_complete_free);
+	} else {
+	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)alignment_free);
+	}
+      }
+
+      array_list_free(meta_alignments_list[i], NULL);
+      if (rev_comp[i]) { free(rev_comp[i]); }
+      free(scores_ranking[i]);
+
+      array_list_free(meta_alignments_list[i + 1], NULL);
+      if (rev_comp[i + 1]) { free(rev_comp[i + 1]); }
+      free(scores_ranking[i + 1]);
+
+      if (post_process_reads[i] == 1 || post_process_reads[i + 1] == 1) {
+	pthread_mutex_lock(&mutex_sp);
+	extern size_t tot_reads_out;
+	tot_reads_out += 2;
+	pthread_mutex_unlock(&mutex_sp);
+
+	fastq_read_free(fq_read0);
+	array_list_free(mapping_batch->mapping_lists[i], NULL);
+
+	fastq_read_free(fq_read1);
+	array_list_free(mapping_batch->mapping_lists[i + 1], NULL);
+      } else {
+	pthread_mutex_lock(&mutex_sp);
+	extern size_t tot_reads_in;
+	tot_reads_in += 2;
+	pthread_mutex_unlock(&mutex_sp);
+
+	array_list_set_flag(1, mapping_batch->mapping_lists[i]);
+	mapping_batch->mapping_lists[num_new_reads++] = mapping_batch->mapping_lists[i];
+	array_list_insert(fq_read0, new_fq_batch);
+
+	array_list_set_flag(1, mapping_batch->mapping_lists[i + 1]);
+	mapping_batch->mapping_lists[num_new_reads++] = mapping_batch->mapping_lists[i + 1];
+	array_list_insert(fq_read1, new_fq_batch);
+      }
+    }
+  } else {
+    //Single end mode
+    for (i = 0; i < num_reads; i++) {
+      array_list_free(meta_alignments_list[i], NULL);
+      if (rev_comp[i]) { free(rev_comp[i]); }
+      free(scores_ranking[i]);
+
+      fq_read = array_list_get(i, mapping_batch->fq_batch);      
+      if (data_type[i] == CAL_TYPE || 
+	  data_type[i] == META_ALIGNMENT_TYPE) {
+	int mode;
+	if (data_type[i] == CAL_TYPE) {
+	  mode = 0;
+	} else {
+	  mode = 1;
+	}
+	pthread_mutex_lock(&mutex_sp);
+	file_write_items(fq_read, mapping_batch->mapping_lists[i],
+			 data_type[i], f_sa, f_hc, mode);
+	pthread_mutex_unlock(&mutex_sp);
+	
+	if (data_type[i] == CAL_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)cal_free);
+	} else if (data_type[i] == META_ALIGNMENT_TYPE) {
+	  array_list_clear(mapping_batch->mapping_lists[i], (void *)meta_alignment_complete_free);
+	}
+      }
+      //array_list_clear(alignments_list, alignment_free);      
+      if (post_process_reads[i] == 0) {
+	mapping_batch->mapping_lists[num_new_reads++] =  mapping_batch->mapping_lists[i];
+	array_list_insert(fq_read, new_fq_batch);
+      } else {
+	fastq_read_free(fq_read);
+	array_list_free(mapping_batch->mapping_lists[i], NULL);
+      }      
     }
   }
 
+  /* if (pair_mode == PAIRED_END_MODE ||  */
+  /*     pair_mode == MATE_PAIR_MODE) { */
+  /*   //Pair end or Mate pair mode */
+  /*   for (i = 0; i < num_reads; i +=2) { */
+  /*     fastq_read_t *fq_read0 = array_list_get(i, mapping_batch->fq_batch); */
+  /*     fastq_read_t *fq_read1 = array_list_get(i + 1, mapping_batch->fq_batch); */
+  /*     if (data_type[i]     == META_ALIGNMENT_TYPE ||  */
+  /* 	  data_type[i + 1] == META_ALIGNMENT_TYPE) { */
+	
+  /* 	pthread_mutex_lock(&mutex_sp); */
+  /* 	file_write_items(fq_read0, mapping_batch->mapping_lists[i], */
+  /* 			 data_type[i], f_sa, f_hc, 1); */
+  /* 	file_write_items(fq_read1, mapping_batch->mapping_lists[i + 1], */
+  /* 			 data_type[i + 1], f_sa, f_hc, 1); */
+  /* 	pthread_mutex_unlock(&mutex_sp); */
+
+  /* 	if (data_type[i] == META_ALIGNMENT_TYPE) { */
+  /* 	  array_list_clear(mapping_batch->mapping_lists[i], (void *)meta_alignment_complete_free); */
+  /* 	} else { */
+  /* 	  array_list_clear(mapping_batch->mapping_lists[i], (void *)alignment_free); */
+  /* 	} */
+     
+  /* 	if (data_type[i + 1] == META_ALIGNMENT_TYPE) { */
+  /* 	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)meta_alignment_complete_free); */
+  /* 	} else { */
+  /* 	  array_list_clear(mapping_batch->mapping_lists[i + 1], (void *)alignment_free); */
+  /* 	} */
+
+  /*     } */
+  /*   } */
+
+  /*   for (i = 0; i < num_reads; i += 2) { */
+  /*     if (rev_comp) { free(rev_comp[i]); } */
+  /*     if (rev_comp) { free(rev_comp[i + 1]); } */
+  /*     array_list_free(meta_alignments_list[i], NULL); */
+  /*     array_list_free(meta_alignments_list[i + 1], NULL); */
+    
+  /*     fastq_read_t *fq_read0 = array_list_get(i, mapping_batch->fq_batch);       */
+  /*     fastq_read_t *fq_read1 = array_list_get(i + 1, mapping_batch->fq_batch);  */
+
+  /*     array_list_t *alignments_list_0 = mapping_batch->mapping_lists[i]; */
+  /*     array_list_t *alignments_list_1 = mapping_batch->mapping_lists[i + 1]; */
+
+  /*     if (post_process_reads[i] == 1 || post_process_reads[i + 1] == 1) { */
+  /* 	fastq_read_free(fq_read0); */
+  /* 	array_list_free(alignments_list_0, NULL); */
+
+  /* 	fastq_read_free(fq_read1); */
+  /* 	array_list_free(alignments_list_1, NULL); */
+  /*     } else { */
+  /* 	array_list_set_flag(1, alignments_list_0); */
+  /* 	mapping_batch->mapping_lists[num_new_reads++] = alignments_list_0; */
+  /* 	array_list_insert(fq_read0, new_fq_batch); */
+
+  /* 	array_list_set_flag(1, alignments_list_1); */
+  /* 	mapping_batch->mapping_lists[num_new_reads++] = alignments_list_1; */
+  /* 	array_list_insert(fq_read1, new_fq_batch); */
+  /*     } */
+  /*     free(scores_ranking[i]); */
+  /*     free(scores_ranking[i + 1]); */
+  /*   } */
+
+  /* } else { */
+
+  /*   //Single end mode */
+  /*   for (i = 0; i < num_reads; i++) { */
+  /*     fq_read = array_list_get(i, mapping_batch->fq_batch); */
+  /*     if (data_type[i] == META_ALIGNMENT_TYPE) { */
+  /* 	pthread_mutex_lock(&mutex_sp); */
+  /* 	extern size_t w2_3_r; */
+  /* 	w2_3_r++; */
+  /* 	file_write_items(fq_read, mapping_batch->mapping_lists[i], */
+  /* 			 META_ALIGNMENT_TYPE, f_sa, f_hc, 1); */
+  /* 	pthread_mutex_unlock(&mutex_sp);  */
+  /* 	array_list_clear(mapping_batch->mapping_lists[i], (void *)meta_alignment_complete_free); */
+  /*     }       */
+  /*   } */
+
+  /*   for (i = 0; i < num_reads; i++) { */
+  /*     if (rev_comp) { free(rev_comp[i]); } */
+  /*     array_list_free(meta_alignments_list[i], NULL); */
+
+  /*     fq_read = array_list_get(i, mapping_batch->fq_batch); */
+  /*     array_list_t *alignments_list = mapping_batch->mapping_lists[i]; */
+  /*     if (post_process_reads[i] == 0) { */
+  /* 	mapping_batch->mapping_lists[num_new_reads++] = alignments_list; */
+  /* 	array_list_insert(fq_read, new_fq_batch); */
+  /*     } else { */
+  /* 	array_list_free(alignments_list, NULL); */
+  /*     } */
+  /*     free(scores_ranking[i]); */
+  /*   } */
+  /* } */
+
+
+  //printf("WK_2ph: =============== REPORT ALIGNMENTS END =====================\n");
   free(post_process_reads);
   array_list_free(mapping_batch->fq_batch, NULL);
   mapping_batch->fq_batch = new_fq_batch;
-
+  free(data_type);
   array_list_free(seeds_list, NULL);
   array_list_free(final_positions, NULL);
   free(new_targets);
   sw_multi_output_free(output);
  
   array_list_free(cals_targets, NULL);
-
-  for (i = 0; i < num_reads; i++) {
-    array_list_free(meta_alignments_list[i], NULL);
-    if (rev_comp) { free(rev_comp[i]); }
-    free(scores_ranking[i]);
-  }
 
   free(scores_ranking);
   //array_list_free(cals_targets, NULL);
@@ -6871,16 +7038,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
   int read_nt;
   int seed_size = cal_optarg->seed_size;
 
-  //Convert CALs in META_ALIGNMENTS 
-  for (int i = 0; i < num_reads; i++) {
-    fq_read = array_list_get(i, mapping_batch->fq_batch);
-    //fprintf(stderr, "WK_3ph: %s\n", fq_read->id);
-
-    cals_list = mapping_batch->mapping_lists[i];
-
-    if (array_list_size(cals_list) <= 0) { continue; }
-
-    if (array_list_get_flag(cals_list) != BITEM_META_ALIGNMENTS) {
+    //if (array_list_get_flag(cals_list) != BITEM_META_ALIGNMENTS) {
       /*printf("META ALIGNMENTS\n");
       meta_alignments_list = array_list_new(array_list_size(cals_list),
 					    1.25f, COLLECTION_MODE_ASYNCHRONIZED);
@@ -6956,80 +7114,32 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 
       mapping_batch->mapping_lists[i] = meta_alignments_list;
       */
-    } else {
-      //printf("META ALIGNMENTS\n");
-      for (int m = 0; m < array_list_size(cals_list); m++) {
-	meta_alignment = array_list_get(m, cals_list);
-	fusion_cals = meta_alignment->cals_list;
+    //} else {
+    //printf("META ALIGNMENTS\n");
 
-	cal_t *first_cal = array_list_get(0, fusion_cals);
-	cal_t *last_cal = array_list_get(array_list_size(fusion_cals) - 1, fusion_cals);
-
-	if (first_cal->strand == 1) {
-	  if (!rev_comp[i]) {
-	    rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
-	    strcpy(rev_comp[i], fq_read->sequence);
-	    seq_reverse_complementary(rev_comp[i], fq_read->length);
-	  }
-	  query_map = rev_comp[i];
-	} else {
-	  query_map = fq_read->sequence;
-	}
-
-	s_prev = linked_list_get_first(first_cal->sr_list);
-	s_next = linked_list_get_last(last_cal->sr_list);
-
-	if (s_prev->read_start != 0 && 
-	    meta_alignment->cigar_left == NULL) {
-	  /*metaexon_search(first_cal->strand, first_cal->chromosome_id - 1,
-			  first_cal->start, first_cal->end, &first_metaexon,
-			  metaexons);
-	  */
-	  cigar_code_t *cc_left = fill_extrem_gap(query_map, 
-						  first_cal,
-						  FILL_GAP_LEFT,
-						  genome,
-						  metaexons, 
-						  avls_list); 
-	  //printf("LEFT CIGAR: %s\n", new_cigar_code_string(cc_left));
-	  //assert(meta_alignment != NULL);
-	  meta_alignment_insert_cigar(cc_left, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
-	}
-	
-	if (s_next->read_end != fq_read->length - 1 &&
-	    meta_alignment->cigar_right == NULL) {
-	  /*metaexon_search(last_cal->strand, last_cal->chromosome_id - 1,
-			  last_cal->start, last_cal->end, &first_metaexon,
-			  metaexons);	    */
-	  cigar_code_t *cc_right = fill_extrem_gap(query_map, 
-						   last_cal,
-						   FILL_GAP_RIGHT,
-						   genome,
-						   metaexons, 
-						   avls_list); 	  
-	  //printf("RIGHT CIGAR: %s\n", new_cigar_code_string(cc_right));
-	  meta_alignment_insert_cigar(cc_right, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
-	}	
-      }
-    }
-
+  pthread_mutex_lock(&mutex_sp);
+  extern size_t tot_reads_in;
+  tot_reads_in += num_reads;
+  pthread_mutex_unlock(&mutex_sp);
+  
+  //Convert CALs in META_ALIGNMENTS 
+  for (int i = 0; i < num_reads; i++) {
+    fq_read = array_list_get(i, mapping_batch->fq_batch);
     meta_alignments_list = mapping_batch->mapping_lists[i];
-    //SW for complete meta-alignments extrems
-    for (int j = 0; j < array_list_size(meta_alignments_list); j++) {
-      meta_alignment = array_list_get(j, meta_alignments_list);
-      cal = array_list_get(0, meta_alignment->cals_list);
+    //printf("WK_3ph (%i): %s\n", array_list_size(meta_alignments_list), fq_read->id );
+
+    if (array_list_size(meta_alignments_list) <= 0 || 
+	array_list_get_flag(meta_alignments_list) != BITEM_META_ALIGNMENTS) { continue; }   
+    
+    //printf("\tProcess\n");
+    for (int m = 0; m < array_list_size(meta_alignments_list); m++) {
+      meta_alignment = array_list_get(m, meta_alignments_list);
+      fusion_cals = meta_alignment->cals_list;
+
       cal_t *first_cal = array_list_get(0, fusion_cals);
       cal_t *last_cal = array_list_get(array_list_size(fusion_cals) - 1, fusion_cals);
 
-      /*array_list_t *fusion_cals = meta_alignment->cals_list;
-      printf("==== FUSION CALS PROCESS ====\n");
-      for (int t = 0; t < array_list_size(fusion_cals); t++) {
-	cal_t *cal_aux = array_list_get(t, fusion_cals);
-	cal_print(cal_aux);
-	}	*/    
-
-      //printf("Meta - %i:%lu-%lu\n", cal->chromosome_id, cal->start, cal->end);
-      if (cal->strand == 1) {
+      if (first_cal->strand == 1) {
 	if (!rev_comp[i]) {
 	  rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
 	  strcpy(rev_comp[i], fq_read->sequence);
@@ -7042,26 +7152,91 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 
       s_prev = linked_list_get_first(first_cal->sr_list);
       s_next = linked_list_get_last(last_cal->sr_list);
+
+      if (s_prev->read_start != 0 &&
+	  meta_alignment->cigar_left == NULL) {
+	/*metaexon_search(first_cal->strand, first_cal->chromosome_id - 1,
+	  first_cal->start, first_cal->end, &first_metaexon,
+	  metaexons);
+	*/
+	cigar_code_t *cc_left = fill_extrem_gap(query_map, 
+						first_cal,
+						FILL_GAP_LEFT,
+						genome,
+						metaexons, 
+						avls_list); 
+	//printf("LEFT CIGAR: %s\n", new_cigar_code_string(cc_left));
+	//assert(meta_alignment != NULL);
+	meta_alignment_insert_cigar(cc_left, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
+      }
+	
+      if (s_next->read_end != fq_read->length - 1 &&
+	  meta_alignment->cigar_right == NULL) {
+	/*metaexon_search(last_cal->strand, last_cal->chromosome_id - 1,
+	  last_cal->start, last_cal->end, &first_metaexon,
+	  metaexons);	    */
+	cigar_code_t *cc_right = fill_extrem_gap(query_map, 
+						 last_cal,
+						 FILL_GAP_RIGHT,
+						 genome,
+						 metaexons, 
+						 avls_list); 	  
+	//printf("RIGHT CIGAR: %s\n", new_cigar_code_string(cc_right));
+	meta_alignment_insert_cigar(cc_right, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
+      }
+      //SW for complete meta-alignments extrems
+      //meta_alignments_list = mapping_batch->mapping_lists[i];
+      //for (int j = 0; j < array_list_size(meta_alignments_list); j++) {
+      //meta_alignment = array_list_get(j, meta_alignments_list);
+      //cal = array_list_get(0, meta_alignment->cals_list);
+      //cal_t *first_cal = array_list_get(0, fusion_cals);
+      //cal_t *last_cal = array_list_get(array_list_size(fusion_cals) - 1, fusion_cals);
+
+      /*array_list_t *fusion_cals = meta_alignment->cals_list;
+	printf("==== FUSION CALS PROCESS ====\n");
+	for (int t = 0; t < array_list_size(fusion_cals); t++) {
+	cal_t *cal_aux = array_list_get(t, fusion_cals);
+	cal_print(cal_aux);
+	}	
+      */    
+      //printf("Meta - %i:%lu-%lu\n", cal->chromosome_id, cal->start, cal->end);
+      //if (cal->strand == 1) {
+      //if (!rev_comp[i]) {
+      //rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
+      //strcpy(rev_comp[i], fq_read->sequence);
+      //seq_reverse_complementary(rev_comp[i], fq_read->length);
+      //}
+      //query_map = rev_comp[i];
+      //} else {
+      //query_map = fq_read->sequence;
+      //}
+      //s_prev = linked_list_get_first(first_cal->sr_list);
+      //s_next = linked_list_get_last(last_cal->sr_list);
+
+      const int flank_s = 5;
       
       if (meta_alignment->cigar_left == NULL && 
 	  s_prev->read_start  != 0) {
-	seed_region_t *seed_reg = linked_list_get_first(cal->sr_list);
-	if (seed_reg->read_start >= 5) {
+	//seed_region_t *seed_reg = linked_list_get_first(cal->sr_list);
+	if (s_prev->read_start >= flank_s) {
+	  //seed_reg->read_start += flank_s;
+	  //seed_reg->genome_start += flank_s;
+	  //cal->start += flank_s;	  
+	  //cigar_code_delete_nt(flank_s, 0, cal->info);	  
 	  //SW
-	  genome_start = seed_reg->genome_start - seed_reg->read_start ;
-	  genome_end = seed_reg->genome_start - 1;
+	  genome_start = s_prev->genome_start - s_prev->read_start ;
+	  genome_end   = s_prev->genome_start - 1;
 	  genome_read_sequence_by_chr_index(r, 0, 
-					    cal->chromosome_id - 1,
+					    first_cal->chromosome_id - 1,
 					    &genome_start, &genome_end,
 					    genome);    
-	  memcpy(q, query_map, seed_reg->read_start);
-	  q[seed_reg->read_start] = '\0';
-	  
+	  memcpy(q, query_map, s_prev->read_start);
+	  q[s_prev->read_start] = '\0';	  
 	  //printf("query     L ::: %s\n", q);
 	  //printf("reference L ::: %s\n", r);
 	  //New sw item. Storing data...
 	  sw_item = sw_item_new(EXTREM_SW_LEFT, i, j, j,
-				cal, cal, 
+				first_cal, first_cal, 
 				meta_alignment, NULL, 
 				NULL, NULL);	      
 	  //Insert item... and process if depth is full
@@ -7071,33 +7246,43 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 			  &sw_depth, genome); 
 	} else {
 	  cigar_code = cigar_code_new();
-	  cigar_code_append_new_op(seed_reg->read_start, 'M', cigar_code);
+	  cigar_code_append_new_op(s_prev->read_start, 'M', cigar_code);
 	  meta_alignment->cigar_left = cigar_code;
 	}
       }
 
       if (meta_alignment->cigar_right == NULL &&
 	  s_next->read_end != fq_read->length - 1) {
-	cal = array_list_get(array_list_size(meta_alignment->cals_list) - 1, meta_alignment->cals_list);
-	seed_region_t *seed_reg = linked_list_get_last(cal->sr_list);
+	//seed_region_t *seed_reg = linked_list_get_last(s_next->sr_list);
+	if ((fq_read->length - 1) - s_next->read_end >= flank_s) {
+	  //cal = array_list_get(array_list_size(meta_alignment->cals_list) - 1, meta_alignment->cals_list);
+	  //seed_reg->read_end -= flank_s;
+	  //seed_reg->genome_end -= flank_s;
+	  //cal->end -= flank_s;
 
-	if (seed_reg->read_end <= fq_read->length - 5) {
+	  //cigar_code_delete_nt(flank_s, 1, cal->info);
+	  
+	  //if (seed_reg->read_end <= fq_read->length - 5) {
 	  //SW
-	  int r_gap = fq_read->length - seed_reg->read_end - 1;
-	  genome_start = seed_reg->genome_end + 1;
-	  genome_end = genome_start + r_gap;	  
-	  genome_read_sequence_by_chr_index(r, 0, 
-					    cal->chromosome_id - 1,
+	  int r_gap = fq_read->length - s_next->read_end - 1;
+	  
+	  //printf("r_gap = %i, genome_end = %lu, read_end = %i\n", 
+	  //	 r_gap, seed_reg->genome_end + 1, seed_reg->read_end + 1);
+	  
+	  genome_start = s_next->genome_end + 1;
+	  genome_end   = genome_start + r_gap - 1;	  
+	  genome_read_sequence_by_chr_index(r, 0,
+					    last_cal->chromosome_id - 1,
 					    &genome_start, &genome_end,
 					    genome);    
-	  memcpy(q, query_map + seed_reg->read_end, r_gap);
+	  memcpy(q, query_map + s_next->read_end + 1, r_gap);
 	  q[r_gap] = '\0';
 	  //printf("query     R ::: %s\n", q);
 	  //printf("reference R ::: %s\n", r);
-
+	  
 	  //New sw item. Storing data...
 	  sw_item = sw_item_new(EXTREM_SW_RIGHT, i, j, j,
-				cal, cal, 
+				last_cal, last_cal, 
 				meta_alignment, NULL, 
 				NULL, NULL);	      
 	  //Insert item... and process if depth is full
@@ -7107,12 +7292,12 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 			  &sw_depth, genome); 
 	} else {
 	  cigar_code = cigar_code_new();
-	  cigar_code_append_new_op(fq_read->length - seed_reg->read_end - 1, 'M', cigar_code);
+	  cigar_code_append_new_op(fq_read->length - s_next->read_end - 1, 'M', cigar_code);
 	  meta_alignment->cigar_right = cigar_code;
 	}
       }
+      //fprintf(stderr, "WK_3ph: %s FINISH\n", fq_read->id);
     }
-    //fprintf(stderr, "WK_3ph: %s FINISH\n", fq_read->id);
   }
 
   sw_depth_process(sw_optarg, output, 
@@ -7128,11 +7313,14 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
     fq_read = array_list_get(i, mapping_batch->fq_batch);
     //printf("WK_3ph-Meta_Report (%i):  %s >>>>\n", array_list_size(mapping_batch->mapping_lists[i]),
     //	   fq_read->id);
-    meta_alignments_list = mapping_batch->mapping_lists[i];
-    
-    if (array_list_size(meta_alignments_list) <= 0) { continue; }
 
-    //printf("filter meta-alignments-1\n");
+    meta_alignments_list = mapping_batch->mapping_lists[i];    
+
+    if (array_list_size(meta_alignments_list) <= 0 || 
+	array_list_get_flag(meta_alignments_list) != BITEM_META_ALIGNMENTS) { 
+      array_list_set_flag(1, mapping_batch->mapping_lists[i]);
+      continue;
+    }   
 
     assert(fq_read->id != NULL);
     //fprintf(stderr, ".( %i )Read %i: %s .\n", array_list_size(meta_alignments_list[i]), i, fq_read->id);
@@ -7154,6 +7342,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	cal_print(cal);
       }
       */
+
       if (meta_alignment_get_status(meta_alignment) != META_CLOSE) { 
 	array_list_remove_at(m, meta_alignments_list);
 	//printf("Meta alignment Closed? [-NOT CLOSED-]\n");
@@ -7162,7 +7351,6 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       } else {
 	//printf("Meta alignment Closed? [-CLOSED-]\n");
       }
-
       meta_alignment_calculate_score(meta_alignment);
     }
 
@@ -7253,6 +7441,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	  array_list_insert_at(0, op, cigar_code->ops);
 	} else {
 	  if (meta_alignment->cigar_left != NULL ) {
+	    //printf("Cigar NULL L\n");
 	    cigar_code_t *cigar_code = meta_alignment->cigar_left;
 	    for (int c = 0; c < cigar_code->ops->size; c++) {
 	      cigar_op_t *op = array_list_get(c, cigar_code->ops);
@@ -7274,6 +7463,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 
 	if (meta_alignment->cigar_right == NULL && 
 	    s_next->read_end < fq_read->length - 1) {
+	  //printf("Cigar NULL R\n");
 	  cigar_op_t *op = cigar_op_new(fq_read->length - s_next->read_end - 1, 'H');
 	  array_list_insert(op, cigar_code->ops);
 	}
@@ -7332,11 +7522,11 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	alignment_init_single_end(header_match, 
 				  strdup(query)/*match_seq*/,
 				  strdup(quality)/*match_qual*/,
-				  first_cal->strand, first_cal->chromosome_id - 1, start_mapping,
+				  first_cal->strand, first_cal->chromosome_id - 1, start_mapping - 1,
 				  strdup(new_cigar_code_string(cigar_code))/*strdup(cigar_fake)*/,
 				  cigar_code_get_num_ops(cigar_code)/*1*/,
 				  norm_score * 254, 1, (array_list_size(meta_alignments_list) < 1),
-				  cigar_code->distance, NULL, 0, alignment);
+				  cigar_code->distance, NULL, alignment);
 
 	//printf("Report CIGAR OK!\n");	
 	array_list_insert(alignment, alignments_list);	
@@ -7344,8 +7534,10 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	  
       }
     }
+
     array_list_free(mapping_batch->mapping_lists[i], NULL);
     mapping_batch->mapping_lists[i] = alignments_list;
+    array_list_set_flag(1, mapping_batch->mapping_lists[i]);
 
     size_t n_alignments = array_list_size(alignments_list);
     int final_distance;
@@ -7378,11 +7570,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       alignment->optional_fields_length = optional_fields_length;
       alignment->optional_fields = optional_fields;
     }
-
-  }
-
-  for (i = 0; i < num_reads; i++) {
-    if (rev_comp) { free(rev_comp[i]); }
+    if (rev_comp[i]) { free(rev_comp[i]); }
   }
 
   sw_multi_output_free(output);
@@ -7391,6 +7579,126 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
   return LAST_RNA_POST_PAIR_STAGE;
 
 }
+
+
+
+      
+      //if (!map) { array_list_insert((void *)p, delete_targets); }
+      /*
+      //metaexons_show(metaexons);
+      if (metaexon_search(cal->strand, cal->chromosome_id - 1,
+      cal->start, cal->end, &first_metaexon,
+      metaexons)) {	  
+      //printf("Found!\n");
+      if (read_nt <= 20) {
+      meta_alignment = meta_alignment_new();
+      if (s_prev->read_start == 0) {
+      cigar_code = fill_extrem_gap(query_map, 
+      cal,
+      FILL_GAP_RIGHT,
+      genome,
+      first_metaexon,
+      metaexons, 
+      avls_list);
+      if (cigar_code) {
+      meta_alignment->cigar_right = cigar_code;
+      }
+      } else {
+      cigar_code = fill_extrem_gap(query_map, 
+					   cal,
+					   FILL_GAP_LEFT,
+					   genome,
+					   first_metaexon,
+					   metaexons, 
+					   avls_list);
+	      if (cigar_code) {
+		//printf("Read map!\n");
+		meta_alignment->cigar_left = cigar_code;
+	      }
+	    }
+
+	    meta_alignment_insert_cal(cal, meta_alignment);
+	    meta_alignment_fill_gaps(META_ALIGNMENT_NONE,
+				     meta_alignment, query_map, genome,
+				     sw_optarg, output, metaexons, 
+				     &sw_depth, avls_list);
+	    array_list_insert(meta_alignment, meta_alignments_list[i]); 
+	    map = 1;
+	  } else {
+	    int distance;
+	    meta_alignment = NULL;
+	    //printf("START WITH SEARCH IN METAEXONS!!\n");
+	    array_list_clear(final_positions, (void *)NULL);
+	    //cigar_code = NULL;
+	    if (s_prev->read_start == 0) {
+	      if (first_metaexon->right_closed) {
+		//printf(" LEFT SEARCH\n");
+		cigar_code = search_left_single_anchor(read_nt, 
+						       cal,
+						       0,
+						       first_metaexon->right_breaks,
+						       query_map, metaexons, genome, avls_list);
+	      } else {
+		cigar_code = fill_extrem_gap(query_map, 
+					     cal,
+					     FILL_GAP_RIGHT,
+					     genome,
+					     first_metaexon,
+					     metaexons,
+					     avls_list);	   
+	      }
+
+	      if (cigar_code != NULL) {
+		//printf(" :::: LEFT CIGAR %s\n", new_cigar_code_string(cigar_code));
+		meta_alignment = meta_alignment_new();
+		meta_alignment_insert_cal(cal, meta_alignment);
+		meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
+		meta_alignment_fill_gaps(META_ALIGNMENT_LEFT,
+					 meta_alignment, query_map, genome,
+					 sw_optarg, output, metaexons, 
+					 &sw_depth, avls_list);	
+	      }
+	    } else {
+	      if (first_metaexon->left_closed) { 
+		//printf(" RIGHT SEARCH \n");
+		cigar_code = search_right_single_anchor(read_nt,
+							cal, 
+							0,
+							first_metaexon->left_breaks,
+							query_map, metaexons, genome, 
+							avls_list);
+	      } else {
+		cigar_code = fill_extrem_gap(query_map, 
+					     cal,
+					     FILL_GAP_LEFT,
+					     genome,
+					     first_metaexon,
+					     metaexons,
+					     avls_list);  
+	      }
+
+	      if (cigar_code != NULL) {
+		//printf(" :::: RIGHT CIGAR %s\n", new_cigar_code_string(cigar_code));
+		meta_alignment = meta_alignment_new();
+		meta_alignment_insert_cal(cal, meta_alignment);
+		meta_alignment_insert_cigar(cigar_code, CIGAR_ANCHOR_RIGHT, 0, meta_alignment);
+		meta_alignment_fill_gaps(META_ALIGNMENT_RIGHT,
+					 meta_alignment, query_map, genome,
+					 sw_optarg, output, metaexons, 
+					 &sw_depth, avls_list);
+	      }
+	    }
+
+	    if (meta_alignment != NULL) {
+	      //Report mapping
+	      map = 1;
+	      array_list_insert((void *)meta_alignment, meta_alignments_list[i]); 	  	    
+	    } 
+	  }
+	  } //else { metaexons_show_chr(cal->chromosome_id - 1, metaexons); printf("Not in metaexons!!\n"); }*/
+      //}
+
+
 
 	  /*char cigar_fake[512];
 	  sprintf(cigar_fake, "%iM", fq_read->length);

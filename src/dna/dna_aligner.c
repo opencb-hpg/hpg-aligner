@@ -81,7 +81,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
 			  options->gap_open, options->gap_extend, options->min_score, 
 			  options->flank_length, genome, 0, 0, 0,  bwt_optarg, NULL, 
 			  cal_optarg, bwt_index, metaexons, NULL, NULL, 
-			  NULL, NULL, &sw_input);
+			  NULL, NULL, 0, &sw_input);
 
 
      //--------------------------------------------------------------------------------------

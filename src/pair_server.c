@@ -215,7 +215,7 @@ static void prepare_single_alignments(pair_server_input_t *input, mapping_batch_
 				sw_output->chromosome - 1, 
 				pos,
 				cigar, num_cigar_ops, sw_output->norm_score * 254, 1, (num_items > 1),
-				optional_fields_length, optional_fields, 0, alignment);
+				optional_fields_length, optional_fields, alignment);
 
       array_list_insert(alignment, alignment_list);
 

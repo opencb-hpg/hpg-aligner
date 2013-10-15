@@ -538,7 +538,7 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
 	
 	//printf("Search trans_id: %s\n", trans_id);
 	array_list_t *list = cp_hashtable_get(trans, trans_id);
-	
+	if (!list) { printf("TRANSCRIPT %s NOT FOUND\n", trans_id);exit(-1); }
 	//if (array_list_size(list) > 100) { printf("1.ERROR OCURRED %i | %lu\n", array_list_size(list), array_list_size(list)); exit(-1); }
 	//printf("READ %s :\n", bam_line->data);
 	//printf("\t %s : CIGAR(%i): %s\n", trans_id, bam_line->core.n_cigar, cigar);
@@ -644,9 +644,10 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
 void print_result(trie_result_t *result, int log) {
 
   int is_rand, num_reads = array_list_size(id_list);
-
   char *id;
   trie_node_t *node;
+  int num_err = 0;
+
   for (int i = 0; i < num_reads; i++) {
     is_rand = 0;
     id = array_list_get(i, id_list);
@@ -665,6 +666,7 @@ void print_result(trie_result_t *result, int log) {
 	  result->right_sj++;
 	} else {
 	  result->wrong_sj++;
+	  //printf("<<<: %s\n", id);
 	}
 
       } else {
@@ -686,18 +688,24 @@ void print_result(trie_result_t *result, int log) {
 
       result->multi_mapped += node->mapped;
     } else {
+      if (!node->not_mapped) {
+	//printf("%s\n", id);
+	num_err++;
+	//exit(-1);
+      }
       result->not_mapped++;
       if (is_rand) {
 	result->right_not_mapped++;
       } else {
 	result->wrong_not_mapped++;
-	if (++limit_wrong_not_mapped < 5) {
-	  //printf("\twrong not mapped: %s\n", id);
-	}
+	//if (++limit_wrong_not_mapped < 5) {
+	//printf("\twrong not mapped: %s\n", id);
+	  //}
       }
     }
   }
 
+  printf("NUM ERRORS : %i!!\n", num_err);
 
   int total = result->mapped + result->not_mapped;
 

@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "buffers.h"
+#include "timing.h"
 
 #include "commons/commons.h"
 #include "commons/system_utils.h"
@@ -16,10 +18,6 @@
 #include "bioformats/fastq/fastq_file.h"
 #include "bioformats/fastq/fastq_batch.h"
 #include "bioformats/bam/bam_file.h"
-
-#include "buffers.h"
-#include "timing.h"
-
 
 //====================================================================================
 //  structures and prototypes

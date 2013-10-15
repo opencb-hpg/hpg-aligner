@@ -172,6 +172,9 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   free(exact_junctions);
 
 
+  extern FILE *fd_log;
+  fd_log = fopen(log_filename, "w");
+
   LOG_DEBUG("Auto Thread Configuration Done !");
 
   // timing
@@ -256,13 +259,12 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   cal_seeker_input_init(NULL, cal_optarg, NULL, 0, NULL, NULL, genome, 
 			bwt_optarg, bwt_index, metaexons, &cal_input);
   
-  preprocess_rna_input_t preprocess_rna;
-  
+  preprocess_rna_input_t preprocess_rna;  
   preprocess_rna_input_init(options->max_intron_length, options->flank_length, 
 			    options->seeds_max_distance, options->seed_size, genome, 
 			    &preprocess_rna);
 
-  
+  int pair_mode = pair_mng->pair_mode;
   sw_server_input_t sw_input;
   sw_server_input_init(NULL, NULL, 0,  options->match,  
 		       options->mismatch,  options->gap_open, options->gap_extend,  
@@ -270,7 +272,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
 		       options->max_intron_length, options->min_intron_length,  
 		       options->seeds_max_distance,  bwt_optarg, avls_list, 
 		       cal_optarg, bwt_index, metaexons, buffer, buffer_hc, 
-		       f_sa, f_hc, &sw_input);
+		       f_sa, f_hc, pair_mode, &sw_input);
   
 
   pair_server_input_t pair_input;
@@ -344,11 +346,21 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   
   //num_reads_map = 0;
   //num_reads     = 0;
+  extern size_t tot_reads_in;
+  extern size_t tot_reads_out;
+
+  tot_reads_in = 0;
+  tot_reads_out = 0;
   fprintf(stderr, "START WORKWFLOW '1ph'\n");
   workflow_run_with(options->num_cpu_threads, wf_input, wf);
   //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '1ph'\n\n");
   
+  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+
+  tot_reads_in = 0;
+  tot_reads_out = 0;  
   //num_reads_map = 0;
   //num_reads     = 0;
   fprintf(stderr, "START WORKWFLOW '2ph'\n");
@@ -356,16 +368,28 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   workflow_run_with(options->num_cpu_threads, wf_input_file, wf_last);
   //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '2ph'\n\n");
+
+  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
   
-      
   //num_reads_map = 0;
   //num_reads     = 0;
+  tot_reads_in = 0;
+  tot_reads_out = 0;  
   fprintf(stderr, "START WORKWFLOW '3ph'\n");
   rewind(f_hc);
   workflow_run_with(options->num_cpu_threads, wf_input_file_hc, wf_hc);
   //fprintf(stderr, "TOTAL READS MAP %lu / %lu\n", num_reads_map, num_reads);
   fprintf(stderr, "END WORKWFLOW '3ph'\n\n");
   
+  fprintf(stderr, "TOTAL READS PROCESS IN: %lu\n", tot_reads_in);
+  fprintf(stderr, "TOTAL READS PROCESS OUT: %lu\n", tot_reads_out);
+
+  //extern size_t w2_3_r;    
+  //extern size_t w2_r;
+  //extern size_t w3_r;
+  //fprintf(stderr, "w2_r = %lu, w3_r = %lu, w2_3_r = %lu\n", w2_r, w3_r, w2_3_r);
+
   /*options->num_cpu_threads*/
 
   //Write chromosome avls
@@ -422,6 +446,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   wf_input_file_free(wf_input_file);
   wf_input_file_free(wf_input_file_hc);
 
+  
   //avls_list_free();
   batch_free(batch);
 
@@ -430,7 +455,7 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   // end of workflow management
   //--------------------------------------------------------------------------------------
 
-  printf("========== FINAL BUFFER %i =========\n", linked_list_size(buffer));
+  //printf("========== FINAL BUFFER %i =========\n", linked_list_size(buffer));
 
   free(log_filename);
   free(output_filename);

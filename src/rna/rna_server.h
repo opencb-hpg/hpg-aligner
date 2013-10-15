@@ -163,6 +163,4 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch);
 
 int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch);
 
-meta_alignment_t *meta_alignment_new();
-
 #endif

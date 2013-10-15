@@ -6,7 +6,6 @@
 
 #include "buffers.h"
 
-
 //#define MAXLINE 2048
 
 //===================================================================================
@@ -452,15 +451,587 @@ buffer_item_t *buffer_item_new() {
   
 }
 */
-void insert_file_item(fastq_read_t *fq_read, array_list_t *items, FILE *f_sa) {
+
+void alignment_aux_init(alignment_t* alignment, 
+			alignment_aux_t *alignment_aux) {
+  alignment_aux->seq_strand = alignment->seq_strand;
+  alignment_aux->chromosome = alignment->chromosome; 
+  alignment_aux->position = alignment->position;
+  alignment_aux->num_cigar_operations = alignment->num_cigar_operations;
+  alignment_aux->map_quality = alignment->map_quality;
+  alignment_aux->optional_fields_length = alignment->optional_fields_length;
+  alignment_aux->mapping_len = strlen(alignment->sequence);
+  alignment_aux->cigar_len = strlen(alignment->cigar);
+}
+
+
+fastq_read_t *file_read_fastq_reads(size_t *num_items, FILE *fd) {
+
+  size_t sizes_to_read[3], head_len, seq_len;
+  int bytes;
+
+  bytes = fread(sizes_to_read, sizeof(size_t), 3, fd);
+  if (!bytes) { return NULL; }
+
+  head_len   = sizes_to_read[0];
+  seq_len    = sizes_to_read[1];
+  *num_items = sizes_to_read[2];
+
+  int tot_size = head_len + 2*seq_len;
+  char *buffer = (char *)calloc(tot_size + 1, sizeof(char));
+  bytes = fread(buffer, sizeof(char), tot_size, fd);
+  if (!bytes) { 
+    free(buffer);    
+    return NULL; 
+  }
+
+  char *id = (char *)calloc(head_len + 1, sizeof(char));
+  memcpy(id, buffer, head_len);
+  //printf("ID : %s\n", id);
+
+  char *sequence = (char *)calloc(seq_len + 1, sizeof(char));  
+  memcpy(sequence, &buffer[head_len], seq_len);
+  //printf("SEQ: %s\n", sequence);
+
+  char *quality = (char *)calloc(seq_len + 1, sizeof(char));  
+  memcpy(quality, &buffer[head_len + seq_len], seq_len);
+  //printf("QUA: %s\n", quality);
+  
+  fastq_read_t *fq_read = fastq_read_new(id, sequence, quality);
+
+  free(buffer);
+  free(id);
+  free(sequence);
+  free(quality);
+
+
+  return fq_read;
+
+}
+
+int file_read_cals(size_t num_items, array_list_t *list, 
+		   fastq_read_t *fq_read, FILE *fd) {
+
+  if (num_items == 0) { return 0; }
+
+  int bytes;
+  bwt_anchor_t bwt_anchors[num_items];
+  bytes = fread(bwt_anchors, sizeof(bwt_anchor_t), num_items, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+  
+  for (int i = 0; i < num_items; i++) {
+    //printf("[%i:%lu-%lu]\n", bwt_anchors[i].chromosome, bwt_anchors[i].start, bwt_anchors[i].end);
+    size_t seed_size = bwt_anchors[i].end - bwt_anchors[i].start;
+    cal_t *cal;
+    if (bwt_anchors[i].type == FORWARD_ANCHOR) {
+      cal = (cal_t *)convert_bwt_anchor_to_CAL(&bwt_anchors[i], 0, seed_size);
+    } else {
+      cal = (cal_t *)convert_bwt_anchor_to_CAL(&bwt_anchors[i], fq_read->length - seed_size - 1, fq_read->length - 1);
+    }
+    //cal_print(cal);
+    array_list_insert(cal, list); 
+  }  
+  
+  return 0;
+
+}
+
+int file_read_meta_alignments(size_t num_items, array_list_t *list, 
+			      fastq_read_t *fq_read, FILE *fd) {
+
+  if (!num_items) { return 0; }
+
+  simple_alignment_t simple_alignment[num_items];
+  simple_alignment_t *simple_a;
+  int bytes;
+
+  bytes = fread(simple_alignment, sizeof(simple_alignment_t), num_items, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+  
+  size_t cigar_tot_len = 0;
+  for (int i = 0; i < num_items; i++) {
+    simple_a = &simple_alignment[i];
+    //printf("ITEM %i: (%i)[%i:%lu] [%i-%i]\n", i, simple_a->map_strand, simple_a->map_chromosome,
+    //     simple_a->map_start, simple_a->gap_start, simple_a->gap_end);
+    cigar_tot_len += simple_a->cigar_len;
+  }
+    
+  char cigar_buffer[cigar_tot_len];
+  bytes = fread(cigar_buffer, sizeof(char), cigar_tot_len, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+
+  char cigars_test[num_items][1024];
+  size_t actual_read = 0;
+  for (int i = 0; i < num_items; i++) {
+    simple_a = &simple_alignment[i];
+    memcpy(&cigars_test[i], &cigar_buffer[actual_read], simple_a->cigar_len);
+    cigars_test[i][simple_a->cigar_len] = '\0';
+    actual_read += simple_a->cigar_len;
+    //printf("CIGAR %i: %s\n", i, cigars_test[i]);
+    size_t map_len = fq_read->length - simple_a->gap_start - simple_a->gap_end;
+    //printf("SEED := len_read:%i - gap_read:%i - gap_end:%i = %i, SEED-END = %i\n", fq_read->length, 
+    //     simple_a->gap_start, 
+    //     simple_a->gap_end, 
+    //     map_len, simple_a->gap_start + map_len);
+    seed_region_t *s_region = seed_region_new(simple_a->gap_start, 
+					      simple_a->gap_start + map_len - 1,
+					      simple_a->map_start, 
+					      simple_a->map_start + map_len - 1,
+					      0);
+    
+    //printf("Exit with seed [%i:%i]\n", s_region->read_start, s_region->read_end);
+    
+    linked_list_t *sr_list = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+    //s_region->info = cigar_code_new_by_string(cigars_test[i]);
+    linked_list_insert(s_region, sr_list);
+    
+    cal_t *cal = cal_new(simple_a->map_chromosome, 
+			 simple_a->map_strand,
+			 simple_a->map_start,
+			 simple_a->map_start + map_len - 1,
+			 1,
+			 sr_list,
+			 linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
+    cigar_code_t *cc = cigar_code_new_by_string(cigars_test[i]);
+    cal->info = cc;
+
+    meta_alignment_t *meta_alignment = meta_alignment_new();
+    
+    for (int m = 0; m < array_list_size(cc->ops); m++) {
+      cigar_op_t *op = array_list_get(m, cc->ops);
+      cigar_code_append_new_op(op->number, op->name, meta_alignment->cigar_code);
+      //array_list_insert(cigar_op, ->ops);
+    }
+
+    array_list_insert(cal, meta_alignment->cals_list);
+    array_list_insert(meta_alignment, list);
+
+  }
+
+  return 0;
+}
+
+int file_read_alignments(size_t num_items, array_list_t *list, 
+			 fastq_read_t *fq_read, FILE *fd) {
+
+  if (!num_items) { return 0; }
+
+  //printf("Read file alignment...\n");
+
+  alignment_aux_t alignments_aux[num_items];
+  alignment_aux_t *alignment_a;
+  int bytes;
+
+  bytes = fread(alignments_aux, sizeof(alignment_aux_t), num_items, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+
+  size_t cigar_tot_len = 0;
+  size_t of_tot_len = 0;
+  for (int i = 0; i < num_items; i++) {
+    alignment_a = &alignments_aux[i];
+
+    //printf("CIGAR: %i + %i\n", cigar_tot_len,
+    //	   alignment_a->cigar_len);
+    cigar_tot_len += alignment_a->cigar_len;
+
+    //printf("OF: %i + %i\n", of_tot_len,
+    //	   alignment_a->optional_fields_length);
+    of_tot_len    +=  alignment_a->optional_fields_length;
+
+  }
+
+  char cigar_buffer[cigar_tot_len];
+  bytes = fread(cigar_buffer, sizeof(char), cigar_tot_len, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+
+  uint8_t of_buffer[of_tot_len];
+  bytes = fread(of_buffer, sizeof(uint8_t), of_tot_len, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+
+  char cigars_test[num_items][1024];
+  size_t pos_cigar = 0, pos_of = 0;
+
+  for (int i = 0; i < num_items; i++) {
+    alignment_a = &alignments_aux[i];
+    //printf("alignment_a->optional_fields_length = %i\n", alignment_a->optional_fields_length);
+
+    memcpy(&cigars_test[i], &cigar_buffer[pos_cigar], alignment_a->cigar_len);
+    cigars_test[i][alignment_a->cigar_len] = '\0';
+    pos_cigar += alignment_a->cigar_len;
+    
+    char op;
+    char op_value[1024];
+    int c = 0;
+    int hc_start = 0, hc_end = 0;
+
+    //printf("CIGAR: %s\n", cigars_test[i]);
+
+    for (int j = 0; j < alignment_a->cigar_len; j++) {
+      op = cigars_test[i][j];
+      if (op < 58) {
+	op_value[c++] = op;
+      } else {
+	op_value[c] = '\0';
+	if (op == 'H') {
+	  hc_start = atoi(op_value);
+	}
+	break;
+      }
+    }
+
+    c = 0;
+    if (cigars_test[i][alignment_a->cigar_len - 1] == 'H') {
+      for (int j = alignment_a->cigar_len - 2; j >= 0; j--) {
+	op = cigars_test[i][j];
+	//printf("Process op= %c\n", op);
+	if (op < 58) {
+	  op_value[c++] = op;
+	} else {
+	  op_value[c] = '\0';
+	  int len = strlen(op_value);
+	  char op_val_aux[len];
+	  int pos = len - 1;
+	  //printf("(%i) :: %s\n", len, op_value);
+	  int t = 0;
+	  for (t = 0; t < len; t++) {	    
+	    op_val_aux[t] = op_value[pos - t];
+	  } 
+	  op_val_aux[t] = '\0';
+	  //printf("(%i) :: %s\n", t, op_val_aux);
+	  hc_end = atoi(op_val_aux);
+	  break;
+	}
+      }
+    }
+
+    uint8_t *optional_fields = (uint8_t *)calloc(alignment_a->optional_fields_length, sizeof(uint8_t));
+
+    memcpy(optional_fields, &of_buffer[pos_of], alignment_a->optional_fields_length);
+    //optional_fields[alignment_a->optional_fields_length] = '0';
+    pos_of += alignment_a->optional_fields_length;
+
+    
+    int header_len = strlen(fq_read->id);
+    char header_id[header_len + 1];
+    get_to_first_blank(fq_read->id, header_len, header_id);
+    //char *header_match = (char *)malloc(sizeof(char)*header_len);
+    //memcpy(header_match, header_id, header_len);
+
+    int len_read = fq_read->length - (hc_start + hc_end);
+    
+    //printf("hc_start = %i, hc_end = %i, len_read = %i\n", 
+    //	   hc_start, hc_end, len_read);
+    char *quality = (char *) calloc (len_read + 1, sizeof(char));
+    strncpy(quality, fq_read->quality + hc_start, len_read);
+    
+    char *query = (char *) calloc (len_read + 1, sizeof(char));
+    strncpy(query, fq_read->sequence + hc_start, len_read);
+
+    //Revisar rna_Server get_to_first_blank header copy
+    alignment_t *alignment = alignment_new();
+    alignment_init_single_end(strdup(header_id),
+			      query,
+			      quality,
+			      alignment_a->seq_strand, 
+			      alignment_a->chromosome, 
+			      alignment_a->position,
+			      strdup(cigars_test[i]),
+			      alignment_a->num_cigar_operations,
+			      alignment_a->map_quality, 
+			      1, 
+			      num_items < 1,
+			      alignment_a->optional_fields_length,
+			      optional_fields, 
+			      alignment);
+
+    array_list_insert(alignment, list);
+  }  
+
+  return 0;
+
+}
+
+void file_write_alignments(fastq_read_t *fq_read, array_list_t *items, FILE *fd) {
+  //size_t head_size = strlen(fq_read->id);
+  //size_t seq_size  = fq_read->length;
+
+  size_t num_items = array_list_size(items);
+  //printf("Num items %i\n", num_items);
+  if (num_items <= 0) { return; }
+
+  int tot_len_cigar = 0, tot_len_of = 0;
+  //unsigned char type = ALIGNMENT_TYPE;
+
+  //Write binary file 
+  //[type][size head][size seq][num items][HEAD][SEQUENCE][QUALITY][ALIG 0][ALIG n][CIGAR STR][OF STR]
+  //fwrite(type, sizeof(unsigned char), 1, fd);
+  
+  //size_t items_sizes[3] = {head_size, seq_size, num_items};
+  //[size head][size seq][num items]
+  //fwrite(items_sizes, sizeof(size_t), 3, fd);
+  
+  //[HEAD][SEQUENCE][QUALITY]
+  size_t max_len_cigar = num_items*1024*2;
+  char *buffer_cigar = (char *)malloc(sizeof(char)*max_len_cigar);
+
+  size_t max_len_of = num_items*1024*2;
+  uint8_t *buffer_of = (uint8_t *)malloc(sizeof(uint8_t)*max_len_of);
+ 
+  //memcpy(buffer, fq_read->id, head_size);
+  //memcpy(&buffer[head_size], fq_read->sequence, seq_size);
+  //memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
+  //fwrite(buffer, sizeof(char), total_size, fd);
+
+  alignment_aux_t alignment_aux[num_items];
+  alignment_aux_t *alignment_a;
+
+  memset(alignment_aux, 0, sizeof(alignment_aux_t)*num_items);  
+  for (int i = 0; i < num_items; i++) {
+    alignment_a = &alignment_aux[i];
+    alignment_t *alignment = array_list_get(i, items);
+    alignment_aux_init(alignment, 
+		       alignment_a);     
+
+    int cigar_len = strlen(alignment->cigar);    
+    memcpy(&buffer_cigar[tot_len_cigar], alignment->cigar, cigar_len);
+    tot_len_cigar += cigar_len;
+    
+    if (tot_len_cigar >= max_len_cigar) { 
+      max_len_cigar = max_len_cigar * 2;
+      buffer_cigar = realloc(buffer_cigar, max_len_cigar); 
+    }
+
+    int of_len = alignment->optional_fields_length;
+    //printf("ALig of len = %i\n", of_len);
+    /*memcpy(&buffer_cigar[tot_len_cigar], alignment->optional_fields, of_len);
+    tot_len_cigar += of_len;
+    
+    if (tot_len_cigar >= max_len_cigar) { 
+      max_len_cigar = max_len_cigar * 2;
+      buffer_cigar = realloc(buffer_cigar, max_len_cigar); 
+    }
+    */
+    memcpy(&buffer_of[tot_len_of], alignment->optional_fields, of_len);
+    tot_len_of += of_len;
+    
+    if (tot_len_of >= max_len_of) {
+      max_len_of = max_len_of * 2;
+      buffer_of = realloc(buffer_of, max_len_cigar); 
+    }
+    
+    
+  }
+
+  fwrite(alignment_aux, sizeof(alignment_aux_t), num_items, fd);
+  fwrite(buffer_cigar, sizeof(char), tot_len_cigar, fd);  
+  fwrite(buffer_of, sizeof(uint8_t), tot_len_of, fd);  
+
+  //free(buffer);
+  free(buffer_cigar);  
+
+}
+
+void file_write_meta_alignments(fastq_read_t *fq_read, array_list_t *items, FILE *fd) {
+  //size_t head_size = strlen(fq_read->id);
+  size_t seq_size  = fq_read->length;
+  size_t num_items = array_list_size(items);
+  if (!num_items) { return; }
+
+  size_t max_len = num_items * 1024;
+  char *cigar_buffer = (char *)calloc(max_len, sizeof(char));
+  size_t tot_len = 0;
+
+  simple_alignment_t simple_alignment[num_items];
+  simple_alignment_t *simple_a;
+  //unsigned char type = MENTA_TYPE;
+  //fwrite(type, sizeof(unsigned char), 1, fd);
+
+  memset(simple_alignment, 0, sizeof(simple_alignment_t)*num_items);
+  //[type][size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  for (int i = 0; i < num_items; i++) {
+    meta_alignment_t *meta_alignment = array_list_get(i, items);
+    cal_t *first_cal = array_list_get(0, meta_alignment->cals_list);
+    cal_t *last_cal = array_list_get(meta_alignment->cals_list->size - 1, meta_alignment->cals_list);
+    seed_region_t *first_seed = linked_list_get_first(first_cal->sr_list);
+    seed_region_t *last_seed  = linked_list_get_last(last_cal->sr_list);
+    cigar_code_t *cigar_code = meta_alignment->cigar_code;    
+    char *cigar_str = new_cigar_code_string(cigar_code);
+    int cigar_len = strlen(cigar_str);
+
+    //cal_print(first_cal);
+
+    simple_a = &simple_alignment[i];
+
+    if (meta_alignment->cigar_left !=  NULL) {
+      //printf("LEFT CIGAR: %s\n", new_cigar_code_string(meta_alignment->cigar_left));
+      simple_a->gap_start = 0;
+    } else {
+      simple_a->gap_start = first_seed->read_start;
+    }
+
+    if (meta_alignment->cigar_right !=  NULL) {
+      //printf("RIGHT CIGAR: %s\n", new_cigar_code_string(meta_alignment->cigar_right));
+      simple_a->gap_end = 0;
+    } else {
+      simple_a->gap_end = seq_size - last_seed->read_end - 1;
+    }
+
+    simple_a->map_strand = first_cal->strand;
+    simple_a->map_chromosome = first_cal->chromosome_id;
+    simple_a->map_start = first_cal->start;
+    simple_a->map_distance = cigar_code->distance;
+    simple_a->cigar_len = cigar_len;
+    
+    //printf(" [%i:%lu] INSERT CIGAR(%i): %s\n", simple_a->map_chromosome, 
+    //	   simple_a->map_start, cigar_len, cigar_str);
+
+    memcpy(&cigar_buffer[tot_len], cigar_str, cigar_len);
+    tot_len += cigar_len;
+
+    if (tot_len >= max_len) { 
+      max_len = max_len * 2;
+      cigar_buffer = realloc(cigar_buffer, max_len); 
+    }
+
+  }
+
+  //Write binary file 
+  //[size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  //size_t items_sizes[3] = {head_size, seq_size, num_items};
+
+  //[size head][size seq][num items]
+  //fwrite(items_sizes, sizeof(size_t), 3, fd);
+  
+  //[HEAD][SEQUENCE][QUALITY]
+  //size_t total_size = head_size + 2*seq_size;
+  //char *buffer = (char *)malloc(sizeof(char)*total_size);
+  //size_t total_size = head_size + 2*seq_size;
+  
+  //memcpy(buffer, fq_read->id, head_size);
+  //memcpy(&buffer[head_size], fq_read->sequence, seq_size);
+  //memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
+
+  //fwrite(buffer, sizeof(char), total_size, fd);  
+  fwrite(simple_alignment, sizeof(simple_alignment_t), num_items, fd);
+  fwrite(cigar_buffer, sizeof(char), tot_len, fd);  
+
+  //free(buffer);
+  free(cigar_buffer);
+}
+
+void file_write_cals(fastq_read_t *fq_read, array_list_t *items, FILE *fd) {
+  //size_t head_size = strlen(fq_read->id);
+  //size_t seq_size  = fq_read->length;
+  size_t num_items = array_list_size(items);
+  if (!num_items) { return; }
+  //Write binary file 
+  //[type][size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  //size_t items_sizes[3] = {head_size, seq_size, num_items};
+
+  //[size head][size seq][num items]
+  //fwrite(items_sizes, sizeof(size_t), 3, fd);
+  
+  //[HEAD][SEQUENCE][QUALITY]
+  //size_t total_size = head_size + 2*seq_size;
+  //char *buffer = (char *)malloc(sizeof(char)*total_size);
+  
+  //memcpy(buffer, fq_read->id, head_size);
+  //memcpy(&buffer[head_size], fq_read->sequence, seq_size);
+  //memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
+  //fwrite(buffer, sizeof(char), total_size, fd);
+  
+  bwt_anchor_t bwt_anchor[num_items];
+  memset(bwt_anchor, 0, sizeof(bwt_anchor_t)*num_items);
+
+  for (int i = 0; i < num_items; i++) {
+    cal_t *cal = array_list_get(i, items);
+    //cal_print(cal);
+    bwt_anchor[i].strand     = cal->strand;
+    bwt_anchor[i].chromosome = cal->chromosome_id - 1;
+    bwt_anchor[i].start      = cal->start;
+    bwt_anchor[i].end        = cal->end;//cal->start + (cal->end - cal->start);
+    seed_region_t *seed = linked_list_get_first(cal->sr_list);
+    if (seed->read_start == 0) {
+      bwt_anchor[i].type = FORWARD_ANCHOR;
+    } else {
+      bwt_anchor[i].type = BACKWARD_ANCHOR;
+    }
+  }
+
+  fwrite(bwt_anchor, sizeof(bwt_anchor_t), num_items, fd);
+  
+  //free(buffer);  
+  
+}
+
+void file_write_fastq_read(fastq_read_t *fq_read, size_t num_items, FILE *fd) {
+  size_t head_size = strlen(fq_read->id);
+  size_t seq_size  = fq_read->length;
+
+  //Write binary file 
+  //[type][size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  size_t items_sizes[3] = {head_size, seq_size, num_items};
+  //printf("NUM items %i\n", num_items);
+  //printf("Insert-id  (%i): %s\n", head_size, fq_read->id);
+  //printf("Insert-seq (%i): %s\n", seq_size, fq_read->sequence);
+  //printf("Insert-qua (%i): %s\n", seq_size, fq_read->quality);
+
+  //[size head][size seq][num items]
+  fwrite(items_sizes, sizeof(size_t), 3, fd);
+  //fwrite(&head_size, sizeof(size_t), 1, f_sa);
+  //fwrite(&seq_size,  sizeof(size_t), 1, f_sa);
+  //fwrite(&num_items, sizeof(size_t), 1, f_sa);
+  
+  //[HEAD][SEQUENCE][QUALITY]
+  size_t total_size = head_size + 2*seq_size;
+  char *buffer = (char *)malloc(sizeof(char)*total_size);
+  
+  memcpy(buffer, fq_read->id, head_size);
+  memcpy(&buffer[head_size], fq_read->sequence, seq_size);
+  memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
+
+  fwrite(buffer, sizeof(char), total_size, fd);
+
+  free(buffer);
+
+}
+
+void file_write_items(fastq_read_t *fq_read, array_list_t *items, 
+		      unsigned char data_type, FILE *fd1, FILE *fd2,
+		      int mode) {
+  FILE *fd;
+
+  if (mode == 0) {
+    fd = fd1;
+  } else {
+    fd = fd2;
+  }
+
+  fwrite(&data_type, sizeof(unsigned char), 1, fd);
+  file_write_fastq_read(fq_read, array_list_size(items), fd);
+
+  if (data_type == CAL_TYPE) {
+    //printf("======= INSERT CAL ITEMS (%i) ========\n", array_list_size(items));
+    file_write_cals(fq_read, items, fd);
+  } else if (data_type == META_ALIGNMENT_TYPE) {
+    //printf("======= INSERT META ALIGNMENTS ITEMS (%i) ========\n", array_list_size(items));
+    file_write_meta_alignments(fq_read, items, fd);    
+  } else {
+    //printf("======= INSERT ALIGNMENTS ITEMS (%i) ========\n", array_list_size(items));
+    file_write_alignments(fq_read, items, fd);    
+  }
+  
+}
+
+/*
+void insert_file_item (fastq_read_t *fq_read, array_list_t *items, FILE *f_sa) {
   size_t head_size = strlen(fq_read->id);
   size_t seq_size  = fq_read->length;
   size_t num_items = array_list_size(items);
 
   //Write binary file 
-  //[size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
+  //[type][size head][size seq][num items][HEAD][SEQUENCE][QUALITY][CAL 0][CAL n]
   size_t items_sizes[3] = {head_size, seq_size, num_items};
-
   //printf("NUM items %i\n", num_items);
   //printf("Insert-id  (%i): %s\n", head_size, fq_read->id);
   //printf("Insert-seq (%i): %s\n", seq_size, fq_read->sequence);
@@ -481,11 +1052,6 @@ void insert_file_item(fastq_read_t *fq_read, array_list_t *items, FILE *f_sa) {
   memcpy(&buffer[head_size], fq_read->sequence, seq_size);
   memcpy(&buffer[head_size + seq_size], fq_read->quality, seq_size);
   fwrite(buffer, sizeof(char), total_size, f_sa);
-  /*
-  fwrite(fq_read->id, sizeof(char), head_size, f_sa);
-  fwrite(fq_read->sequence, sizeof(char), seq_size, f_sa);
-  fwrite(fq_read->quality, sizeof(char), seq_size, f_sa);
-  */
   
   bwt_anchor_t bwt_anchor[num_items];
   memset(bwt_anchor, 0, sizeof(bwt_anchor_t)*num_items);
@@ -510,7 +1076,7 @@ void insert_file_item(fastq_read_t *fq_read, array_list_t *items, FILE *f_sa) {
 
 }
 
-void insert_file_item_2(fastq_read_t *fq_read, array_list_t *items, FILE *f_hc) {
+void insert_file_item_2 (fastq_read_t *fq_read, array_list_t *items, FILE *f_hc) {
   size_t head_size = strlen(fq_read->id);
   size_t seq_size  = fq_read->length;
   size_t num_items = array_list_size(items);

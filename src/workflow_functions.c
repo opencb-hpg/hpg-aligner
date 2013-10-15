@@ -2,6 +2,7 @@
 
 int limit_of_reads = 0;
 int n_insert = 0;
+int tot_reads2 = 0;
 
 //====================================================================================
 
@@ -82,137 +83,306 @@ void *fastq_reader(void *input) {
 
      return new_batch;
 }
+
 /*
-void *buffer_reader(void *input) {
-  wf_input_buffer_t *wf_input = (wf_input_t *) input;
+fastq_read_t *file_fastq_read_new(size_t *num_items, FILE *fd) {
 
-  linked_list_t *buffer = wf_input->buffer;
-  batch_t *batch = wf_input->batch;
-  buffer_item_t *buffer_item;
-  const int MAX_READS = 100;
-  int num_reads = 0;
-  batch_t *new_batch = NULL;
+  size_t sizes_to_read[3], head_len, seq_len;
 
-  if (linked_list_size(buffer) > 0) {
-    array_list_t *reads = array_list_new(MAX_READS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
-    mapping_batch_t *mapping_batch = mapping_batch_new_2(MAX_READS, 
-							 reads,
-							 batch->pair_input->pair_mng);
-    while (num_reads < MAX_READS) {
-      buffer_item = linked_list_remove_last(buffer);
-      if (buffer_item == NULL) { break; }
-      fastq_read_t *read = buffer_item->read;
-      array_list_insert(buffer_item->read, reads);
-      mapping_batch->mapping_lists[num_reads] = array_list_new(50,
-							       1.25f, 
-							       COLLECTION_MODE_ASYNCHRONIZED);
-
-      for (int i = 0; i < array_list_size(buffer_item->items_list); i++) {
-	void *item = array_list_get(i, buffer_item->items_list);
-	array_list_insert(item, mapping_batch->mapping_lists[num_reads]);
-      }
-
-      array_list_set_flag(array_list_get_flag(buffer_item->items_list),
-			  mapping_batch->mapping_lists[num_reads]);
-      num_reads++;
-      //printf("TOTAL READS %i\n", num_reads);
-      buffer_item_free(buffer_item);
-    }
-    
-    mapping_batch->num_allocated_targets = num_reads;
-    new_batch = batch_new(batch->bwt_input, batch->region_input, batch->cal_input, 
-			  batch->pair_input, batch->preprocess_rna, batch->sw_input,
-			  batch->writer_input, batch->mapping_mode, mapping_batch); 
+  head_len  = sizes_to_read[0];
+  seq_len   = sizes_to_read[1];
+  *num_items = sizes_to_read[2];
+  
+  int bytes = fread(sizes_to_read, sizeof(size_t), 3, fd);
+  if (!bytes) { return NULL; }
+  
+  int tot_size = head_len + 2*seq_len;
+  buffer = (char *)calloc(tot_size + 1, sizeof(char));
+  bytes = fread(buffer, sizeof(char), tot_size, fd);
+  if (!bytes) { 
+    free(buffer);    
+    return NULL; 
   }
 
+  char *id = (char *)calloc(head_len + 1, sizeof(char));
+  memcpy(id, buffer, head_len);
+  //printf("ID : %s\n", id);
 
-  return new_batch;
+  char *sequence = (char *)calloc(seq_len + 1, sizeof(char));  
+  memcpy(sequence, &buffer[head_len], seq_len);
+  //printf("SEQ: %s\n", sequence);
+
+  char *quality = (char *)calloc(seq_len + 1, sizeof(char));  
+  memcpy(quality, &buffer[head_len + seq_len], seq_len);
+  //printf("QUA: %s\n", quality);
+  
+  fastq_read_t *fq_read = fastq_read_new(id, sequence, quality);
+
+  free(buffer);
+  free(id);
+  free(sequence);
+  free(quality);
+
+
+  return fq_read;
+
+}
+
+int file_cal_fill(size_t num_items, array_list_t *list, FILE *fd) {
+
+  if (!num_items) { return 0; }
+  
+  bwt_anchor_t bwt_anchors[num_items];
+  bytes = fread(bwt_anchors, sizeof(bwt_anchor_t), num_items, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+  
+  for (int i = 0; i < num_items; i++) {
+    //printf("[%i:%lu-%lu]\n", bwt_anchors[i].chromosome, bwt_anchors[i].start, bwt_anchors[i].end);
+    size_t seed_size = bwt_anchors[i].end - bwt_anchors[i].start;
+    cal_t *cal;
+    if (bwt_anchors[i].type == FORWARD_ANCHOR) {
+      cal = convert_bwt_anchor_to_CAL(&bwt_anchors[i], 0, seed_size);
+    } else {
+      cal = convert_bwt_anchor_to_CAL(&bwt_anchors[i], fq_read->length - seed_size - 1, fq_read->length - 1);
+    }
+    array_list_insert(cal, list); 
+  }  
+  
+  return 0;
+
+}
+
+int file_meta_alignment_fill(size_t num_items, array_list_t *list, FILE *fd) {
+
+  if (!num_items) { return 0; }
+
+  simple_alignment_t simple_alignment[num_items];
+  simple_alignment_t *simple_a;
+  
+  bytes = fread(simple_alignment, sizeof(simple_alignment_t), num_items, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+  
+  size_t cigar_tot_len = 0;
+  for (int i = 0; i < num_items; i++) {
+    simple_a = &simple_alignment[i];
+    //printf("ITEM %i: (%i)[%i:%lu] [%i-%i]\n", i, simple_a->map_strand, simple_a->map_chromosome,
+    //     simple_a->map_start, simple_a->gap_start, simple_a->gap_end);
+    cigar_tot_len += simple_a->cigar_len;
+  }
+    
+  char cigar_buffer[cigar_tot_len];
+  bytes = fread(cigar_buffer, sizeof(char), cigar_tot_len, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+
+  char cigars_test[num_items][1024];
+  size_t actual_read = 0;
+  for (int i = 0; i < num_items; i++) {
+    simple_a = &simple_alignment[i];
+    memcpy(&cigars_test[i], &cigar_buffer[actual_read], simple_a->cigar_len);
+    cigars_test[i][simple_a->cigar_len] = '\0';
+    actual_read += simple_a->cigar_len;
+    //printf("CIGAR %i: %s\n", i, cigars_test[i]);
+    size_t map_len = fq_read->length - simple_a->gap_start - simple_a->gap_end;
+    //printf("SEED := len_read:%i - gap_read:%i - gap_end:%i = %i, SEED-END = %i\n", fq_read->length, 
+    //     simple_a->gap_start, 
+    //     simple_a->gap_end, 
+    //     map_len, simple_a->gap_start + map_len);
+    seed_region_t *s_region = seed_region_new(simple_a->gap_start, 
+					      simple_a->gap_start + map_len - 1,
+					      simple_a->map_start, 
+					      simple_a->map_start + map_len,
+					      0);
+    
+    //printf("Exit with seed [%i:%i]\n", s_region->read_start, s_region->read_end);
+    
+    linked_list_t *sr_list = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+    //s_region->info = cigar_code_new_by_string(cigars_test[i]);
+    linked_list_insert(s_region, sr_list);
+    
+    cal_t *cal = cal_new(simple_a->map_chromosome, 
+			 simple_a->map_strand,
+			 simple_a->map_start,
+			 simple_a->map_start + map_len,
+			 1,
+			 sr_list,
+			 linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
+    cal->info = cigar_code_new_by_string(cigars_test[i]);
+    
+    meta_alignment_t *meta_alignment = meta_alignment_new();
+    array_list_insert(cal, meta_alignment->cals_list);
+    array_list_insert(meta_alignment, list);
+  }
+
+  return 0;
+}
+
+int file_alignment_fill(size_t num_items, array_list_t *list, 
+			fastq_read_t *fq_read, FILE *fd) {
+  if (!num_items) { return 0; }
+  
+  alignment_aux_t alignments_aux[num_items];
+  alignment_aux_t *alignment_a;
+  
+  bytes = fread(alignments_aux, sizeof(alignment_aux_t), num_items, fd);
+  if (!bytes) { LOG_FATAL("Corrupt file\n"); }
+
+  size_t cigar_tot_len = 0;
+  for (int i = 0; i < num_items; i++) {
+    alignment_a = &simple_alignment[i];
+    //printf("ITEM %i: (%i)[%i:%lu] [%i-%i]\n", i, simple_a->map_strand, simple_a->map_chromosome,
+    //     simple_a->map_start, simple_a->gap_start, simple_a->gap_end);
+    cigar_tot_len += alignmment_a->cigar_len + alignment_a->optional_field_length;
+  }
+
+  char cigars_test[num_items][1024];
+  char optional_fields[num_items][1024];
+  size_t actual_read = 0;
+  for (int i = 0; i < num_items; i++) {
+    alignment_a = &alignments_aux[i];
+    memcpy(&cigars_test[i], &cigar_buffer[actual_read], alignment_a->cigar_len);
+    cigars_test[i][alignment_a->cigar_len] = '\0';
+    actual_read += simple_a->cigar_len;
+    
+    char op;
+    char op_value[1024];
+    int c = 0;
+    int hc_start = 0, hc_end;
+    for (int j = 0; j < alignment_a->cigar_len; j++) {
+      op = cigars_test[j];
+      if (op < 58) {
+	op_value[c++] = op;
+      } else {
+	op_value[c] = '\0';
+	if (op == 'H') {
+	  hc_start = atoi(op_value);
+	}
+	break;
+      }
+    }
+
+    if (cigars_test[alignment_a->cigar_len - 1] == 'H') {
+      for (int j = alignment_a->cigar_len - 2; j >= 0; j--) {
+	op = cigars_test[j];
+	if (op < 58) {
+	  op_value[c++] = op;
+	} else {
+	  op_value[c] = '\0';
+	  int len = strlen(op_value);
+	  char op_val_aux[len];
+	  int pos = len - 1;
+	  for (int j = 0; j < len; j++) {	    
+	    op_val_aux[j] = op_value[pos - j];
+	  } 
+	  hc_end = atoi(op_val_aux);
+	  break;
+	}
+      }
+    }
+
+    memcpy(&optional_fields[i], &cigar_buffer[actual_read], alignment_a->optional_fields_length);
+    optional_fields[i][alignment_a->optional_fields_length] = '0';
+    actual_read += alignment_a->optional_fields_length;
+
+    int header_len = strlen(fq_read->id);
+    char header_id[header_len + 1];
+    get_to_first_blank(fq_read->id, header_len, header_id);
+    //char *header_match = (char *)malloc(sizeof(char)*header_len);
+    //memcpy(header_match, header_id, header_len);
+
+    int len_read = fq_read->length - (hc_start + hc_end);
+    char *quality = (char *) calloc (len_read + 1, sizeof(char));
+    strncpy(quality, fq_read->quality + hc_start, len_read);
+    char *query = (char *) calloc (len_read + 1, sizeof(char));
+    strncpy(query, fq_read->query + hc_start, len_read);
+
+    //Revisar rna_Server get_to_first_blank header copy
+    alignment_t *alignment = alignment_new();
+    alignment_init_single_end(strdup(header_id),
+			      query,
+			      quality,
+			      alignment_a->seq_strand, 
+			      alignment_a->chromosome, 
+			      alignment_a->position,
+			      strdup(cigars_test[i]),
+			      alignment_a->num_cigar_operations,
+			      alignment_a->map_quality, 
+			      1, 
+			      num_items < 1,
+			      alignment_a->optional_fields_length,
+			      strdup(optional_fields[i]), 
+			      alignment);
+    
+    array_list_insert(alignment, list);
+  }  
+
+  return 0;
+
 }
 */
 void *file_reader(void *input) {
   wf_input_file_t *wf_input = (wf_input_file_t *) input;
   FILE *fd = wf_input->file;
   batch_t *batch = wf_input->batch;
+  int pair_mode = batch->pair_input->pair_mng->pair_mode;
 
   const int MAX_READS = 100;
   int num_reads = 0;
   batch_t *new_batch = NULL;
 
-  size_t sizes_to_read[3], head_len, seq_len, num_items;
   size_t tot_size;
+  size_t num_items;
   char *buffer, *id, *sequence, *quality;
   size_t bytes;
-
+  unsigned char type;
   array_list_t *reads = array_list_new(MAX_READS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   mapping_batch_t *mapping_batch = mapping_batch_new_2(MAX_READS, 
 						       reads,
-						       batch->pair_input->pair_mng);
-  
+						       batch->pair_input->pair_mng);  
   while (1) {
-    //[size head][size seq][num items]
-    bytes = fread(sizes_to_read, sizeof(size_t), 3, fd);
+    //[type][size head][size seq][num items]
+    bytes = fread(&type, sizeof(unsigned char), 1, fd);
     if (!bytes) { break; }
-
-    head_len  = sizes_to_read[0];
-    seq_len   = sizes_to_read[1];
-    num_items = sizes_to_read[2];
+ 
+    fastq_read_t *fq_read = file_read_fastq_reads(&num_items, fd);
+    if (fq_read == NULL) { break; }
     
-    tot_size = head_len + 2*seq_len;
-    //printf("Read Targets: head len = %i, seq_len = %i, num_items = %i, tot size = %i\n", head_len, seq_len, num_items, tot_size);
-    buffer = (char *)calloc(tot_size + 1, sizeof(char));
-
-    id = (char *)calloc(head_len + 1, sizeof(char));
-    sequence = (char *)calloc(seq_len + 1, sizeof(char));
-    quality = (char *)calloc(seq_len + 1, sizeof(char));
-
-    fread(buffer, sizeof(char), tot_size, fd);
-    //printf("buffer (%lu)(%lu):%s\n", bytes, strlen(buffer), buffer);
-    //fread(id, sizeof(char), head_len, fd);
-    memcpy(id, buffer, head_len);
-    //printf("ID : %s\n", id);
-
-    memcpy(sequence, &buffer[head_len], seq_len);
-    //printf("SEQ: %s\n", sequence);
-
-    memcpy(quality, &buffer[head_len + seq_len], seq_len);
-    //printf("QUA: %s\n", quality);
-
-    
-    bwt_anchor_t bwt_anchors[num_items];
-    bytes = fread(bwt_anchors, sizeof(bwt_anchor_t), num_items, fd);
-    if (!bytes) { LOG_FATAL("Corrupt file\n"); }
-
-    fastq_read_t *fq_read = fastq_read_new(id, sequence, quality);
-    array_list_insert(fq_read, reads);
-
     mapping_batch->mapping_lists[num_reads] = array_list_new(50,
 							     1.25f, 
 							     COLLECTION_MODE_ASYNCHRONIZED);
-    
-    array_list_set_flag(BITEM_SINGLE_ANCHORS, 
-			mapping_batch->mapping_lists[num_reads]);
-    
-    for (int i = 0; i < num_items; i++) {
-      //printf("[%i:%lu-%lu]\n", bwt_anchors[i].chromosome, bwt_anchors[i].start, bwt_anchors[i].end);
-      size_t seed_size = bwt_anchors[i].end - bwt_anchors[i].start;
-      cal_t *cal;
-      if (bwt_anchors[i].type == FORWARD_ANCHOR) {
-	cal = convert_bwt_anchor_to_CAL(&bwt_anchors[i], 0, seed_size);
-      } else {
-	cal = convert_bwt_anchor_to_CAL(&bwt_anchors[i], fq_read->length - seed_size - 1, fq_read->length - 1);
-      }
-      array_list_insert(cal, mapping_batch->mapping_lists[num_reads]); 
-    }
-    
-    free(buffer);
-    free(id);
-    free(sequence);
-    free(quality);
+    //printf("(num items %i)\nID : %s\nSEQ: %s\nQUA: %s\n", num_items, fq_read->id, fq_read->sequence, fq_read->quality);
 
+    array_list_insert(fq_read, reads);
+    
+    if (type == CAL_TYPE) {
+      //printf("\tCal Report\n");
+      file_read_cals(num_items, mapping_batch->mapping_lists[num_reads], 
+		     fq_read, fd);      
+      array_list_set_flag(BITEM_SINGLE_ANCHORS, 
+			  mapping_batch->mapping_lists[num_reads]);
+    } else if (type == META_ALIGNMENT_TYPE) {
+      //printf("\tMeta Alignments Report\n");
+      array_list_set_flag(BITEM_META_ALIGNMENTS, 
+			  mapping_batch->mapping_lists[num_reads]);
+      file_read_meta_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
+				fq_read, fd);            
+    } else {
+      //printf("\tAlignments Report\n");
+      file_read_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
+			   fq_read, fd);
+    }
+
+    /*if (strcmp("@ENST00000496771@ENSG00000000003@processed_transcript@X@99887538@99891686@-1@KNOWN_518_447_1_0_0_0_4:0:0_3:0:0_3/1",
+	       fq_read->id) == 0) {
+      exit(-1);
+      }*/
+            
     num_reads++;
     if (num_reads >= MAX_READS) { break; }
 
   }
+
+  //w2_r += num_reads;
+  //printf("W2 Reads: %i\n", w2_r);
 
   if (num_reads) {
     mapping_batch->num_allocated_targets = num_reads;
@@ -225,12 +395,14 @@ void *file_reader(void *input) {
   }
 
   return new_batch;
+
 }
 
 void *file_reader_2(void *input) {
   wf_input_file_t *wf_input = (wf_input_file_t *) input;
   FILE *fd = wf_input->file;
   batch_t *batch = wf_input->batch;
+  int pair_mode = batch->pair_input->pair_mng->pair_mode;
   
   const int MAX_READS = 100;
   int num_reads = 0;
@@ -240,7 +412,7 @@ void *file_reader_2(void *input) {
   size_t tot_size;
   char *buffer, *id, *sequence, *quality;
   size_t bytes;
-
+  unsigned char type;
   array_list_t *reads = array_list_new(MAX_READS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   mapping_batch_t *mapping_batch = mapping_batch_new_2(MAX_READS, 
 						       reads,
@@ -248,111 +420,47 @@ void *file_reader_2(void *input) {
   
   while (1) {
     //[size head][size seq][num items]
-    bytes = fread(sizes_to_read, sizeof(size_t), 3, fd);
+    bytes = fread(&type, sizeof(unsigned char), 1, fd);
     if (!bytes) { break; }
+ 
+    //fastq_read_t *fq_read = file_fastq_read_new(&num_items, fd);
+    fastq_read_t *fq_read = file_read_fastq_reads(&num_items, fd);
+    if (fq_read == NULL) { printf("fq NULL\n"); break; }
+    //printf("(num items %i)\nID : %s\nSEQ: %s\nQUA: %s\n", num_items, fq_read->id, fq_read->sequence, fq_read->quality);
 
-    head_len  = sizes_to_read[0];
-    seq_len   = sizes_to_read[1];
-    num_items = sizes_to_read[2];
-    
-    tot_size = head_len + 2*seq_len;
-    //printf("Read Targets: head len = %i, seq_len = %i, num_items = %i, tot size = %i\n", head_len, seq_len, num_items, tot_size);
-    buffer = (char *)calloc(tot_size + 1, sizeof(char));
-
-    id = (char *)calloc(head_len + 1, sizeof(char));
-    sequence = (char *)calloc(seq_len + 1, sizeof(char));
-    quality = (char *)calloc(seq_len + 1, sizeof(char));
-
-    fread(buffer, sizeof(char), tot_size, fd);
-    //printf("buffer (%lu)(%lu):%s\n", bytes, strlen(buffer), buffer);
-    //fread(id, sizeof(char), head_len, fd);
-    memcpy(id, buffer, head_len);
-    //printf("ID : %s\n", id);
-
-    memcpy(sequence, &buffer[head_len], seq_len);
-    //printf("SEQ: %s\n", sequence);
-
-    memcpy(quality, &buffer[head_len + seq_len], seq_len);
-    //printf("QUA: %s\n", quality);
-
-    
-    simple_alignment_t simple_alignment[num_items];
-    simple_alignment_t *simple_a;
-
-    bytes = fread(simple_alignment, sizeof(simple_alignment_t), num_items, fd);
-    if (!bytes) { LOG_FATAL("Corrupt file\n"); }
-
-    fastq_read_t *fq_read = fastq_read_new(id, sequence, quality);
     array_list_insert(fq_read, reads);
-
+    
     mapping_batch->mapping_lists[num_reads] = array_list_new(50,
 							     1.25f, 
 							     COLLECTION_MODE_ASYNCHRONIZED);
-    
-    array_list_set_flag(BITEM_META_ALIGNMENTS,
-			mapping_batch->mapping_lists[num_reads]);
-
-    size_t cigar_tot_len = 0;
-    for (int i = 0; i < num_items; i++) {
-      simple_a = &simple_alignment[i];
-      //printf("ITEM %i: (%i)[%i:%lu] [%i-%i]\n", i, simple_a->map_strand, simple_a->map_chromosome,
-      //     simple_a->map_start, simple_a->gap_start, simple_a->gap_end);
-      cigar_tot_len += simple_a->cigar_len;
-    }
-    
-    char cigar_buffer[cigar_tot_len];
-    bytes = fread(cigar_buffer, sizeof(char), cigar_tot_len, fd);
-    if (!bytes) { LOG_FATAL("Corrupt file\n"); }
-
-    char cigars_test[num_items][1024];
-    size_t actual_read = 0;
-    for (int i = 0; i < num_items; i++) {
-      simple_a = &simple_alignment[i];
-      memcpy(&cigars_test[i], &cigar_buffer[actual_read], simple_a->cigar_len);
-      cigars_test[i][simple_a->cigar_len] = '\0';
-      actual_read += simple_a->cigar_len;
-      //printf("CIGAR %i: %s\n", i, cigars_test[i]);
-      size_t map_len = fq_read->length - simple_a->gap_start - simple_a->gap_end;
-      //printf("SEED := len_read:%i - gap_read:%i - gap_end:%i = %i, SEED-END = %i\n", fq_read->length, 
-      //     simple_a->gap_start, 
-      //     simple_a->gap_end, 
-      //     map_len, simple_a->gap_start + map_len);
-      seed_region_t *s_region = seed_region_new(simple_a->gap_start, 
-						simple_a->gap_start + map_len - 1,
-						simple_a->map_start, 
-						simple_a->map_start + map_len,
-						0);
-
-      //printf("Exit with seed [%i:%i]\n", s_region->read_start, s_region->read_end);
-
-      linked_list_t *sr_list = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
-      //s_region->info = cigar_code_new_by_string(cigars_test[i]);
-      linked_list_insert(s_region, sr_list);
-
-      cal_t *cal = cal_new(simple_a->map_chromosome, 
-			   simple_a->map_strand,
-			   simple_a->map_start,
-			   simple_a->map_start + map_len,
-			   1,
-			   sr_list,
-			   linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
-      cal->info = cigar_code_new_by_string(cigars_test[i]);
-
-      meta_alignment_t *meta_alignment = meta_alignment_new();
-      array_list_insert(cal, meta_alignment->cals_list);
-      array_list_insert(meta_alignment, mapping_batch->mapping_lists[num_reads]);
-
+    if (type == CAL_TYPE) {
+      //exit(-1);
+      //printf("\tCal Report\n");
+      file_read_cals(num_items, mapping_batch->mapping_lists[num_reads], 
+		     fq_read, fd);      
+    } else if (type == META_ALIGNMENT_TYPE) {
+      //printf("\tMeta Alignments Report\n");
+      file_read_meta_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
+				fq_read, fd);            
+      array_list_set_flag(BITEM_META_ALIGNMENTS,
+			  mapping_batch->mapping_lists[num_reads]);    
+    } else {
+      //exit(-1);
+      //printf("\tAlignments Report\n");
+      file_read_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
+			   fq_read, fd);
     }
 
-    free(buffer);
-    free(id);
-    free(sequence);
-    free(quality);
-
+    //printf("W3 file read %i\n", array_list_size(mapping_batch->mapping_lists[num_reads]));
     num_reads++;
     if (num_reads >= MAX_READS) { break; }
 
   }
+
+  tot_reads2 += num_reads;
+  //printf("W3 Reads: %i | %i\n", tot_reads2, num_reads);
+  //w3_r += num_reads;
+  //printf("W3 Reads: %i\n", w3_r);
 
   if (num_reads) {
     mapping_batch->num_allocated_targets = num_reads;
@@ -491,7 +599,7 @@ int bam_writer(void *data) {
 }
 
 //--------------------------------------------------------------------
-
+/*
 int search_hard_clipping(array_list_t *array_list) {
   size_t num_items = array_list_size(array_list);
   alignment_t *alig;
@@ -504,7 +612,7 @@ int search_hard_clipping(array_list_t *array_list) {
     }
   }
   return 0;
-}
+}*/
 
 //--------------------------------------------------------------------
 
@@ -544,7 +652,7 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
   get_to_first_blank(fq_read->id, header_len, id);
   //free(fq_read->id);
   alignment_init_single_end(id, fq_read->sequence, fq_read->quality, 
-			    0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, 0, alig);
+			    0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, alig);
 
   bam1 = convert_to_bam(alig, 33);
   bam_fwrite(bam1, bam_file);
@@ -641,3 +749,51 @@ int post_pair_stage(void *data) {
 }
 
 //--------------------------------------------------------------------
+
+/*
+void *buffer_reader(void *input) {
+  wf_input_buffer_t *wf_input = (wf_input_t *) input;
+
+  linked_list_t *buffer = wf_input->buffer;
+  batch_t *batch = wf_input->batch;
+  buffer_item_t *buffer_item;
+  const int MAX_READS = 100;
+  int num_reads = 0;
+  batch_t *new_batch = NULL;
+
+  if (linked_list_size(buffer) > 0) {
+    array_list_t *reads = array_list_new(MAX_READS, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+    mapping_batch_t *mapping_batch = mapping_batch_new_2(MAX_READS, 
+							 reads,
+							 batch->pair_input->pair_mng);
+    while (num_reads < MAX_READS) {
+      buffer_item = linked_list_remove_last(buffer);
+      if (buffer_item == NULL) { break; }
+      fastq_read_t *read = buffer_item->read;
+      array_list_insert(buffer_item->read, reads);
+      mapping_batch->mapping_lists[num_reads] = array_list_new(50,
+							       1.25f, 
+							       COLLECTION_MODE_ASYNCHRONIZED);
+
+      for (int i = 0; i < array_list_size(buffer_item->items_list); i++) {
+	void *item = array_list_get(i, buffer_item->items_list);
+	array_list_insert(item, mapping_batch->mapping_lists[num_reads]);
+      }
+
+      array_list_set_flag(array_list_get_flag(buffer_item->items_list),
+			  mapping_batch->mapping_lists[num_reads]);
+      num_reads++;
+      //printf("TOTAL READS %i\n", num_reads);
+      buffer_item_free(buffer_item);
+    }
+    
+    mapping_batch->num_allocated_targets = num_reads;
+    new_batch = batch_new(batch->bwt_input, batch->region_input, batch->cal_input, 
+			  batch->pair_input, batch->preprocess_rna, batch->sw_input,
+			  batch->writer_input, batch->mapping_mode, mapping_batch); 
+  }
+
+
+  return new_batch;
+}
+*/

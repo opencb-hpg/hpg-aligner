@@ -19,11 +19,11 @@
 
 #include "bioformats/fastq/fastq_batch_reader.h"
 
+#include "batch_writer.h"
 #include "error.h"
 #include "timing.h"
 #include "buffers.h"
 #include "bwt_server.h"
-#include "batch_writer.h"
 #include "region_seeker.h"
 #include "cal_seeker.h"
 #include "sw_server.h"

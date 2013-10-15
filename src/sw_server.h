@@ -46,6 +46,7 @@ struct sw_server_input {
      unsigned int max_intron_size; /**< Intron max size */
      int min_intron_size; /**< Intron max size */
      unsigned int seed_max_distance;
+     int pair_mode;
 
      // to get inputs and to save outputs
      list_t* sw_list_p;    /**< Pointer to the list that contains the input sequences to align. */
@@ -59,6 +60,7 @@ struct sw_server_input {
      metaexons_t *metaexons;
      linked_list_t *buffer;
      linked_list_t *buffer_hc;
+    
      FILE *f_sa;
      FILE *f_hc;
 };
@@ -92,7 +94,7 @@ void sw_server_input_init(list_t* sw_list_p, list_t* write_list_p, unsigned int 
 			  cal_optarg_t *cal_optarg_p, bwt_index_t *bwt_index_p,
 			  metaexons_t *metaexons, linked_list_t *buffer, 
 			  linked_list_t *buffer_hc, FILE *f_sa, FILE *f_hc, 
-			  sw_server_input_t* input_p);
+			  int pair_mode, sw_server_input_t* input_p);
 
 //====================================================================================
 //  Smith-Waterman channel for SIMD implementation
