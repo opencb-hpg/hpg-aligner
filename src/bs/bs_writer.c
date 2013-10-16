@@ -75,10 +75,12 @@ int bs_writer(void *data) {
     }
   }
 
-  write_bs_context(metil_file, bs_context);
-  //write_context_bs(metil_file, bs_context);
+  // to use with the postprocess
+  //write_bs_context(metil_file, bs_context);
+
   
   /*
+  //write_context_bs(metil_file, bs_context);
   printf("4 FINAL       \t%3lu\tmapp               \t%3lu\tno map (discard) \t%3lu\n",
 	 num_reads, num_mapped_reads, num_reads - num_mapped_reads);
   */
