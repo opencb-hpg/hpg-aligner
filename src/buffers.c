@@ -283,8 +283,12 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 					 COLLECTION_MODE_ASYNCHRONIZED); 
   }
     
-
   p->histogram_sw = (size_t *)calloc(1024, sizeof(size_t));
+
+  // added by PP for bisulfite
+  p->num_targets2 = 0;
+  p->num_to_do2 = 0;
+  p->targets2 = (size_t *) calloc(num_reads, sizeof(size_t));
 
   return p;
 }
@@ -380,9 +384,19 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p->pair_mng) { free(p->pair_mng); }
   if (p->extra_stage_id) { free(p->extra_stage_id); }
   if (p->extra_targets) { free(p->extra_targets); }
+
   if (p->old_mapping_lists) { free(p->old_mapping_lists); }
   if (p->bwt_mappings) free(p->bwt_mappings);
 
+  // added by PP
+  if (p->CT_fq_batch) { array_list_free(p->CT_fq_batch, (void *) fastq_read_free); }
+  if (p->CT_rev_fq_batch) { array_list_free(p->CT_rev_fq_batch, (void *) fastq_read_free); }
+  if (p->GA_fq_batch) { array_list_free(p->GA_fq_batch, (void *) fastq_read_free); }
+  if (p->GA_rev_fq_batch) { array_list_free(p->GA_rev_fq_batch, (void *) fastq_read_free); }
+  if (p->mapping_lists2) { free(p->mapping_lists2); }
+  if (p->targets2) { free(p->targets2); }
+  if (p->bs_status) {free(p->bs_status); }
+  
   free(p);
 }
 
@@ -1287,3 +1301,88 @@ void buffer_item_free(buffer_item_t *buffer_item) {
   
 }
 */
+
+bs_context_t *bs_context_new(size_t num_reads) {
+  bs_context_t *p = (bs_context_t*) calloc(1, sizeof(bs_context_t));
+
+  p->context_CpG = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_CHG = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_CHH = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_MUT = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  /*
+  p->context_bs_CpG = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_bs_CHG = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_bs_CHH = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  p->context_bs_MUT = array_list_bs_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  */
+  return p;
+}
+
+//------------------------------------------------------------------------------------
+
+void bs_context_free(bs_context_t *p) {
+  if (p) {
+    // free lists...
+    /*
+    if (p->context_CpG != NULL) array_list_free(p->context_CpG, NULL);
+    if (p->context_CHG != NULL) array_list_free(p->context_CHG, NULL);
+    if (p->context_CHH != NULL) array_list_free(p->context_CHH, NULL);
+    if (p->context_MUT != NULL) array_list_free(p->context_MUT, NULL);
+    */
+    /*
+    if (p->context_bs_CpG) array_list_bs_free(p->context_bs_CpG, NULL);
+    if (p->context_bs_CHG) array_list_bs_free(p->context_bs_CHG, NULL);
+    if (p->context_bs_CHH) array_list_bs_free(p->context_bs_CHH, NULL);
+    if (p->context_bs_MUT) array_list_bs_free(p->context_bs_MUT, NULL);
+    */
+    free(p);
+  }
+}
+
+//------------------------------------------------------------------------------------
+
+void bs_context_init(bs_context_t *bs_context, size_t num_reads) {
+  /*
+  bs_context->context_CpG = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+  bs_context->context_CHG = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+  bs_context->context_CHH = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+  bs_context->context_MUT = (array_list_t **) calloc(num_reads, sizeof(array_list_t*));
+
+  for (size_t i = 0; i < num_reads; i++) {
+    bs_context->context_CpG[i] = array_list_new(500,
+						1.25f,
+						COLLECTION_MODE_ASYNCHRONIZED);
+    bs_context->context_CHG[i] = array_list_new(500,
+						1.25f,
+						COLLECTION_MODE_ASYNCHRONIZED);
+    bs_context->context_CHH[i] = array_list_new(500,
+						1.25f,
+						COLLECTION_MODE_ASYNCHRONIZED);
+    bs_context->context_MUT[i] = array_list_new(500,
+						1.25f,
+						COLLECTION_MODE_ASYNCHRONIZED);
+  }
+  */
+  
+  bs_context->context_CpG = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_CHG = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_CHH = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_MUT = array_list_new(num_reads, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  
+  /*
+  bs_context->context_CpG = array_list_new(num_reads, 2, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_CHG = array_list_new(num_reads, 2, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_CHH = array_list_new(num_reads, 2, COLLECTION_MODE_ASYNCHRONIZED);
+  bs_context->context_MUT = array_list_new(num_reads, 2, COLLECTION_MODE_ASYNCHRONIZED);
+  */
+  bs_context->CpG_methyl   = 0;
+  bs_context->CpG_unmethyl = 0;
+  bs_context->CHG_methyl   = 0;
+  bs_context->CHG_unmethyl = 0;
+  bs_context->CHH_methyl   = 0;
+  bs_context->CHH_unmethyl = 0;
+  bs_context->MUT_methyl   = 0;
+  bs_context->num_bases    = 0;
+}
+
+//------------------------------------------------------------------------------------

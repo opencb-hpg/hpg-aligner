@@ -623,6 +623,13 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
   for (size_t j = 0; j < num_items; j++) {
     alig = (alignment_t *) array_list_get(j, array_list);
 
+    //printf("\t******** %i(%i)\n", j, num_items);
+    //printf("is null alig->name %i\n", (alig->query_name == NULL));
+    //printf("name = %s\n", alig->query_name);
+    //printf("read = %s\n", alig->sequence);
+    //printf("\t-----> %s\n", alig->cigar);
+    //    alignment_print(alig);
+
     if (alig != NULL) {
       bam1 = convert_to_bam(alig, 33);
       bam_fwrite(bam1, bam_file);
@@ -631,6 +638,7 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
     } else {
       LOG_FATAL_F("alig is NULL, num_items = %lu\n", num_items)
     }
+    //printf("\t**************** %i(%i)\n", j, num_items);
   }
   if (array_list) { array_list_free(array_list, NULL); }
 }
@@ -671,36 +679,56 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
 //--------------------------------------------------------------------
 
 int bwt_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     if (batch->mapping_mode == DNA_MODE) {
-       return apply_bwt(batch->bwt_input, batch);     
-     } else {
-       return apply_bwt_rna(batch->bwt_input, batch);     
-     }
+  if (batch->mapping_mode == DNA_MODE) {
+    return apply_bwt(batch->bwt_input, batch);     
+  } else {
+    return apply_bwt_rna(batch->bwt_input, batch);     
+  }
+}
+
+//--------------------------------------------------------------------
+
+int bwt_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init BWT\n");
+  return apply_bwt_bs(batch->bwt_input, batch);     
 }
 
 //--------------------------------------------------------------------
 
 int seeding_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return apply_seeding(batch->region_input, batch);
+  return apply_seeding(batch->region_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int seeding_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init seeding\n");
+  return apply_seeding_bs(batch->region_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int cal_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
 
-     return apply_caling_rna(batch->cal_input, batch);
-     /*
-     if (batch->mapping_mode == DNA_MODE) {
-       return apply_caling(batch->cal_input, batch);
-     } else {
-       return apply_caling_rna(batch->cal_input, batch);
-     }
-     */
+  return apply_caling_rna(batch->cal_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int cal_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init CAL\n");
+  return apply_caling_bs(batch->cal_input, batch);
 }
 
 //--------------------------------------------------------------------
@@ -714,20 +742,39 @@ int rna_preprocess_stage(void *data) {
 //---------------------------------------------------------------------
 
 int pre_pair_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
-     return apply_pair(batch->pair_input, batch);
+  batch_t *batch = (batch_t *) data;
+
+  return apply_pair(batch->pair_input, batch);
+}
+
+//---------------------------------------------------------------------
+
+int pre_pair_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init pre_pair\n");
+  return apply_pair(batch->pair_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int sw_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
+  batch_t *batch = (batch_t *) data;
      
-     if (batch->mapping_mode == RNA_MODE) {
-       return apply_sw_rna(batch->sw_input, batch);
-     } else {
-       return apply_sw(batch->sw_input, batch);
-     }
+  if (batch->mapping_mode == RNA_MODE) {
+    return apply_sw_rna(batch->sw_input, batch);
+  } else {
+    return apply_sw(batch->sw_input, batch);
+  }
+}
+
+//--------------------------------------------------------------------
+
+int sw_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init SW\n");
+  return apply_sw_bs(batch->sw_input, batch);
 }
 
 //--------------------------------------------------------------------
@@ -747,8 +794,25 @@ int rna_last_hc_stage(void *data) {
 //--------------------------------------------------------------------
 
 int post_pair_stage(void *data) {
-     batch_t *batch = (batch_t *) data;
-     return prepare_alignments(batch->pair_input, batch);
+  batch_t *batch = (batch_t *) data;
+  return prepare_alignments(batch->pair_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int post_pair_stage_bs(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  return prepare_alignments_bs(batch->pair_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int bs_status_stage(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  //printf("Init bs_status\n");
+  return methylation_status_report(batch->sw_input, batch);
 }
 
 //--------------------------------------------------------------------

@@ -32,42 +32,49 @@
  * the Smith-Waterman server function (@see sw_server).
  */
 struct sw_server_input {
-     float match;      /**< Penalty for match. */
-     float mismatch;   /**< Penalty for mismatch. */
-     float gap_open;   /**< Penalty for gap opening. */
-     float gap_extend; /**< Penalty for gap extending. */
-     float min_score;  /**< Minimum normalized score (0..1) for valid alignments. */
-     unsigned int flank_length; /**< Length to extend the CAL region. */
-     unsigned int write_size;   /**< Size of the writing batch (to disk). */
-
-     sw_optarg_t sw_optarg;
-
-     // for RNA 
-     unsigned int max_intron_size; /**< Intron max size */
-     int min_intron_size; /**< Intron max size */
-     unsigned int seed_max_distance;
-     int pair_mode;
-
-     // to get inputs and to save outputs
-     list_t* sw_list_p;    /**< Pointer to the list that contains the input sequences to align. */
-     list_t* alignment_list_p; /**< Pointer to the list that contains the output aligned sequences. */
-     genome_t* genome_p;   /**< Pointer to the genome structure to get the reference sequences. */
-     bwt_optarg_t* bwt_optarg_p;
-     allocate_splice_elements_t *chromosome_avls_p;
-     avls_list_t *avls_list;
-     cal_optarg_t *cal_optarg_p;     /**< cal seeker configuration values */
-     bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
-     metaexons_t *metaexons;
-     linked_list_t *buffer;
-     linked_list_t *buffer_hc;
-    
-     FILE *f_sa;
-     FILE *f_hc;
+  float match;      /**< Penalty for match. */
+  float mismatch;   /**< Penalty for mismatch. */
+  float gap_open;   /**< Penalty for gap opening. */
+  float gap_extend; /**< Penalty for gap extending. */
+  float min_score;  /**< Minimum normalized score (0..1) for valid alignments. */
+  unsigned int flank_length; /**< Length to extend the CAL region. */
+  unsigned int write_size;   /**< Size of the writing batch (to disk). */
+  
+  sw_optarg_t sw_optarg;
+  
+  // for RNA 
+  unsigned int max_intron_size; /**< Intron max size */
+  int min_intron_size; /**< Intron max size */
+  unsigned int seed_max_distance;
+  int pair_mode;
+  
+  // to get inputs and to save outputs
+  list_t* sw_list_p;    /**< Pointer to the list that contains the input sequences to align. */
+  list_t* alignment_list_p; /**< Pointer to the list that contains the output aligned sequences. */
+  genome_t* genome_p;   /**< Pointer to the genome structure to get the reference sequences. */
+  genome_t* genome1_p;  /**< Pointer to the first genome structure to get the reference sequences for bisulfite. */
+  genome_t* genome2_p;  /**< Pointer to the second genome structure to get the reference sequences for bisulfite. */
+  genome_t* genome_or_p;  /**< Pointer to the original genome structure to get the reference sequences for bisulfite. */
+  bwt_optarg_t* bwt_optarg_p;
+  allocate_splice_elements_t *chromosome_avls_p;
+  
+  avls_list_t *avls_list;
+  cal_optarg_t *cal_optarg_p;     /**< cal seeker configuration values */
+  bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
+  metaexons_t *metaexons;
+  linked_list_t *buffer;
+  linked_list_t *buffer_hc;
+  
+  FILE *f_sa;
+  FILE *f_hc;
+  
+  unsigned long long **valuesCT;
+  unsigned long long **valuesGA;
 };
 
 //------------------------------------------------------------------------------------
-void sw_optartg_init(float gap_open, float gap_extend, 
-		     float match, float mismatch, sw_optarg_t *sw_optarg);
+void sw_optarg_init(float gap_open, float gap_extend, 
+		    float match, float mismatch, sw_optarg_t *sw_optarg);
 
 /**
  * @brief Initialization function for the @a sw_server_input_t structure.
@@ -224,6 +231,10 @@ void sw_output_free(sw_output_t *p);
 //--------------------------------------------------------------------------------------
 
 int apply_sw(sw_server_input_t* input, batch_t *batch);
+int apply_sw_bs(sw_server_input_t* input, batch_t *batch);
+void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch);
+
+void fill_matrix(subst_matrix_t subst_matrix, float match, float mismatch, int type, float factor_match, float factor_mismatch);
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------

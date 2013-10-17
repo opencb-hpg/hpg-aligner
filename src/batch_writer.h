@@ -19,6 +19,11 @@
 #include "bioformats/fastq/fastq_batch.h"
 #include "bioformats/bam/bam_file.h"
 
+#include "buffers.h"
+#include "timing.h"
+
+#include "bs/methylation.h"
+
 //====================================================================================
 //  structures and prototypes
 //====================================================================================
@@ -42,6 +47,9 @@ struct batch_writer_input {
   size_t total_mappings;
   size_t num_mapped_reads;
   size_t limit_print;
+
+  // for methylation only
+  metil_file_t *metil_file;
 };
 
 //------------------------------------------------------------------------------------
