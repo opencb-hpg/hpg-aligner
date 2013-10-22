@@ -9,7 +9,10 @@
 #include "timing.h"
 #include "statistics.h"
 #include "commons/log.h"
+
 #include "breakpoint.h"
+
+#include "bs/array_list_bs.h"
 
 //#include "bwt_server.h"
 //#include "rna/rna_server.h"
@@ -42,6 +45,16 @@
 
 #define BWT_STAGE               0
 #define CONSUMER_STAGE         -1
+
+
+// added by PP
+#define BS_BWT_STAGE            0
+#define BS_SEEDING_STAGE        1
+#define BS_CAL_STAGE            2
+#define BS_PRE_PAIR_STAGE       3
+#define BS_SW_STAGE             4
+#define BS_POST_PAIR_STAGE      5
+#define BS_STATUS_STAGE         6
 
 //--------  DEFINE WORKFLOW DNA VARS  -----------
 
@@ -76,6 +89,8 @@
 
 #define DNA_MODE           0
 #define RNA_MODE           1
+// added by PP
+#define BS_MODE            2
 
 //------------------------------------------------------------------------------------
 
@@ -88,6 +103,8 @@
 #define PAIR2_FLAG        64
 #define WRITE_ITEM_FLAG  128
 #define SW_ITEM_FLAG     256
+// added by PP
+#define BS_FLAG          512
 
 //------------------------------------------------------------------------------------
 
@@ -97,8 +114,8 @@
 
 //------------------------------------------------------------------------------------
 
-#define PAIR_1 1
-#define PAIR_2 2
+#define PAIR_1   1
+#define PAIR_2   2
 #define PAIR_1_2 3
 
 //------------------------------------------------------------------------------------
@@ -277,6 +294,36 @@ void pair_mng_free(pair_mng_t *p);
 
 //=====================================================================================
 
+// Added by PP
+//====================================================================================
+
+typedef struct bs_context {
+  size_t CpG_methyl;                 /**< Partial Counter for methylated Cytosines in CpG context   */
+  size_t CpG_unmethyl;               /**< Partial Counter for unmethylated Cytosines in CpG context */
+  size_t CHG_methyl;                 /**< Partial Counter for methylated Cytosines in CHG context   */
+  size_t CHG_unmethyl;               /**< Partial Counter for unmethylated Cytosines in CpG context */
+  size_t CHH_methyl;                 /**< Partial Counter for methylated Cytosines in CHH context   */
+  size_t CHH_unmethyl;               /**< Partial Counter for unmethylated Cytosines in CpG context */
+  size_t MUT_methyl;                 /**< Partial Counter for mutated Cytosines                     */
+  size_t num_bases;                  /**< Partial Counter for number of bases in the batch          */
+  array_list_t *context_CpG;             /**< Array with the sequences from CpG context to write */
+  array_list_t *context_CHG;             /**< Array with the sequences from CHG context to write */
+  array_list_t *context_CHH;             /**< Array with the sequences from CHH context to write */
+  array_list_t *context_MUT;             /**< Array with the sequences from mutations to write   */
+
+  array_list_bs_t *context_bs_CpG;             /**< Array with the sequences from CpG context to write */
+  array_list_bs_t *context_bs_CHG;             /**< Array with the sequences from CHG context to write */
+  array_list_bs_t *context_bs_CHH;             /**< Array with the sequences from CHH context to write */
+  array_list_bs_t *context_bs_MUT;             /**< Array with the sequences from mutations to write   */
+} bs_context_t;
+
+bs_context_t *bs_context_new(size_t num_reads);
+void bs_context_free(bs_context_t *bs_context);
+
+void bs_context_init(bs_context_t * bs_context, size_t num_reads);
+
+//====================================================================================
+
 typedef struct mapping_batch {
   int action;
   size_t num_targets;
@@ -301,6 +348,22 @@ typedef struct mapping_batch {
   unsigned char *bwt_mappings;
 
   size_t *histogram_sw;
+
+  // bs handling
+  size_t num_targets2;
+  size_t num_to_do2;
+  size_t *targets2;
+
+  array_list_t **mapping_lists2;
+  array_list_t *CT_fq_batch;
+  array_list_t *GA_fq_batch;
+
+  array_list_t *CT_rev_fq_batch;
+  array_list_t *GA_rev_fq_batch;
+
+  array_list_t *bs_status;
+  bs_context_t *bs_context;
+  //  bs_context_t bs_context;
 } mapping_batch_t;
 
 mapping_batch_t *mapping_batch_new_2(size_t num_reads, array_list_t *fq_batch, pair_mng_t *pair_mng);

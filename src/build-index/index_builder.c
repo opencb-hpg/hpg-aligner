@@ -24,28 +24,48 @@ void check_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio
 //------------------------------------------------------------------------------------
 
 void help_index_builder() {
-     printf("./hpg-aligner build-index -[i|--bwt-index=<directory>] [-g|--ref-genome=<file>] [--index-ratio=<int>]\n");
-     printf("-i, --bwt-index=<directory>\t\tBWT directory name\n");
+     printf("./hpg-aligner build-index -[i|--bwt-index=<directory>] [-g|--ref-genome=<file>] [--index-ratio=<int>] [-bs|--bisulphite-index]\n");
+     printf("-i, --bwt-index=<directory>\tBWT directory name\n");
      printf("-g, --ref-genome=<file>\t\tReference genome\n");
      printf("-r, --index-ratio=<int>\t\tBWT index ratio of compression\n");
+     printf("-bs, --bisulphite-index\t\tIndicates the generation of index for bisulphite case\n");
      exit(0);
 }
 
 //------------------------------------------------------------------------------------
 
 void run_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio) {
-     
+
      check_index_builder(genome_filename, bwt_dirname, bwt_ratio);
 
      char binary_filename[strlen(bwt_dirname) + 128];
      sprintf(binary_filename, "%s/dna_compression.bin", bwt_dirname);
-     
+
      LOG_DEBUG("Compressing reference genome...\n");
      generate_codes(binary_filename, genome_filename);
      LOG_DEBUG("...done !\n");
-     
+
      LOG_DEBUG("Building BWT index...\n");
      bwt_generate_index_files(genome_filename, bwt_dirname, bwt_ratio);
+     LOG_DEBUG("...done !\n");
+}
+
+//------------------------------------------------------------------------------------
+
+void run_index_builder_bs(char *genome_filename, char *bwt_dirname, int bwt_ratio, char *bases) {
+
+     printf("Index %s\n", bases);
+     check_index_builder(genome_filename, bwt_dirname, bwt_ratio);
+
+     char binary_filename[strlen(bwt_dirname) + 128];
+     sprintf(binary_filename, "%s/dna_compression.bin", bwt_dirname);
+
+     LOG_DEBUG("Compressing reference genome...\n");
+     generate_codes(binary_filename, genome_filename);
+     LOG_DEBUG("...done !\n");
+
+     LOG_DEBUG("Building BWT index...\n");
+     bwt_generate_index_files_bs(genome_filename, bwt_dirname, bwt_ratio, bases);
      LOG_DEBUG("...done !\n");
 }
 

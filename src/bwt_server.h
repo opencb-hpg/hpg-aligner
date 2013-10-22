@@ -6,6 +6,7 @@
 
 #include "buffers.h"
 #include "pair_server.h"
+#include "bs/methylation.h"
 
 //====================================================================================
 //  structures and prototypes
@@ -26,6 +27,7 @@ struct bwt_server_input {
   list_t* unmapped_read_list_p;   /**< list for store batches with the reads no mapped */
   bwt_index_t *bwt_index_p;       /**< structure where were stored burrows wheeler transform index */
   metaexons_t *metaexons;
+  bwt_index_t *bwt_index2_p;      /**< structure where were stored burrows wheeler transform index */
   report_optarg_t *report_optarg;
   sw_optarg_t *sw_optarg;
   genome_t *genome;
@@ -74,6 +76,8 @@ int apply_bwt(bwt_server_input_t* input, batch_t *batch_p);
 int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch);
 
 //int first_phase(bwt_server_input_t* input, batch_t *batch);
+
+int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch_p);
 
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------

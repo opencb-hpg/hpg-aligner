@@ -42,9 +42,14 @@
 #define MINIMUM_BATCH_SIZE              10000
 #define DEFAULT_FILTER_READ_MAPPINGS    50
 #define DEFAULT_FILTER_SEED_MAPPINGS    500
+//new variable for default uses
+#define DEFAULT_NUCLEOTIDES             "ACGT"
+#define DEFAULT_FILTER_READ_MAPPINGS_BS 100
+#define DEFAULT_FILTER_SEED_MAPPINGS_BS 500
 //=====================================================================
 
-#define NUM_OPTIONS			45
+//#define NUM_OPTIONS			45
+#define NUM_OPTIONS			46
 
 typedef struct options {
   char mode[64];
@@ -86,6 +91,7 @@ typedef struct options {
   int index_ratio;
   int filter_read_mappings;
   int filter_seed_mappings;
+  int bs_index;
   double min_score;
   double match;
   double mismatch;
@@ -99,6 +105,8 @@ typedef struct options {
   char* output_name;
   char* header_filename;
   char* transcriptome_filename;
+  char* intron_filename;
+  // new variables for bisulphite case
 } options_t;
 
 

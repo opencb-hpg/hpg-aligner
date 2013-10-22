@@ -8,3 +8,7 @@ bin/*
 *kdev*
 .sconsign.dblite
 hpg-aligner*
+launch*
+new_launch*
+*.old
+*.txt
