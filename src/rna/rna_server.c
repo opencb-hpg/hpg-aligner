@@ -2420,7 +2420,15 @@ info_sp_t* sw_reference_splice_junction(cal_t *cal_prev, cal_t *cal_next,
 
   strcat(reference_prev, reference_next);
 
-  if (read_start > read_end) { LOG_FATAL_F("READ COORDS ERROR %s\n", query_map); }
+  if (read_start > read_end) {
+    int aux_start = read_end;
+    read_start = read_end;
+    read_end = aux_start;
+  } else if (read_start == read_end) {
+    LOG_FATAL("ERROR COORDS FUSION\n");
+  }
+
+  //if (read_start > read_end) { LOG_FATAL_F("READ COORDS ERROR %s\n", query_map); }
   //printf("Read %i-%i: %s\n", read_start, read_end, query_map);
 
   read_gap = read_end - read_start + 1;
@@ -4374,21 +4382,16 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   //float *cals_score = (float *)calloc(100, sizeof(float));
   float score;
   char reference[2048];
-  char reference_prev[2048];
-  char reference_next[2048];
-  char reference_aux[2048];
+  //char reference_prev[2048];
+  //char reference_next[2048];
+  //char reference_aux[2048];
   char query[2048];
-  char query_revcomp[2048];
+  //char query_revcomp[2048];
   alignment_t *alignment;
   char q[2048];
   char r[2048];
 
   char **rev_comp = (char **)calloc(num_reads, sizeof(char *));
-
-  fusion_coords_t *extrem_coords[2*40*mapping_batch->num_allocated_targets];
-  fusion_coords_t *sp_coords[2*40*mapping_batch->num_allocated_targets];
-  cigar_code_t *extrem_cigars[2*40*mapping_batch->num_allocated_targets];
-  cigar_code_t *sp_cigars[2*40*mapping_batch->num_allocated_targets];
 
   char *sequence;
   char *query_ref;
@@ -5695,21 +5698,21 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
   //float *cals_score = (float *)calloc(100, sizeof(float));
   float score;
   char reference[2048];
-  char reference_prev[2048];
-  char reference_next[2048];
-  char reference_aux[2048];
+  //char reference_prev[2048];
+  //char reference_next[2048];
+  //char reference_aux[2048];
   char query[2048];
-  char query_revcomp[2048];
+  //char query_revcomp[2048];
   alignment_t *alignment;
   char q[2048];
   char r[2048];
 
   char **rev_comp = (char **)calloc(num_reads, sizeof(char *));
 
-  fusion_coords_t *extrem_coords[2*40*num_reads];
-  fusion_coords_t *sp_coords[2*40*num_reads];
-  cigar_code_t *extrem_cigars[2*40*num_reads];
-  cigar_code_t *sp_cigars[2*40*num_reads];
+  //fusion_coords_t *extrem_coords[2*40*num_reads];
+  //fusion_coords_t *sp_coords[2*40*num_reads];
+  //cigar_code_t *extrem_cigars[2*40*num_reads];
+  //cigar_code_t *sp_cigars[2*40*num_reads];
 
   char *sequence;
   char *query_ref;
@@ -6951,22 +6954,22 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
   //float *cals_score = (float *)calloc(100, sizeof(float));
   float score;
   char reference[2048];
-  char reference_prev[2048];
-  char reference_next[2048];
-  char reference_aux[2048];
+  //char reference_prev[2048];
+  //char reference_next[2048];
+  //char reference_aux[2048];
   char query[2048];
-  char query_revcomp[2048];
+  // char query_revcomp[2048];
   alignment_t *alignment;
   char q[2048];
   char r[2048];
 
   char **rev_comp = (char **)calloc(num_reads, sizeof(char *));
-
+  /*
   fusion_coords_t *extrem_coords[2*40*mapping_batch->num_allocated_targets];
   fusion_coords_t *sp_coords[2*40*mapping_batch->num_allocated_targets];
   cigar_code_t *extrem_cigars[2*40*mapping_batch->num_allocated_targets];
   cigar_code_t *sp_cigars[2*40*mapping_batch->num_allocated_targets];
-
+  */
   char *sequence;
   char *query_ref;
   char *quality_map, *query_map;
@@ -7139,6 +7142,9 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       cal_t *first_cal = array_list_get(0, fusion_cals);
       cal_t *last_cal = array_list_get(array_list_size(fusion_cals) - 1, fusion_cals);
 
+      //cal_print(first_cal);
+      //cal_print(last_cal);
+
       if (first_cal->strand == 1) {
 	if (!rev_comp[i]) {
 	  rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
@@ -7184,6 +7190,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	//printf("RIGHT CIGAR: %s\n", new_cigar_code_string(cc_right));
 	meta_alignment_insert_cigar(cc_right, CIGAR_ANCHOR_LEFT, 0, meta_alignment);
       }
+
       //SW for complete meta-alignments extrems
       //meta_alignments_list = mapping_batch->mapping_lists[i];
       //for (int j = 0; j < array_list_size(meta_alignments_list); j++) {
@@ -7268,6 +7275,8 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	  
 	  //printf("r_gap = %i, genome_end = %lu, read_end = %i\n", 
 	  //	 r_gap, seed_reg->genome_end + 1, seed_reg->read_end + 1);
+
+	  //cal_print(last_cal);
 	  
 	  genome_start = s_next->genome_end + 1;
 	  genome_end   = genome_start + r_gap - 1;	  
@@ -7278,7 +7287,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	  memcpy(q, query_map + s_next->read_end + 1, r_gap);
 	  q[r_gap] = '\0';
 	  //printf("query     R ::: %s\n", q);
-	  //printf("reference R ::: %s\n", r);
+	  //printf("reference R (%lu-%lu)::: %s\n", genome_start, genome_end, r);
 	  
 	  //New sw item. Storing data...
 	  sw_item = sw_item_new(EXTREM_SW_RIGHT, i, j, j,
@@ -7334,15 +7343,6 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list);
       meta_alignment_close(meta_alignment);
 
-      /*
-      printf("CALS LIST ELEMENTS ALIGNMENTS: \n");
-      array_list_t *fusion_list = meta_alignment->cals_list;
-      for (int tt = 0; tt < array_list_size(fusion_list); tt++) {
-	cal_t *cal = array_list_get(tt, fusion_list);
-	cal_print(cal);
-      }
-      */
-
       if (meta_alignment_get_status(meta_alignment) != META_CLOSE) { 
 	array_list_remove_at(m, meta_alignments_list);
 	//printf("Meta alignment Closed? [-NOT CLOSED-]\n");
@@ -7359,7 +7359,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
     alignments_list = array_list_new(array_list_size(mapping_batch->mapping_lists[i]), 
 				     1.25f, COLLECTION_MODE_ASYNCHRONIZED);
     
-
+    /*
     for (int m = 0; m < array_list_size(meta_alignments_list); m++) {
       meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list);
       float f_score;
@@ -7388,152 +7388,181 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	}
       }
     }
-
+    */
     size_t start_mapping;
-    //    int n_report = array_list_size(meta_alignments_list);//array_list_size(meta_alignments_list) >= 2 ? 2 : array_list_size(meta_alignments_list);
-    int n_report = array_list_size(meta_alignments_list) >= 5 ? 5 : array_list_size(meta_alignments_list);
+    int n_report = array_list_size(meta_alignments_list);//array_list_size(meta_alignments_list) >= 2 ? 2 : array_list_size(meta_alignments_list);
+    //int n_report = array_list_size(meta_alignments_list) >= 5 ? 5 : array_list_size(meta_alignments_list);
+
     for (int m = 0; m < n_report; m++) {
       meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list);
       //printf("REPORT META %i, score = %f\n", m, meta_alignment->f_score);
 
       //printf("Score meta %i\n", meta_alignment->score);
-      int cals_score = meta_alignment_get_cals_score(meta_alignment);
-      int report = 0;
+      //int cals_score = meta_alignment_get_cals_score(meta_alignment);
+      //int report = 0;
       
-      if (cals_score < MIN_SCORE_CAL) {	      
-	if (meta_alignment->score >= 40) {
-	  report = 1;
-	}
-      } else if (meta_alignment->score >= 50) {
-	report = 1;
-      }
-      
+      //if (cals_score < MIN_SCORE_CAL) {	      
+      //if (meta_alignment->score >= 40) {
+      //  report = 1;
+      //}
+      //} else if (meta_alignment->score >= 50) {
+      //report = 1;
+      //}
+    
       //report = 1;
       //first_cal = meta_alignment_get_first_cal(meta_alignment);
       //printf("SCORE (%i)[%i:%lu]: %i\n", first_cal->strand, first_cal->chromosome_id, first_cal->start, meta_alignment->score);
-      if (report) {	
-	//printf("Report...!\n");
-	map = 1;
-	optional_fields_length = 0;
-	optional_fields = NULL;
-	
-	first_cal = meta_alignment_get_first_cal(meta_alignment);
-	if (first_cal->strand == 1) {
-	  if (!rev_comp[i]) {
-	    rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
-	    strcpy(rev_comp[i], fq_read->sequence);
-	    seq_reverse_complementary(rev_comp[i], fq_read->length);
-	  }
-	  query_map = rev_comp[i];
-	} else {
-	  query_map = fq_read->sequence;
+      //if (report) {	
+      //printf("Report...!\n");
+      map = 1;
+      optional_fields_length = 0;
+      optional_fields = NULL;
+      
+      first_cal = meta_alignment_get_first_cal(meta_alignment);
+      if (first_cal->strand == 1) {
+	if (!rev_comp[i]) {
+	  rev_comp[i] = (char *) calloc(fq_read->length + 1, sizeof(char));
+	  strcpy(rev_comp[i], fq_read->sequence);
+	  seq_reverse_complementary(rev_comp[i], fq_read->length);
 	}
+	query_map = rev_comp[i];
+      } else {
+	query_map = fq_read->sequence;
+      }
 
-	cigar_code = meta_alignment->cigar_code;	
-	assert(cigar_code != NULL);       	    
+      cigar_code = meta_alignment->cigar_code;	
+      assert(cigar_code != NULL);       	    
 
-	int dsp = 0;
-	start_mapping = first_cal->start;
-	s_prev = linked_list_get_first(first_cal->sr_list);
-	if (meta_alignment->cigar_left == NULL && 
-	    s_prev->read_start > 0) {
-	  cigar_op_t *op = cigar_op_new(s_prev->read_start, 'H');
-	  array_list_insert_at(0, op, cigar_code->ops);
-	} else {
-	  if (meta_alignment->cigar_left != NULL ) {
-	    //printf("Cigar NULL L\n");
-	    cigar_code_t *cigar_code = meta_alignment->cigar_left;
-	    for (int c = 0; c < cigar_code->ops->size; c++) {
-	      cigar_op_t *op = array_list_get(c, cigar_code->ops);
-	      if (op->name == 'M' ||
-		  op->name == 'N' ||
-		  op->name == 'D') {
-		dsp += op->number;
-	      }
+      int dsp = 0;
+      start_mapping = first_cal->start;
+      s_prev = linked_list_get_first(first_cal->sr_list);
+      if (meta_alignment->cigar_left == NULL && 
+	  s_prev->read_start > 0) {
+	cigar_op_t *op = cigar_op_new(s_prev->read_start, 'H');
+	array_list_insert_at(0, op, cigar_code->ops);
+      } else {
+	if (meta_alignment->cigar_left != NULL ) {
+	  //printf("Cigar NULL L\n");
+	  cigar_code_t *cigar_code = meta_alignment->cigar_left;
+	  for (int c = 0; c < cigar_code->ops->size; c++) {
+	    cigar_op_t *op = array_list_get(c, cigar_code->ops);
+	    if (op->name == 'M' ||
+		op->name == 'N' ||
+		op->name == 'D') {
+	      dsp += op->number;
 	    }
 	  }
 	}
-	
-	start_mapping -= dsp;
-	//printf(" new_start = %lu\n", start_mapping);
-
-	last_cal = array_list_get(array_list_size(meta_alignment->cals_list) - 1, meta_alignment->cals_list);
-	s_next = linked_list_get_last(last_cal->sr_list);
-	//printf("LAST SEED %i, report %i, %p, %p\n", s_next->read_end, fq_read->length - s_next->read_end - 1, s_prev, s_next);
-
-	if (meta_alignment->cigar_right == NULL && 
-	    s_next->read_end < fq_read->length - 1) {
-	  //printf("Cigar NULL R\n");
-	  cigar_op_t *op = cigar_op_new(fq_read->length - s_next->read_end - 1, 'H');
-	  array_list_insert(op, cigar_code->ops);
-	}
-	
-	if (first_cal->strand == 1) {
-	  query_map = rev_comp[i];
-	} else {
-	  query_map = fq_read->sequence;
-	}
-		
-	int h_left, h_right;
-
-	cigar_op_t *first_op = array_list_get(0, cigar_code->ops);
-	if (first_op->name == 'H') {	  
-	  h_left = first_op->number;
-	} else  {
-	  h_left = 0;
-	}
-	
-	cigar_op_t *last_op = array_list_get(array_list_size(cigar_code->ops) - 1, cigar_code->ops);
-	if (last_op->name == 'H') { 
-	  h_right = last_op->number;
-	} else  {
-	  h_right = 0;
-	}
-
-	if (!cigar_code_validate_(fq_read, cigar_code)) {
-	  meta_alignment_complete_free(meta_alignment);
-	  continue;
-	}
-	//printf("FINAL H_LEFT = %i, H_RIGHT = %i\n", h_left, h_right);
-	
-	//if (h_left > fq_read->length || h_left < 0) { exit(-1); }
-	//if (h_left + h_right >= fq_read->length) { continue; }
-	
-	int len_read = fq_read->length - h_left - h_right;
-	//printf("(REAL %i): %s (%i)\n", len_read, query, s);
-	
-	//printf("* * * %s * * *\n", fq_read->id);
-	//fprintf(stderr, "* * * (%i) M E T A    A L I G N M E N T    R E P O R T    %s* * *\n", strlen(query), new_cigar_code_string(cigar_code));
-	alignment = alignment_new();
-	
-	int  header_len = strlen(fq_read->id); 
-	char header_id[header_len + 1];
-	get_to_first_blank(fq_read->id, header_len, header_id);
-	char *header_match = (char *)malloc(sizeof(char)*header_len);
-	if (header_match == NULL) { exit(-1); }
-	memcpy(header_match, header_id, header_len);
-		
-	memcpy(query, &query_map[h_left], len_read);
-	query[len_read] = '\0';
-	
-	memcpy(quality, &fq_read->quality[h_left], len_read);
-	quality[len_read] = '\0';
-	
-	alignment_init_single_end(header_match, 
-				  strdup(query)/*match_seq*/,
-				  strdup(quality)/*match_qual*/,
-				  first_cal->strand, first_cal->chromosome_id - 1, start_mapping - 1,
-				  strdup(new_cigar_code_string(cigar_code))/*strdup(cigar_fake)*/,
-				  cigar_code_get_num_ops(cigar_code)/*1*/,
-				  norm_score * 254, 1, (array_list_size(meta_alignments_list) < 1),
-				  cigar_code->distance, NULL, alignment);
-
-	//printf("Report CIGAR OK!\n");	
-	array_list_insert(alignment, alignments_list);	
-	meta_alignment_complete_free(meta_alignment);
-	  
       }
+	
+      start_mapping -= dsp;
+      //printf(" new_start = %lu\n", start_mapping);
+
+      last_cal = array_list_get(array_list_size(meta_alignment->cals_list) - 1, meta_alignment->cals_list);
+      s_next = linked_list_get_last(last_cal->sr_list);
+      //printf("LAST SEED %i, report %i, %p, %p\n", s_next->read_end, fq_read->length - s_next->read_end - 1, s_prev, s_next);
+
+      if (meta_alignment->cigar_right == NULL && 
+	  s_next->read_end < fq_read->length - 1) {
+	//printf("Cigar NULL R\n");
+	cigar_op_t *op = cigar_op_new(fq_read->length - s_next->read_end - 1, 'H');
+	array_list_insert(op, cigar_code->ops);
+      }
+      
+
+      //Cigar  complete! filter bad alignments by score!
+      //-------------------------------------------------
+
+      //printf("%s: CIGAR : %s\n", fq_read->id, new_cigar_code_string(cigar_code));
+
+      int n_m = 0, n_d = 0, n_i = 0;
+      int tot_dist = cigar_code->distance;
+
+      cigar_op_t *op_a = array_list_get(0, cigar_code->ops);
+      if (op_a->name == 'H') { tot_dist += op_a->number; }
+
+      op_a = array_list_get(array_list_size(cigar_code->ops) - 1, cigar_code->ops);
+      if (op_a->name == 'H') { tot_dist += op_a->number; }
+
+      for (int c = 0; c < cigar_code->ops->size; c++) {
+	cigar_op_t *op = array_list_get(c, cigar_code->ops);
+	if (op->name == 'M') { n_m += op->number; }
+	else if (op->name == 'D') { n_d += op->number; }
+	else if (op->name == 'I') { n_i += op->number; }
+      }
+
+      if (tot_dist > fq_read->length / 2) { continue; }
+
+      //printf("(num ops %i) (dist tot %i | distance %i) NUM MATCHES = %i, NUM_DEL = %i, NUM_INSERT = %i\n", 
+      //     cigar_code->ops->size, tot_dist, cigar_code->distance, n_m, n_d, n_i);
+
+      //-------------------------------------------------
+
+
+      if (first_cal->strand == 1) {
+	query_map = rev_comp[i];
+      } else {
+	query_map = fq_read->sequence;
+      }
+		
+      int h_left, h_right;
+      cigar_op_t *first_op = array_list_get(0, cigar_code->ops);
+      if (first_op->name == 'H') {	  
+	h_left = first_op->number;
+      } else  {
+	h_left = 0;
+      }
+	
+      cigar_op_t *last_op = array_list_get(array_list_size(cigar_code->ops) - 1, cigar_code->ops);
+      if (last_op->name == 'H') { 
+	h_right = last_op->number;
+      } else  {
+	h_right = 0;
+      }
+
+      if (!cigar_code_validate_(fq_read, cigar_code)) {
+	meta_alignment_complete_free(meta_alignment);
+	continue;
+      }
+      //printf("FINAL H_LEFT = %i, H_RIGHT = %i\n", h_left, h_right);
+	
+      //if (h_left > fq_read->length || h_left < 0) { exit(-1); }
+      //if (h_left + h_right >= fq_read->length) { continue; }
+	
+      int len_read = fq_read->length - h_left - h_right;
+      //printf("(REAL %i): %s (%i)\n", len_read, query, s);
+	
+      //printf("* * * %s * * *\n", fq_read->id);
+      //fprintf(stderr, "* * * (%i) M E T A    A L I G N M E N T    R E P O R T    %s* * *\n", strlen(query), new_cigar_code_string(cigar_code));
+      alignment = alignment_new();
+	
+      int  header_len = strlen(fq_read->id); 
+      char header_id[header_len + 1];
+      get_to_first_blank(fq_read->id, header_len, header_id);
+      char *header_match = (char *)malloc(sizeof(char)*header_len);
+      if (header_match == NULL) { exit(-1); }
+      memcpy(header_match, header_id, header_len);
+		
+      memcpy(query, &query_map[h_left], len_read);
+      query[len_read] = '\0';
+	
+      memcpy(quality, &fq_read->quality[h_left], len_read);
+      quality[len_read] = '\0';
+	
+      alignment_init_single_end(header_match, 
+				strdup(query)/*match_seq*/,
+				strdup(quality)/*match_qual*/,
+				first_cal->strand, first_cal->chromosome_id - 1, start_mapping - 1,
+				strdup(new_cigar_code_string(cigar_code))/*strdup(cigar_fake)*/,
+				cigar_code_get_num_ops(cigar_code)/*1*/,
+				norm_score * 254, 1, (array_list_size(meta_alignments_list) < 1),
+				cigar_code->distance, NULL, alignment);
+
+      //printf("Report CIGAR OK!\n");	
+      array_list_insert(alignment, alignments_list);	
+      meta_alignment_complete_free(meta_alignment);	     
     }
+      //}
 
     array_list_free(mapping_batch->mapping_lists[i], NULL);
     mapping_batch->mapping_lists[i] = alignments_list;

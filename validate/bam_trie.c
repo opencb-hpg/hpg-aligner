@@ -154,8 +154,20 @@ cp_trie *rna_dataset_to_trie(char * file, trie_result_t* result) {
     if (buffer[0] != '@') continue;
     
     id = strdup(&buffer[1]);
+
+    id[strlen(id) - 1] = 0;    
+    //id[strlen(id) - 3] = 0;    
+
+    //if (strcmp("ENST00000373020@ENSG00000000003@protein_coding@X@99883667@99891803@-1@KNOWN_583_1002_0_1_0_0_0:0:0_0:0:0_0#0", id) == 0) {
+    //printf("AA\n");
+    //exit(-1);
+    //}
+
+    //printf("CMP: %s\n", "ENST00000373020@ENSG00000000003@protein_coding@X@99883667@99891803@-1@KNOWN_583_1002_0_1_0_0_0:0:0_0:0:0_0#0");
     //printf("1.INSERT TO TRIE (%lu): %s\n",  strlen(id), id);
-    id[strlen(id) - 3] = 0;    
+    //exit(-1);
+    //id[strlen(id) - 3] = 0;    
+   
     // insert tot the list
     //printf("2.INSERT TO TRIE: %s\n", id);
     array_list_insert(id, id_list);
@@ -493,7 +505,7 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
     id[c] = '\0';
 
     if ((node = cp_trie_exact_match(trie, id/*bam1_qname(bam_line)*/)) == NULL)  {
-      printf("id %s not found !!\n", id);
+      printf("id %s not found !! :(\n", id);
       exit(-1);
     }
 
@@ -511,6 +523,8 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
 	
       // set region
       region_trie = (rna_map_region_t *) node->info;
+      if (!region_trie) { continue; }
+
       char *chr_aux = bam_header_p->target_name[bam_line->core.tid];
       if (chr_aux[0] == 'c') {
 	//PATCH for mapSplice v2
@@ -538,7 +552,7 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
 	
 	//printf("Search trans_id: %s\n", trans_id);
 	array_list_t *list = cp_hashtable_get(trans, trans_id);
-	if (!list) { printf("TRANSCRIPT %s NOT FOUND\n", trans_id);exit(-1); }
+	if (!list) { 	  node->right_sj++; printf("TRANSCRIPT %s NOT FOUND\n", trans_id); continue; /*exit(-1);*/ }
 	//if (array_list_size(list) > 100) { printf("1.ERROR OCURRED %i | %lu\n", array_list_size(list), array_list_size(list)); exit(-1); }
 	//printf("READ %s :\n", bam_line->data);
 	//printf("\t %s : CIGAR(%i): %s\n", trans_id, bam_line->core.n_cigar, cigar);
@@ -666,7 +680,7 @@ void print_result(trie_result_t *result, int log) {
 	  result->right_sj++;
 	} else {
 	  result->wrong_sj++;
-	  //printf("<<<: %s\n", id);
+	  printf("<<<: %s\n", id);
 	}
 
       } else {

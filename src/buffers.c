@@ -567,16 +567,29 @@ int file_read_meta_alignments(size_t num_items, array_list_t *list,
     memcpy(&cigars_test[i], &cigar_buffer[actual_read], simple_a->cigar_len);
     cigars_test[i][simple_a->cigar_len] = '\0';
     actual_read += simple_a->cigar_len;
+
+    size_t map_len_genome = 0;
+    cigar_code_t *cc = cigar_code_new_by_string(cigars_test[i]);
+    for (int c = 0; c < cc->ops->size; c++) {
+      cigar_op_t *op = cigar_code_get_op(c, cc);
+      if (op->name == 'M' ||
+	  op->name == 'D' ||
+	  op->name == 'N') {
+	map_len_genome += op->number;
+      }
+    }
     //printf("CIGAR %i: %s\n", i, cigars_test[i]);
-    size_t map_len = fq_read->length - simple_a->gap_start - simple_a->gap_end;
+
+    size_t map_len_read = fq_read->length - simple_a->gap_start - simple_a->gap_end;
+
     //printf("SEED := len_read:%i - gap_read:%i - gap_end:%i = %i, SEED-END = %i\n", fq_read->length, 
-    //     simple_a->gap_start, 
-    //     simple_a->gap_end, 
-    //     map_len, simple_a->gap_start + map_len);
+    //   simple_a->gap_start, 
+    //   simple_a->gap_end, 
+    //   map_len, simple_a->gap_start + map_len);
     seed_region_t *s_region = seed_region_new(simple_a->gap_start, 
-					      simple_a->gap_start + map_len - 1,
+					      simple_a->gap_start + map_len_read - 1,
 					      simple_a->map_start, 
-					      simple_a->map_start + map_len - 1,
+					      simple_a->map_start + map_len_genome - 1,
 					      0);
     
     //printf("Exit with seed [%i:%i]\n", s_region->read_start, s_region->read_end);
@@ -588,11 +601,12 @@ int file_read_meta_alignments(size_t num_items, array_list_t *list,
     cal_t *cal = cal_new(simple_a->map_chromosome, 
 			 simple_a->map_strand,
 			 simple_a->map_start,
-			 simple_a->map_start + map_len - 1,
+			 simple_a->map_start + map_len_genome - 1,
 			 1,
 			 sr_list,
 			 linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
-    cigar_code_t *cc = cigar_code_new_by_string(cigars_test[i]);
+
+    cc->distance = simple_a->map_distance;
     cal->info = cc;
 
     meta_alignment_t *meta_alignment = meta_alignment_new();
