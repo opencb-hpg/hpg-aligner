@@ -30,6 +30,7 @@ struct cal_seeker_input {
   genome_t *genome;
   bwt_optarg_t *bwt_optarg;
   bwt_index_t *index;
+  bwt_index_t *index2;
   metaexons_t *metaexons;
   genome_t *genome2;             /**< second genome for bisulfite */
 };

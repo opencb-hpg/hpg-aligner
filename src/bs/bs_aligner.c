@@ -82,7 +82,8 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   
   cal_seeker_input_t cal_input;
   cal_seeker_input_init(NULL, cal_optarg, NULL, 0, 
-			NULL, NULL, genome1, bwt_optarg, NULL, NULL, &cal_input);
+			NULL, NULL, genome1, bwt_optarg, bwt_index1, NULL, &cal_input);
+  cal_input.index2 = bwt_index2;
   cal_input.genome2 = genome2;
   
   pair_server_input_t pair_input;
@@ -120,10 +121,10 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   
   // workflow definition for the analysis without the postprocess
 
-  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage_bs, 
+  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, cal_stage_bs, 
 						 pre_pair_stage, sw_stage_bs, post_pair_stage_bs};
-  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR"};
-  workflow_set_stages(6, &stage_functions, stage_labels, wf);
+  char *stage_labels[] = {"BWT", "CAL", "PRE PAIR", "SW", "POST PAIR"};
+  workflow_set_stages(5, &stage_functions, stage_labels, wf);
 
   // workflow definition for the analysis with the postprocess
   /*  

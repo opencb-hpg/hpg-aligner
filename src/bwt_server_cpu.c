@@ -687,7 +687,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
     for (int i = 0; i < batch->mapping_batch->num_targets; i++) {
       batch->mapping_batch->bwt_mappings[batch->mapping_batch->targets[i]] = 1;
     }
-    return BS_SEEDING_STAGE;
+    return BS_CAL_STAGE;
   }
 
   //printf("Reads are mapped\n");

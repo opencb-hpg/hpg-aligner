@@ -827,7 +827,8 @@ void fill_matrix(subst_matrix_t subst_matrix, float match, float mismatch, int t
 
 void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
 
-  //printf("\nSTART: apply_sw\n"); 
+  LOG_DEBUG("starting SW"); 
+
   int tid = omp_get_thread_num();
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   cal_t *cal = NULL;
@@ -909,71 +910,13 @@ void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
   //printf("fill matrix 2\n");
   fill_matrix(sw_optarg2.subst_matrix, match, missm, 1, 8, 2);
 
-  /*
-  printf("Matrix Table1\n\tA\tC\tG\tT\tN\nA\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nC\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nG\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nT\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nN\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\n",
-	 sw_optarg1.subst_matrix['A']['A'],
-	 sw_optarg1.subst_matrix['C']['A'],
-	 sw_optarg1.subst_matrix['G']['A'],
-	 sw_optarg1.subst_matrix['T']['A'],
-	 sw_optarg1.subst_matrix['N']['A'],
 
-	 sw_optarg1.subst_matrix['A']['C'],
-	 sw_optarg1.subst_matrix['C']['C'],
-	 sw_optarg1.subst_matrix['G']['C'],
-	 sw_optarg1.subst_matrix['T']['C'],
-	 sw_optarg1.subst_matrix['N']['C'],
+  // fill gaps between seeds
+  fill_gaps(mapping_batch, sw_optarg, genome, 20, 5);
+  merge_seed_regions(mapping_batch);
+  fill_end_gaps(mapping_batch, sw_optarg, genome, 20, 400);
 
-	 sw_optarg1.subst_matrix['A']['G'],
-	 sw_optarg1.subst_matrix['C']['G'],
-	 sw_optarg1.subst_matrix['G']['G'],
-	 sw_optarg1.subst_matrix['T']['G'],
-	 sw_optarg1.subst_matrix['N']['G'],
-
-	 sw_optarg1.subst_matrix['A']['T'],
-	 sw_optarg1.subst_matrix['C']['T'],
-	 sw_optarg1.subst_matrix['G']['T'],
-	 sw_optarg1.subst_matrix['T']['T'],
-	 sw_optarg1.subst_matrix['N']['T'],
-
-	 sw_optarg1.subst_matrix['A']['N'],
-	 sw_optarg1.subst_matrix['C']['N'],
-	 sw_optarg1.subst_matrix['G']['N'],
-	 sw_optarg1.subst_matrix['T']['N'],
-	 sw_optarg1.subst_matrix['N']['N']
-	 );
-
-  printf("Matrix Table2\n\tA\tC\tG\tT\tN\nA\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nC\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nG\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nT\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\nN\t%+.0f\t%+.0f\t%+.0f\t%+.0f\t%+.0f\n\n",
-	 sw_optarg2.subst_matrix['A']['A'],
-	 sw_optarg2.subst_matrix['C']['A'],
-	 sw_optarg2.subst_matrix['G']['A'],
-	 sw_optarg2.subst_matrix['T']['A'],
-	 sw_optarg2.subst_matrix['N']['A'],
-
-	 sw_optarg2.subst_matrix['A']['C'],
-	 sw_optarg2.subst_matrix['C']['C'],
-	 sw_optarg2.subst_matrix['G']['C'],
-	 sw_optarg2.subst_matrix['T']['C'],
-	 sw_optarg2.subst_matrix['N']['C'],
-
-	 sw_optarg2.subst_matrix['A']['G'],
-	 sw_optarg2.subst_matrix['C']['G'],
-	 sw_optarg2.subst_matrix['G']['G'],
-	 sw_optarg2.subst_matrix['T']['G'],
-	 sw_optarg2.subst_matrix['N']['G'],
-
-	 sw_optarg2.subst_matrix['A']['T'],
-	 sw_optarg2.subst_matrix['C']['T'],
-	 sw_optarg2.subst_matrix['G']['T'],
-	 sw_optarg2.subst_matrix['T']['T'],
-	 sw_optarg2.subst_matrix['N']['T'],
-
-	 sw_optarg2.subst_matrix['A']['N'],
-	 sw_optarg2.subst_matrix['C']['N'],
-	 sw_optarg2.subst_matrix['G']['N'],
-	 sw_optarg2.subst_matrix['T']['N'],
-	 sw_optarg2.subst_matrix['N']['N']
-	 );
-  */
+  LOG_FATAL("exiting from SW");
 
   size_t elem_1 = 0, elem_2 = 0;
   
@@ -1434,6 +1377,8 @@ void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
   sw_multi_output_free(output1);
   sw_multi_output_free(output2);
   
+  LOG_DEBUG("end of SW"); 
+
   // go to the next stage
   //printf("END: apply_sw, (%d Smith-Waterman)\n", sw_total);
   //  printf("END: apply_sw, (%d Smith-Waterman, %d valids)\n", total, valids);

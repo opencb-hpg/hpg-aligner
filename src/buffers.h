@@ -49,12 +49,12 @@
 
 // added by PP
 #define BS_BWT_STAGE            0
-#define BS_SEEDING_STAGE        1
-#define BS_CAL_STAGE            2
-#define BS_PRE_PAIR_STAGE       3
-#define BS_SW_STAGE             4
-#define BS_POST_PAIR_STAGE      5
-#define BS_STATUS_STAGE         6
+//#define BS_SEEDING_STAGE        1
+#define BS_CAL_STAGE            1
+#define BS_PRE_PAIR_STAGE       2
+#define BS_SW_STAGE             3
+#define BS_POST_PAIR_STAGE      4
+#define BS_STATUS_STAGE         5
 
 //--------  DEFINE WORKFLOW DNA VARS  -----------
 
