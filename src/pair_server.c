@@ -437,15 +437,15 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  //printf("Item Pair2 %i [chr %i - start %i]\n", j2, chr2, start2);
 	  // computes distance between alignments,
 	  // is a valid distance ?
-	  distance = (start2 > end1 ? start2 - end1 : end1 - start2); // abs                                      
+	  distance = (start2 > end1 ? start2 - end1 : end1 - start2) + 100; // abs                                      
 	  //
-	  //printf("*** chr1: %i == chr2: %i; str1: %i == str2: %i; distance = %lu, min_distance = %i, max_distance = %i, strand1 = %i, strand2 = %i, pair_mode = %i\n",  chr1, chr2, strand1, strand2, distance, min_distance, max_distance, strand1, strand2, pair_mode);
+	  printf("*** chr1: %i == chr2: %i; str1: %i == str2: %i; distance = %lu, min_distance = %i, max_distance = %i, strand1 = %i, strand2 = %i, pair_mode = %i\n",  chr1, chr2, strand1, strand2, distance, min_distance, max_distance, strand1, strand2, pair_mode);
 
 	  if ( (chr1 == chr2) &&
-	       (distance >= min_distance) && (distance <= max_distance) &&
-	       ((strand1 != strand2 && pair_mode == PAIRED_END_MODE) ||
-		(strand1 == strand2 && pair_mode == MATE_PAIR_MODE )   ) ) {
-	       
+	       (distance >= min_distance) && (distance <= max_distance)) { //&&
+	       //((strand1 != strand2 && pair_mode == PAIRED_END_MODE) ||
+	       //(strand1 == strand2 && pair_mode == MATE_PAIR_MODE )   ) ) {
+	    printf("pair!\n");
 	    // order proper pairs by best score
 	    // create the new pair
 	    score = 0.5f * (alig1->map_quality + alig2->map_quality);
@@ -477,6 +477,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
       pair = (pair_t *) linked_list_iterator_curr(pair_list_itr);
       while (pair != NULL) {
 	if (mapped1[pair->index1] == 0 && mapped2[pair->index2] == 0) {
+	  printf(" -- itr --\n");
 	  mapped1[pair->index1] = 1;
 	  mapped2[pair->index2] = 1;
 
@@ -490,6 +491,11 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  alig1->mate_position = alig2->position;
 	  alig1->mate_chromosome = alig2->chromosome;
 	  alig1->template_length = alig2->position - alig1->position;
+	  if (alig1->template_length > 0) {
+	    alig1->template_length += 100;
+	  } else {
+	    alig1->template_length -= 100;
+	  }
      
 	  alig1->is_paired_end = 1;
 	  alig1->is_paired_end_mapped = 1;
@@ -501,6 +507,11 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  alig2->mate_position = alig1->position;
 	  alig2->mate_chromosome = alig1->chromosome;
 	  alig2->template_length = alig1->position - alig2->position;
+	  if (alig2->template_length > 0) {
+	    alig2->template_length += 100;
+	  } else {
+	    alig2->template_length -= 100;
+	  }
 	    
 	  alig2->is_paired_end = 1;
 	  alig2->is_paired_end_mapped = 1;
@@ -805,7 +816,7 @@ void filter_alignments_lists(char report_all,
 
 int apply_pair(pair_server_input_t* input, batch_t *batch) {
 
-  //  printf("START: apply_pair\n"); 
+  printf("START: apply_pair\n"); 
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   char *seq;
   list_t *list = NULL;
@@ -910,12 +921,13 @@ int apply_pair(pair_server_input_t* input, batch_t *batch) {
 
 	  // computes distance between alignments,
 	  // is a valid distance ?
+	  printf("strand = %i, strand = %i\n", strand1, strand2);
 	  distance = (start2 > end1 ? start2 - end1 : end1 - start2); // abs
 	  if ( (chr1 == chr2) &&
-	       (distance >= min_distance) && (distance <= max_distance) &&
-	       ((strand1 != strand2 && pair_mode == PAIRED_END_MODE) ||
-		(strand1 == strand2 && pair_mode == MATE_PAIR_MODE )   ) ) {
-	    
+	       (distance >= min_distance) && (distance <= max_distance)) { //&&
+	       //((strand1 != strand2 && pair_mode == PAIRED_END_MODE) ||
+	       //(strand1 == strand2 && pair_mode == MATE_PAIR_MODE )   ) ) {
+	    printf("Pair!!\n");
 	    mapped1[j1] = 1;
 	    mapped2[j2] = 1;
 	    mapped1_counter++;

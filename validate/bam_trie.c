@@ -154,8 +154,10 @@ cp_trie *rna_dataset_to_trie(char * file, trie_result_t* result) {
     if (buffer[0] != '@') continue;
     
     id = strdup(&buffer[1]);
-    //printf("1.INSERT TO TRIE (%lu): %s\n",  strlen(id), id);
     id[strlen(id) - 3] = 0;    
+    //id[strlen(id) - 1] = 0;    
+    //printf("1.INSERT TO TRIE (%lu): %s\n",  strlen(id), id);
+    //exit(-1);
     // insert tot the list
     //printf("2.INSERT TO TRIE: %s\n", id);
     array_list_insert(id, id_list);
@@ -194,7 +196,73 @@ cp_trie *rna_dataset_to_trie(char * file, trie_result_t* result) {
   return trie;
 }
 
+
+cp_trie *rna_dataset_to_trie_pair(char * file, trie_result_t* result) {
+  char buffer[MAX_DATASET_LINE_LENGTH];
+  const char delimiters[] = "@";
+  char* token = NULL;
+  char* id="";
+  char s;
+  int pos;
+  short int tam;
+  FILE* fd = fopen(file,"r");
+  
+  // Create trie
+  cp_trie *trie = cp_trie_create_trie(COLLECTION_MODE_DEEP, 0, (cp_destructor_fn) trie_node_pair_free);
+
+  rna_map_region_t *region;
+  
+  if(fd == NULL) { // Mejorar esta gestión de errores
+    printf("Fallo al abrir el fichero");
+    return NULL;
+  }
+  
+  while(fgets(buffer,MAX_DATASET_LINE_LENGTH,fd))  {
+    if (buffer[0] != '@') continue;
+    
+    id = strdup(&buffer[1]);
+    //printf("1.INSERT TO TRIE (%lu): %s\n",  strlen(id), id);
+    id[strlen(id) - 3] = 0;    
+    // insert tot the list
+    //printf("2.INSERT TO TRIE: %s\n", id);
+    array_list_insert(id, id_list);
+    
+    if (strstr(id, "rand")) {
+      region = NULL;
+    } else {
+      pos = 0;
+      token = strtok(buffer, delimiters);
+      region = (rna_map_region_t*) calloc(1, sizeof(dna_map_region_t)); 
+      
+      while (token != NULL) {
+	switch (pos) {
+	case 3:
+	  region->chromosome = strdup(&token[0]);
+	  break;
+	case 4:
+	  region->start_position = atoi(token);
+	  break;
+	case 5:
+	  region->end_position = atoi(token);
+	  break;
+	}
+	token = strtok(NULL, delimiters);  
+	pos++;  
+	
+	if (pos > 5) break;
+      }
+    }  
+    //    printf("id: %s\t\t", id); dna_print_region(region); printf("\n");   
+    cp_trie_add(trie, id, trie_node_pair_new((void *)region));      
+  }
+
+  fclose(fd);
+
+  return trie;
+}
+
 //--------------------------------------------------------------------------------------
+
 exon_coords_t *new_exon_coords(int start, int end) {
   exon_coords_t *p = (exon_coords_t *) malloc(sizeof(exon_coords_t));
 
@@ -494,6 +562,7 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
 
     if ((node = cp_trie_exact_match(trie, id/*bam1_qname(bam_line)*/)) == NULL)  {
       printf("id %s not found !!\n", id);
+      //continue;
       exit(-1);
     }
 
@@ -640,6 +709,225 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
   //bam_fclose(bam_file_p);
 }
 
+void rna_intersection_pair(cp_trie *trie, int margin, char *filename, 
+			   trie_result_t *result, cp_hashtable *trans) {
+  int read_bytes; 
+  
+  char id[5000], *prev_id = NULL;
+  trie_node_pair_t *node_pair, *prev_node_pair = NULL;
+  trie_node_t *node, *prev_node = NULL;
+
+  rna_map_region_t region;
+  rna_map_region_t* region_trie = NULL;
+
+  result->margin = margin / 2;
+
+  bam1_t* bam_line = bam_init1();
+
+  // Open bam file for read
+  bam_file_t* bam_file_p =  bam_fopen(filename);
+  
+  //header for BAM file has been done in the opening
+  bam_header_t* bam_header_p = bam_file_p->bam_header_p;
+  char trans_id[1024];
+  char *id_aux;
+  int num_lines;
+
+  while ((read_bytes = bam_read1(bam_file_p->bam_fd, bam_line)) > 0) {
+    //printf("Lines %i\n", num_lines);
+    char *id_aux2 = bam1_qname(bam_line);
+    id_aux = strdup(id_aux2);
+    num_lines++;
+
+    int c = 0;
+    while (c < strlen(id_aux) && id_aux[c] != '/') {
+      id[c] = id_aux[c++];
+    }
+    id[c] = '\0';
+
+    //printf("--> %s\n", id);
+
+    if ((node_pair = cp_trie_exact_match(trie, id/*bam1_qname(bam_line)*/)) == NULL)  {
+      printf("id %s not found !!\n", id);
+      continue;
+      //exit(-1);
+    }
+
+    //printf("Pair coordinates %i, %i, %i, %i\n", bam_line->core.pos, bam_line->core.l_qseq, bam_line->core.mtid, bam_line->core.mpos, bam_line->core.isize);
+
+    //int start_p0 = bam_line->core.pos + 1;
+    int distance = bam_line->core.isize;
+    //printf("Distance %i\n", distance);
+    if (distance == 0) { printf("Distance 0!! Alarm!! %s\n", id); node = node_pair->pair_0;/*continue;*/ }
+    else {
+      if (distance > 0) {
+	node = node_pair->pair_0;
+      } else if (distance < 0) {
+	node = node_pair->pair_1;
+      } else { 
+	printf("ERR CORDS: %i\n", id); exit(-1); 
+      }                 
+    }
+
+    /*    
+    if (start_p0 <= 0 && start_p1 <= 0) { continue; }
+    else {
+    if (start_p0 - start_p1 < 0) {
+	node = node_pair->pair_0;
+	} else if (start_p0 - start_p1 > 0) {
+      node = node_pair->pair_1;
+	} else { 
+	printf("ERR CORDS: %i\n", id); exit(-1); 
+	}
+      }
+    */
+
+    //printf("Pair0 = %i, Pair1 = %i\n", start_p0, start_p1);
+
+    if (bam_line->core.flag == 4) {
+      // unmapped read
+      node->not_mapped++;      
+      if (strstr(id, "rand")) {
+	node->right_not_mapped++;
+      } else {
+	node->wrong_not_mapped++; 
+      }
+    } else {
+      // mapped read
+      node->mapped++;      
+	
+      // set region
+      region_trie = (rna_map_region_t *) node->info;
+      char *chr_aux = bam_header_p->target_name[bam_line->core.tid];
+      if (chr_aux[0] == 'c') {
+	//PATCH for mapSplice v2
+	region.chromosome = strdup(&chr_aux[3]);
+      } else {
+	region.chromosome = strdup(bam_header_p->target_name[bam_line->core.tid]);;
+      }
+      //printf("CHROMOSOME :%s\n", region.chromosome);
+      //exit(-1);      
+
+      region.start_position = bam_line->core.pos + 1;
+      region.end_position = region.start_position + bam_line->core.l_qseq + 1;
+      region.strand = (((uint32_t) bam_line->core.flag) & BAM_FREVERSE) ? 1 : 0;
+      
+      // check the position
+      if (rna_map_region_equal_margin_soft(region_trie, &region, margin)) {
+	node->right_mapped++;
+	uint32_t k;
+	int c = 0;
+	uint32_t *cigar_bam = bam1_cigar(bam_line);
+	char *cigar = convert_to_cigar_string(cigar_bam, bam_line->core.n_cigar);
+	
+	while (id[c] != '@') { trans_id[c] = id[c++]; }
+	trans_id[c] = '\0';
+	
+	//printf("Search trans_id: %s\n", trans_id);
+	array_list_t *list = cp_hashtable_get(trans, trans_id);
+	if (!list) { printf("TRANSCRIPT %s NOT FOUND\n", trans_id);exit(-1); }
+	//if (array_list_size(list) > 100) { printf("1.ERROR OCURRED %i | %lu\n", array_list_size(list), array_list_size(list)); exit(-1); }
+	//printf("READ %s :\n", bam_line->data);
+	//printf("\t %s : CIGAR(%i): %s\n", trans_id, bam_line->core.n_cigar, cigar);
+
+	//Search exon location
+	int found = 0;
+	cigar_code_t *cigar_code = cigar_code_new_by_string(cigar);
+	int genome_start = region.start_position;
+	int genome_end   = region.start_position;
+
+	//printf("First OPs\n");
+	for (int i = 0; i < cigar_code->ops->size; i++) {
+	  cigar_op_t *op = array_list_get(i, cigar_code->ops);
+	  if (op->name == 'M' || op->name == 'D' || 
+	      op->name == 'N' || op->name == 'P' ||
+	      op->name == '=' ) {
+	    genome_end += op->number;
+	  }
+	}
+	//printf("First OPs End %lu\n", array_list_size(list));
+	int found_start = 0, found_end = 0;
+	int i;
+
+	//Search start position in exon
+	for (i = 0; i < array_list_size(list); i++) {
+	  exon_coords_t *coords = array_list_get(i, list); 
+	  //printf("\tSTART: %i :[%lu-%lu]\n", genome_start, coords->start, coords->end);
+	  if (genome_start >= coords->start && genome_start <= coords->end) {
+	    //Found exon!
+	    found_start = coords->start;
+	    break;
+	  }
+	}
+
+	//printf("Genome Start %i: %s\n", genome_start, found_start == 0 ? "NO" : "YES");
+
+	for (; i < array_list_size(list); i++) {
+	  exon_coords_t *coords = array_list_get(i, list); 
+	  //printf("\tEND: %i :[%lu-%lu]\n", genome_end, coords->start, coords->end);
+	  if (genome_end >= coords->start && genome_end <= coords->end) {
+	    found_end = coords->end;
+	    break;
+	  }
+	}
+
+	//printf("Genome End %i: %s\n", genome_end, found_end == 0 ? "NO" : "YES");
+	if (found_end && found_start) {
+	  cigar_op_t *first_op = array_list_get(0, cigar_code->ops);
+	  if (first_op->name == 'S' || 
+	      first_op->name == 'H') {
+	    genome_start -= first_op->number;
+	    if (genome_start < found_start) {
+	      found_start = 0;
+	    }
+	  }
+	  
+	  //printf("Cigar Precision START 'S' & 'H' : %s\n", found_start == 0 ? "NO" : "YES");
+
+	  if (found_start) {
+	    //Search exact start and end position
+	    cigar_op_t *last_op = array_list_get(cigar_code->ops->size - 1, cigar_code->ops);	    
+	    if (last_op->name == 'S' || 
+		last_op->name == 'H') {
+	      genome_end += last_op->number;
+	      if (genome_end > found_end) {
+		found_end = 0;
+	      }
+	    }
+	  }
+
+	  //printf("Cigar Precision END 'S' & 'H' : %s\n", found_end == 0 ? "NO" : "YES");
+
+	}
+	    
+	if (!found_end || !found_start) {
+	  node->wrong_sj++;
+	  //printf("@@@@@ ERROR SPLICE : %s ****\n", bam_line->data);
+	} else {
+	  node->right_sj++; 
+	  //printf("@@@@@ CORRECT SPLICE : %s ****\n", bam_line->data);
+	}	
+
+	free(cigar);
+      } else {
+	char *seq = create_sequence_string(bam_line);
+	node->wrong_mapped++;
+	if (strcmp(region.chromosome, region_trie->chromosome) != 0) {
+	  node->wrong_mapped_chromosome++;
+	}
+	free(seq);
+      }
+      free(region.chromosome);
+    }
+    free(id_aux);
+
+  }
+  
+  // free memory and close file
+  //bam_destroy1(bam_line);
+  //bam_fclose(bam_file_p);
+}
+
 
 void print_result(trie_result_t *result, int log) {
 
@@ -708,6 +996,127 @@ void print_result(trie_result_t *result, int log) {
   printf("NUM ERRORS : %i!!\n", num_err);
 
   int total = result->mapped + result->not_mapped;
+
+  printf("\nU N I Q U E   A L I G N M E N T\n");
+  printf("-------------------------------------\n");
+  printf("\tMargin length: %d\n", (result->margin * 2));
+  printf("\tNum. reads   : %d\n", num_reads);
+  printf("\tNum. mappings: %d\n\n", total);
+  printf("\tMapped: %d (%0.2f %%)\n",result->mapped, 100.0f * result->mapped / total);
+  printf("\t\tRight mapped: %d (%0.2f %%) -> removing random reads: %0.2f %%\n", 
+	 result->right_mapped, 100.0f * result->right_mapped / total, 
+	 100.0f * result->right_mapped / (total - result->rand_reads));
+  printf("\t\tWrong mapped: %d (%0.2f %%): chromosome mismatch: %d (%0.2f %%), strand mismatch: %d (%0.2f %%)\n", 
+	 result->wrong_mapped, 100.0f * result->wrong_mapped / total,
+	 result->wrong_mapped_chromosome, 100.0f * result->wrong_mapped_chromosome / total,
+	 result->wrong_mapped_strand, 100.0f * result->wrong_mapped_strand / total);
+  printf("\n");
+  printf("\tNot mapped: %d (%0.2f %%)\n", result->not_mapped, 100.0f * result->not_mapped / total);
+  printf("\t\tRight not mapped: %d (%0.2f %%) @rand reads: %i (%0.2f %%)\n", 
+	 result->right_not_mapped, 100.0f * result->right_not_mapped / total, 
+	 result->rand_reads, 100.0f * result->right_not_mapped / result->rand_reads);
+  printf("\t\tWrong not mapped: %d (%0.2f %%)\n", result->wrong_not_mapped, 100.0f * result->wrong_not_mapped / total);
+
+  total = result->multi_mapped + result->not_mapped;
+  printf("\nM U L T I   -   A L I G N M E N T S\n");
+  printf("-------------------------------------\n");
+  printf("\tMargin length      : %d\n", (result->margin * 2));
+  printf("\tNum. reads         : %d\n", num_reads);
+  printf("\tNum. multi mappings: %d\n\n", total);
+  printf("\tMapped: %d (%0.2f %%)\n", result->multi_mapped, 100.0f * result->multi_mapped / total);
+  printf("\t\tRight mapped: %d (%0.2f %%)\n", result->multi_right_mapped, 100.0f * result->multi_right_mapped / total);
+  printf("\t\tWrong mapped: %d (%0.2f %%)\n", result->multi_wrong_mapped, 100.0f * result->multi_wrong_mapped / total);
+  printf("\n");
+
+  printf("\nS P L I C E    -    S E N S I T I V I T Y\n");
+  printf("-------------------------------------------\n");
+  printf("\Total Reads Right Mapped : %d (%0.2f)\n", result->right_mapped, (100.0f * result->right_mapped) / num_reads);
+  printf("\tRight SJ alignments: %d (%0.2f %%)\n", result->right_sj, (100.0f * result->right_sj) / result->right_mapped);
+  printf("\tWrong SJ alignments: %d (%0.2f %%)\n", result->wrong_sj, (100.0f * result->wrong_sj) / result->right_mapped);
+
+  int total_right = result->right_mapped - result->wrong_sj;
+
+  printf("\tTOTAL: %d/%d (%0.2f %%)\n", total_right, num_reads, (100.0f * total_right) / num_reads);
+}
+
+void print_result_pair(trie_result_t *result, int log) {
+
+  int is_rand, num_reads = array_list_size(id_list);
+  char *id;
+  trie_node_pair_t *node_pair;
+  trie_node_t *node;
+  int num_err = 0;
+
+  for (int i = 0; i < num_reads; i++) {
+    is_rand = 0;
+    id = array_list_get(i, id_list);
+    node_pair = cp_trie_exact_match(trie, id);
+    if (strstr(id, "rand")) {
+      is_rand = 1;
+      result->rand_reads += 2;
+    }
+    
+    for (int i = 0; i < 2; i++) {
+      if (i == 0) {
+	node = node_pair->pair_0;
+      } else {
+	node = node_pair->pair_1;
+      }
+
+      if (node->mapped) {
+	result->mapped++;
+      
+	if (node->right_mapped) {
+	  result->right_mapped++;
+	  if (node->right_sj) {
+	    result->right_sj++;
+	  } else {
+	    result->wrong_sj++;
+	    //printf("<<<: %s\n", id);
+	  }
+
+	} else {
+	  result->wrong_mapped++;
+	  if (node->wrong_mapped_chromosome) {
+	    if (++limit_wrong_mapped < 10) {
+	      //printf("\twrong mapped (chromosome): %s\n", id);
+	    }
+	    result->wrong_mapped_chromosome++;
+	  } else if (node->wrong_mapped_strand) {
+	    if (++limit_wrong_mapped < 10) {
+	      //printf("\twrong mapped (strand): %s\n", id);
+	    } 
+	    result->wrong_mapped_strand++;
+	  }
+	}
+	result->multi_right_mapped += node->right_mapped;
+	result->multi_wrong_mapped += node->wrong_mapped;
+
+	result->multi_mapped += node->mapped;
+      } else {
+	if (!node->not_mapped) {
+	  //printf("%s\n", id);
+	  num_err++;
+	  //exit(-1);
+	}
+	result->not_mapped++;
+	if (is_rand) {
+	  result->right_not_mapped++;
+	} else {
+	  result->wrong_not_mapped++;
+	  //if (++limit_wrong_not_mapped < 5) {
+	  //printf("\twrong not mapped: %s\n", id);
+	  //}
+	}
+      }
+    }
+
+  }
+
+  printf("NUM ERRORS : %i!!\n", num_err);
+
+  int total = result->mapped + result->not_mapped;
+  num_reads *= 2;
 
   printf("\nU N I Q U E   A L I G N M E N T\n");
   printf("-------------------------------------\n");

@@ -1676,6 +1676,7 @@ void meta_alignment_close(meta_alignment_t *meta_alignment) {
   //printf("\n==================== CLOSE META ALIGNMENT ==========================\n");
   assert(meta_alignment_num_cals(meta_alignment) > 0);
   cigar_code = meta_alignment->cigar_code;
+  assert(cigar_code != NULL);
 
   if (cigar_code_get_num_ops(cigar_code) > 0) {
     array_list_clear(cigar_code->ops, (void *)cigar_op_free);
@@ -2420,7 +2421,15 @@ info_sp_t* sw_reference_splice_junction(cal_t *cal_prev, cal_t *cal_next,
 
   strcat(reference_prev, reference_next);
 
-  if (read_start > read_end) { LOG_FATAL_F("READ COORDS ERROR %s\n", query_map); }
+  if (read_start > read_end) {
+    int aux_start = read_end;
+    read_start = read_end;
+    read_end = aux_start;
+  } else if (read_start == read_end) {
+    LOG_FATAL("ERROR COORDS FUSION\n");
+  }
+
+  //if (read_start > read_end) { LOG_FATAL_F("READ COORDS ERROR %s\n", query_map); }
   //printf("Read %i-%i: %s\n", read_start, read_end, query_map);
 
   read_gap = read_end - read_start + 1;
@@ -4041,8 +4050,36 @@ int generate_cals_between_anchors (int mode,
 				    cals_list,
 				    fq_read->length);
 
-  cal_optarg->min_cal_size = min_cal_size;
   int num_cals = array_list_size(cals_list);
+  if (num_cals > 0) {
+    for (int j = num_cals - 1; j >= 0; j--) {
+      cal_t *cal = array_list_get(j, cals_list);
+      seed_region_t *s = linked_list_get_first(cal->sr_list);
+      if (s == NULL) {
+	array_list_remove_at(j, cals_list);
+	cal_free(cal);
+      } else {
+	if (s->genome_start != cal->start) { 
+	  array_list_remove_at(j, cals_list);
+	  cal_free(cal);
+	} else {
+	  seed_region_t *s = linked_list_get_last(cal->sr_list);
+	  if (s == NULL) {
+	    array_list_remove_at(j, cals_list);
+	    cal_free(cal);
+	  } else {
+	    if (s != NULL && s->genome_end != cal->end) { 
+	      array_list_remove_at(j, cals_list);
+	      cal_free(cal);
+	    }
+	  }
+	}
+      }
+    }
+  }
+
+  num_cals = array_list_size(cals_list);
+  cal_optarg->min_cal_size = min_cal_size;
   int founds[num_cals];
   int found = 0;
   cal_t *cal;
@@ -4374,28 +4411,28 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
   //float *cals_score = (float *)calloc(100, sizeof(float));
   float score;
   char reference[2048];
-  char reference_prev[2048];
-  char reference_next[2048];
-  char reference_aux[2048];
+  //char reference_prev[2048];
+  //char reference_next[2048];
+  //char reference_aux[2048];
   char query[2048];
-  char query_revcomp[2048];
+  //char query_revcomp[2048];
   alignment_t *alignment;
   char q[2048];
   char r[2048];
 
   char **rev_comp = (char **)calloc(num_reads, sizeof(char *));
-
+  /*
   fusion_coords_t *extrem_coords[2*40*mapping_batch->num_allocated_targets];
   fusion_coords_t *sp_coords[2*40*mapping_batch->num_allocated_targets];
   cigar_code_t *extrem_cigars[2*40*mapping_batch->num_allocated_targets];
   cigar_code_t *sp_cigars[2*40*mapping_batch->num_allocated_targets];
-
+  */
   char *sequence;
   char *query_ref;
   char *quality_map, *query_map;
   //float scores_ranking[mapping_batch->num_allocated_targets][50];
   float *cals_score;
-  char cigar_str[1024];
+  //char cigar_str[1024];
 
   cigar_op_t *first_op;
   char *match_seq, *match_qual, *optional_fields, *p;
@@ -4505,7 +4542,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 
     scores_ranking[i] = (float *)calloc(num_cals + 10, sizeof(float));//[num_reads][200];
 
-    //printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
+    printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
     //if (flag == ALIGNMENTS_FOUND || flag == ALIGNMENTS_EXCEEDED) {
     //data_type[i] = ALIGNMENT_TYPE;
     if (flag == DOUBLE_ANCHORS) {
@@ -4597,9 +4634,11 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	} else {
 	  query_map = fq_read->sequence;
 	}
-	
-	//cal_print(first_cal);
-	//cal_print(last_cal);
+
+	printf("--CALs-- Iter %i --\n", p);
+	cal_print(first_cal);
+	cal_print(last_cal);
+	printf("--CALs-- Iter %i --\n", p);
 
 	s_prev = linked_list_get_last(first_cal->sr_list);    
 	s_next = linked_list_get_first(last_cal->sr_list);
@@ -4664,11 +4703,22 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 					  seeds_list, 
 					  aux_list, 
 					  cal_optarg);
+	    
+	    if (array_list_size(aux_list) > 5) {
+	      for (int zz = array_list_size(aux_list) - 2; zz > 0; zz--) {
+		cal_t *cal_aux = array_list_remove_at(zz, aux_list);
+		cal_free(cal_aux);
+	      }
+	    }
 	  } else {
 	    array_list_insert(first_cal, aux_list);
 	    array_list_insert(last_cal, aux_list);
 	  }
-	  
+	  /*
+	  for (int zz = 0; zz < array_list_size(aux_list); zz++) {
+	    cal_print(array_list_get(zz, aux_list));
+	  }
+	  */
 	  if (array_list_size(aux_list) > 0) {
 	    first_cal = array_list_get(0, aux_list);
 	    //first_cal->fill = 1;
@@ -5203,6 +5253,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
       continue; 
     } 
 
+    printf("Num meta %i\n", array_list_size(meta_alignments_list[i]));
     for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
       meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);
       if (meta_alignment_get_status(meta_alignment) == META_OPEN) {
@@ -5801,7 +5852,7 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
     scores_ranking[i] = (float *)calloc(200, sizeof(float));
     from_single_anchors = 0;
 
-    //printf("WK_2ph-Process: == (%i CALs)Read %s ==\n", array_list_size(cals_list), fq_read->id);
+    printf("WK_2ph-Process: == (%i CALs)Read %s ==\n", array_list_size(cals_list), fq_read->id);
     
     //array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
     //continue;
@@ -7126,7 +7177,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
   for (int i = 0; i < num_reads; i++) {
     fq_read = array_list_get(i, mapping_batch->fq_batch);
     meta_alignments_list = mapping_batch->mapping_lists[i];
-    //printf("WK_3ph (%i): %s\n", array_list_size(meta_alignments_list), fq_read->id );
+    printf("WK_3ph (%i): %s\n", array_list_size(meta_alignments_list), fq_read->id );
 
     if (array_list_size(meta_alignments_list) <= 0 || 
 	array_list_get_flag(meta_alignments_list) != BITEM_META_ALIGNMENTS) { continue; }   

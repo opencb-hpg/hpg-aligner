@@ -4,7 +4,7 @@
 #define DEFAULT_MAX_DISTANCE_SIZE		500
 
 
-#define BAM_TRIE_USAGE_HELP "Usage: bam_trie_test --ref-align <fastq_file> --bam <bam_file> --mode <dna|rna> \n"
+#define BAM_TRIE_USAGE_HELP "Usage: bam_trie_test --ref-align <fastq_file> --bam <bam_file> --mode <dna|rna> --transcriptome <file> --pair-mode <0|1>\n"
 
 /* **********************************************
  *
@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
     {"margin-length",		required_argument, 0, 'm'},
     {"log-file",		required_argument, 0, 'd'},
     {"mode",		        required_argument, 0, 'e'},
+    {"pair-mode",		required_argument, 0, 'p'},
     {0,0,0,0}
   };
   
@@ -40,6 +41,7 @@ int main(int argc, char **argv) {
   trie_result_t *result;
   int align_bam = 0; // align_bam = 0 => Align, align_bam=1 => BAM
   int mode;
+  int pair_mode = 0;
 
   if(argc < 5) {
     printf(BAM_TRIE_USAGE_HELP);	
@@ -93,7 +95,9 @@ int main(int argc, char **argv) {
       transcriptome_file = (char*) calloc(strlen(optarg) + 1, sizeof(char));
       strcpy(transcriptome_file, optarg);
       break;
-      
+    case 'p':
+      pair_mode = atoi(optarg);
+      break;
     default:	
       break;
     }				/* -----  end switch  ----- */
@@ -109,13 +113,23 @@ int main(int argc, char **argv) {
     printf("Load transcriptome file done!\n", transcriptome_file);
     
     printf("Loading FASTQ file '%s' ...\n", ref_file);
-    trie = rna_dataset_to_trie(ref_file, result);
+    if (!pair_mode) {
+      trie = rna_dataset_to_trie(ref_file, result);
+    } else {
+      trie = rna_dataset_to_trie_pair(ref_file, result);
+    }
     printf("Load FASTQ file done!\n", transcriptome_file);
 
     //for(int i = 0; i < pos; i++) {
     printf("Validating BAM file '%s' ...\n\n", token[0]);
-    rna_intersection(trie, margin, token[0], result, t);
-    print_result(result, log);
+    if (!pair_mode) {
+      rna_intersection(trie, margin, token[0], result, t);
+      print_result(result, log);
+    } else {
+      rna_intersection_pair(trie, margin, token[0], result, t);
+      print_result_pair(result, log);
+    }
+
     printf("\nValidate BAM file done!\nDONE!\n");
   } else {
     printf("Loading FASTQ file '%s' ...\n", ref_file);

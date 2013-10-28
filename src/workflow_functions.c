@@ -724,7 +724,9 @@ int sw_stage(void *data) {
      batch_t *batch = (batch_t *) data;
      
      if (batch->mapping_mode == RNA_MODE) {
-       return apply_sw_rna(batch->sw_input, batch);
+       int id = apply_sw_rna(batch->sw_input, batch);
+       printf("id = %i\n", id);
+       return id;
      } else {
        return apply_sw(batch->sw_input, batch);
      }
@@ -748,6 +750,7 @@ int rna_last_hc_stage(void *data) {
 
 int post_pair_stage(void *data) {
      batch_t *batch = (batch_t *) data;
+     printf("Innnnnnnnnnnn\n");
      return prepare_alignments(batch->pair_input, batch);
 }
 

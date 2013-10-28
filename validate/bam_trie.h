@@ -46,6 +46,11 @@ typedef struct trie_node {
   void *info;
 } trie_node_t;
 
+typedef struct trie_node_pair {
+  trie_node_t *pair_0;
+  trie_node_t *pair_1;
+} trie_node_pair_t;
+
 static inline trie_node_t *trie_node_new(void *info) {
   trie_node_t *p = (trie_node_t *) malloc(sizeof(trie_node_t));
   p->info = info;
@@ -66,6 +71,18 @@ static inline trie_node_t *trie_node_new(void *info) {
   return p;
 }
 
+static inline trie_node_pair_t *trie_node_pair_new(void *info) {
+  trie_node_pair_t *pair = (trie_node_pair_t *) malloc(sizeof(trie_node_pair_t));
+  trie_node_t *p0 = trie_node_new(info);
+  trie_node_t *p1 = trie_node_new(info);
+  
+  pair->pair_0 = p0;
+  pair->pair_1 = p1;
+
+  return pair;
+
+}
+
 static inline void trie_node_free(trie_node_t *p) {
   if (p) {
     if (p->info) {
@@ -75,6 +92,30 @@ static inline void trie_node_free(trie_node_t *p) {
     }
     free(p);
   }
+}
+
+static inline void trie_node_pair_free(trie_node_pair_t *p) {
+  /*if (p) {
+    if (p->pair_0) {
+      if (p->pair_0->info) {
+	dna_map_region_t *region = p->pair_0->info;
+	if (region->chromosome) free(region->chromosome);
+	free(region);
+      }
+      free(p->pair_0);
+    }
+
+    if (p->pair_1) {
+      if (p->pair_1->info) {
+	dna_map_region_t *region = p->pair_1->info;
+	if (region->chromosome) free(region->chromosome);
+	//free(region);
+      }
+      free(p->pair_1);
+    }
+    free(p);
+    }*/
+  return;
 }
 
 //--------------------------------------------------------------------
@@ -185,15 +226,21 @@ void dna_intersection(cp_trie* trie, int margin, char* filename, trie_result_t* 
 void rna_intersection(cp_trie* trie, int margin, char* filename, 
 		      trie_result_t* result, cp_hashtable *t);
 
+void rna_intersection_pair(cp_trie* trie, int margin, char* filename, 
+			   trie_result_t* result, cp_hashtable *t);
+
 //--------------------------------------------------------------------
 
 void print_result(trie_result_t* result, int log);
+
+void print_result_pair(trie_result_t* result, int log);
 
 //--------------------------------------------------------------------
 
 cp_hashtable *load_transcriptome_validate(char *f);
 
 cp_trie *rna_dataset_to_trie(char * file, trie_result_t* result);
+cp_trie *rna_dataset_to_trie_pair(char * file, trie_result_t* result);
 
 typedef struct exon_coords {
   int start;
