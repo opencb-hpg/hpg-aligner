@@ -6,44 +6,6 @@
 //    - merge_seed_regions
 //------------------------------------------------------------------------------------
 
-#define NONE_POS   0
-#define BEGIN_POS  1
-#define END_POS    2
-
-#define SINGLE_FLANK 0 //2
-#define DOUBLE_FLANK 0 //4
-
-typedef struct sw_prepare {
-  int left_flank;
-  int right_flank;  
-  int ref_type;
-  char *query;
-  char *ref;
-  seed_region_t *seed_region;
-  cal_t *cal;
-  fastq_read_t *read;
-} sw_prepare_t;
-
-sw_prepare_t *sw_prepare_new(char *query, char *ref, int left_flank, int right_flank, int ref_type) {
-  sw_prepare_t *p = (sw_prepare_t *) malloc(sizeof(sw_prepare_t));
-  p->query = query;
-  p->ref = ref;
-  p->left_flank = left_flank;
-  p->right_flank = right_flank;
-  p->seed_region = NULL;
-  p->cal = NULL;
-  p->read = NULL;
-  p->ref_type = ref_type;
-
-  return p;
-}
-
-void sw_prepare_free(sw_prepare_t *p) {
-  if (p) free(p);
-}
-
-//------------------------------------------------------------------------------------
-
 void display_sr_lists(char *msg, mapping_batch_t *mapping_batch) {
 
   fastq_read_t *read;
@@ -1682,7 +1644,7 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
   size_t num_cals, total_cals = 0;
   size_t num_batches = 0, num_reads_unmapped = 0, num_without_cals = 0;
   size_t max_seeds, total_reads = 0;
-  size_t num_targets, target_pos, target_pos2;
+  size_t num_targets, target_pos = 0, target_pos2 = 0;
   fastq_read_t *read, *read2;
   genome_t *genome = input->genome;
   size_t *targets_aux, target_index;
@@ -1713,6 +1675,8 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     target_index = targets[i];
     
     // GA reads
+    LOG_DEBUG("searching CALs for GA reads\n");
+
     read = array_list_get(target_index, mapping_batch->GA_rev_fq_batch);
     read2 = array_list_get(target_index, mapping_batch->GA_fq_batch);
    
@@ -1733,6 +1697,8 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     }
 
     // CT reads
+    LOG_DEBUG("searching CALs for CT reads\n");
+
     read = array_list_get(target_index, mapping_batch->CT_rev_fq_batch);
     read2 = array_list_get(target_index, mapping_batch->CT_fq_batch);
    
