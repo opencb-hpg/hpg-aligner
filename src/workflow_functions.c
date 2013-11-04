@@ -84,6 +84,7 @@ void *fastq_reader(void *input) {
      return new_batch;
 }
 
+
 /*
 fastq_read_t *file_fastq_read_new(size_t *num_items, FILE *fd) {
 
@@ -724,9 +725,7 @@ int sw_stage(void *data) {
      batch_t *batch = (batch_t *) data;
      
      if (batch->mapping_mode == RNA_MODE) {
-       int id = apply_sw_rna(batch->sw_input, batch);
-       printf("id = %i\n", id);
-       return id;
+       return apply_sw_rna(batch->sw_input, batch);
      } else {
        return apply_sw(batch->sw_input, batch);
      }
@@ -750,7 +749,6 @@ int rna_last_hc_stage(void *data) {
 
 int post_pair_stage(void *data) {
      batch_t *batch = (batch_t *) data;
-     printf("Innnnnnnnnnnn\n");
      return prepare_alignments(batch->pair_input, batch);
 }
 

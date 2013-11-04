@@ -46,7 +46,7 @@ options_t *options_new(void) {
   options->report_n_hits = 0;
   options->report_best = 0;
   options->report_only_paired = 0;
-  options->gpu_process = 0;
+  options->workflow_enable = 1;
   options->bwt_set = 0;
   options->reg_set = 0;
   options->cal_set = 0;
@@ -209,7 +209,7 @@ void options_display(options_t *options) {
      unsigned int pair_min_distance =  (unsigned int)options->pair_min_distance;
      unsigned int pair_max_distance =  (unsigned int)options->pair_max_distance;
      unsigned int min_intron_length =  (unsigned int)options->min_intron_length;
-     unsigned int gpu_process = (unsigned int)options->gpu_process;
+     //unsigned int gpu_process = (unsigned int)options->gpu_process;
      float min_score =  (float)options->min_score;
      float match =   (float)options->match;
      float mismatch =   (float)options->mismatch;
@@ -339,7 +339,7 @@ void** argtable_options_new(void) {
      argtable[37] = arg_int0(NULL, "report-n-hits", NULL, "Report <n> hits");
      argtable[38] = arg_int0(NULL, "num-seeds", NULL, "Number of seeds per read");
      argtable[39] = arg_int0(NULL, "min-num-seeds", NULL, "Minimum number of seeds to create a CAL (if -1, the maxixum will be taken)");
-     argtable[40] = arg_lit0(NULL, "gpu-enable", "Enable GPU Process");
+     argtable[40] = arg_lit0(NULL, "workflow-disable", "Disable Workflow Pipeline");
      argtable[41] = arg_lit0(NULL, "report-only-paired", "Report only the paired reads");
      argtable[42] = arg_int0(NULL, "filter-read-mappings", NULL, "Reads that map in more than <n> locations are discarded");
      argtable[43] = arg_int0(NULL, "filter-seed-mappings", NULL, "Seeds that map in more than <n> locations are discarded");
@@ -433,13 +433,7 @@ options_t *read_CLI_options(void **argtable, options_t *options) {
   if (((struct arg_int*)argtable[37])->count) { options->report_n_hits = *(((struct arg_int*)argtable[37])->ival); }
   if (((struct arg_int*)argtable[38])->count) { options->num_seeds = *(((struct arg_int*)argtable[38])->ival); }
   if (((struct arg_int*)argtable[39])->count) { options->min_num_seeds_in_cal = *(((struct arg_int*)argtable[39])->ival); }
-  if (((struct arg_int*)argtable[40])->count) { 
-    #ifdef HPG_GPU
-       options->gpu_process = (((struct arg_int *)argtable[40])->count); 
-    #else
-       options->gpu_process = 0; 
-    #endif
-  }
+  if (((struct arg_int*)argtable[40])->count) { options->workflow_enable = (((struct arg_int *)argtable[40])->count) == 1 ? 0 : 1; }
   if (((struct arg_int*)argtable[41])->count) { options->report_only_paired = (((struct arg_int*)argtable[41])->count); }
   if (((struct arg_int*)argtable[42])->count) { options->filter_read_mappings = *(((struct arg_int*)argtable[42])->ival); }
   if (((struct arg_int*)argtable[43])->count) { options->filter_seed_mappings = *(((struct arg_int*)argtable[43])->ival); }

@@ -1,7 +1,8 @@
 #ifndef RNA_ALIGNER_H
 #define RNA_ALIGNER_H
 
-
+#include <sys/syscall.h>
+#include <sched.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>

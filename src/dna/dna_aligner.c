@@ -65,7 +65,7 @@ void run_dna_aligner(genome_t *genome, bwt_index_t *bwt_index,
      
      region_seeker_input_t region_input;
      region_seeker_input_init(NULL, cal_optarg, bwt_optarg, 
-			      bwt_index, NULL, 0, options->gpu_process, 0, 0, 
+			      bwt_index, NULL, 0, 0, 0, 0, 
 			      genome, metaexons, &region_input);
      
      cal_seeker_input_t cal_input;

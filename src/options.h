@@ -81,7 +81,7 @@ typedef struct options {
   int report_n_hits;
   int report_best;
   int report_only_paired;
-  int gpu_process;
+  int workflow_enable;
   int log_level;
   int index_ratio;
   int filter_read_mappings;

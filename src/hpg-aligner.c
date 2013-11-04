@@ -216,7 +216,9 @@ int main(int argc, char* argv[]) {
     //timing_display(timing);
   }
 
+
   basic_statistics_display(basic_st, !strcmp(command, "rna"), time_alig / 1000000, time_genome / 1000000);
+
 
   if (!strcmp(command, "rna") && fd_log != NULL) {
     char str_log[2048];
@@ -243,6 +245,9 @@ int main(int argc, char* argv[]) {
     fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
 
     sprintf(str_log, "TIME ALIGNER: %0.2f (s)\n\0", time_alig / 1000000);
+    fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
+
+    sprintf(str_log, "TOTAL TIME: %0.2f (s)\n\0", (time_alig + time_genome) / 1000000);
     fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
 
     fclose(fd_log);

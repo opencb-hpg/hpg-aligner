@@ -4542,7 +4542,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 
     scores_ranking[i] = (float *)calloc(num_cals + 10, sizeof(float));//[num_reads][200];
 
-    printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
+    //printf("WK_1ph-Process: == (CALs %i), (MODE %i) (Read %s) ==\n", array_list_size(cals_list), flag, fq_read->id);
     //if (flag == ALIGNMENTS_FOUND || flag == ALIGNMENTS_EXCEEDED) {
     //data_type[i] = ALIGNMENT_TYPE;
     if (flag == DOUBLE_ANCHORS) {
@@ -4634,12 +4634,12 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	} else {
 	  query_map = fq_read->sequence;
 	}
-
+	/*
 	printf("--CALs-- Iter %i --\n", p);
 	cal_print(first_cal);
 	cal_print(last_cal);
 	printf("--CALs-- Iter %i --\n", p);
-
+	*/
 	s_prev = linked_list_get_last(first_cal->sr_list);    
 	s_next = linked_list_get_first(last_cal->sr_list);
 	
@@ -5253,7 +5253,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
       continue; 
     } 
 
-    printf("Num meta %i\n", array_list_size(meta_alignments_list[i]));
+    //printf("Num meta %i\n", array_list_size(meta_alignments_list[i]));
     for (int m = 0; m < array_list_size(meta_alignments_list[i]); m++) {
       meta_alignment_t *meta_alignment = array_list_get(m, meta_alignments_list[i]);
       if (meta_alignment_get_status(meta_alignment) == META_OPEN) {
@@ -5852,7 +5852,7 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
     scores_ranking[i] = (float *)calloc(200, sizeof(float));
     from_single_anchors = 0;
 
-    printf("WK_2ph-Process: == (%i CALs)Read %s ==\n", array_list_size(cals_list), fq_read->id);
+    //printf("WK_2ph-Process: == (%i CALs)Read %s ==\n", array_list_size(cals_list), fq_read->id);
     
     //array_list_clear(mapping_batch->mapping_lists[i], (void*)cal_free);
     //continue;
@@ -7177,7 +7177,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
   for (int i = 0; i < num_reads; i++) {
     fq_read = array_list_get(i, mapping_batch->fq_batch);
     meta_alignments_list = mapping_batch->mapping_lists[i];
-    printf("WK_3ph (%i): %s\n", array_list_size(meta_alignments_list), fq_read->id );
+    //printf("WK_3ph (%i): %s\n", array_list_size(meta_alignments_list), fq_read->id );
 
     if (array_list_size(meta_alignments_list) <= 0 || 
 	array_list_get_flag(meta_alignments_list) != BITEM_META_ALIGNMENTS) { continue; }   

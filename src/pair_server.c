@@ -345,6 +345,29 @@ void pair_free(pair_t *p) {
     free(p);
 }
 
+inline void generate_alignment_len(alignment_t *alig) {
+  alig->map_len = 0;
+  char *cigar_str = alig->cigar;
+  int cigar_len = strlen(cigar_str);	  
+  int c = 0;
+  char op;
+  char op_value[1024]; 
+
+  for (int j = 0; j < cigar_len; j++) {
+    op = cigar_str[j];
+    if (op < 58) {
+      op_value[c++] = op;
+    } else {
+      if (op == 'N' || op == 'M' || op == 'D') {
+	op_value[c] = '\0';
+	alig->map_len += atoi(op_value);
+      }
+      c = 0;
+    }
+  } 
+
+}
+
 //------------------------------------------------------------------------------------
 
 
@@ -398,7 +421,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
     num_items1 = 0;
     if (list1 != NULL)  num_items1 = array_list_size(list1);
     num_items2 = 0;
-    if (list2 != NULL) num_items2 = array_list_size(list2);
+    if (list2 != NULL)  num_items2 = array_list_size(list2);
 
     //printf("%i - %i\n", num_items1, num_items2);
 
@@ -426,8 +449,7 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	chr1 = alig1->chromosome;
 	strand1 = alig1->seq_strand;
 	end1 = alig1->position;
-	//printf("Item %i Pair1 [chr %i - start %i]\n", j1, chr1, end1);
-	
+	//printf("Item %i Pair1 [chr %i - start %i]\n", j1, chr1, end1);	
 	for (size_t j2 = 0; j2 < num_items2; j2++) {
 	  //if (mapped2[j2] == 1) continue;
 	  alig2 = (alignment_t *) array_list_get(j2, list2);
@@ -437,15 +459,30 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  //printf("Item Pair2 %i [chr %i - start %i]\n", j2, chr2, start2);
 	  // computes distance between alignments,
 	  // is a valid distance ?
-	  distance = (start2 > end1 ? start2 - end1 : end1 - start2) + 100; // abs                                      
-	  //
-	  printf("*** chr1: %i == chr2: %i; str1: %i == str2: %i; distance = %lu, min_distance = %i, max_distance = %i, strand1 = %i, strand2 = %i, pair_mode = %i\n",  chr1, chr2, strand1, strand2, distance, min_distance, max_distance, strand1, strand2, pair_mode);
+	  if (start2 > end1) {
+	    //  _____________   _____________  //
+	    // [____ALIG1____] [____ALIG2____] //
+	    if (alig2->map_len == 0) {
+	      generate_alignment_len(alig2);	      
+	    }
+	    distance = (start2 + alig2->map_len) - end1;
+	  } else {
+	    //  _____________   _____________  //
+	    // [____ALIG2____] [____ALIG1____] //
+	    if (alig1->map_len == 0) {
+	      generate_alignment_len(alig1);
+	    }
+	    distance = (end1 + alig1->map_len) - start2;
+	  }
+	  //distance = (start2 > end1 ? start2 - end1 : end1 - start2); // abs //
+	  
+	  //printf("*** chr1: %i == chr2: %i; str1: %i == str2: %i; distance = %lu, min_distance = %i, max_distance = %i, strand1 = %i, strand2 = %i, pair_mode = %i\n",  chr1, chr2, strand1, strand2, distance, min_distance, max_distance, strand1, strand2, pair_mode);
 
 	  if ( (chr1 == chr2) &&
 	       (distance >= min_distance) && (distance <= max_distance)) { //&&
-	       //((strand1 != strand2 && pair_mode == PAIRED_END_MODE) ||
+	    //((strand1 != strand2 && pair_mode == PAIRED_END_MODE) ||
 	       //(strand1 == strand2 && pair_mode == MATE_PAIR_MODE )   ) ) {
-	    printf("pair!\n");
+	    //printf("pair!\n");
 	    // order proper pairs by best score
 	    // create the new pair
 	    score = 0.5f * (alig1->map_quality + alig2->map_quality);
@@ -477,7 +514,6 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
       pair = (pair_t *) linked_list_iterator_curr(pair_list_itr);
       while (pair != NULL) {
 	if (mapped1[pair->index1] == 0 && mapped2[pair->index2] == 0) {
-	  printf(" -- itr --\n");
 	  mapped1[pair->index1] = 1;
 	  mapped2[pair->index2] = 1;
 
@@ -490,12 +526,6 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  // set pair1 fields
 	  alig1->mate_position = alig2->position;
 	  alig1->mate_chromosome = alig2->chromosome;
-	  alig1->template_length = alig2->position - alig1->position;
-	  if (alig1->template_length > 0) {
-	    alig1->template_length += 100;
-	  } else {
-	    alig1->template_length -= 100;
-	  }
      
 	  alig1->is_paired_end = 1;
 	  alig1->is_paired_end_mapped = 1;
@@ -506,18 +536,28 @@ void prepare_paired_alignments(pair_server_input_t *input, mapping_batch_t *batc
 	  // set pair2 fields
 	  alig2->mate_position = alig1->position;
 	  alig2->mate_chromosome = alig1->chromosome;
-	  alig2->template_length = alig1->position - alig2->position;
-	  if (alig2->template_length > 0) {
-	    alig2->template_length += 100;
-	  } else {
-	    alig2->template_length -= 100;
-	  }
 	    
 	  alig2->is_paired_end = 1;
 	  alig2->is_paired_end_mapped = 1;
 	  alig2->is_mate_mapped = 1;
 	  alig2->mate_strand = alig1->seq_strand;
 	  alig2->pair_num = 2;
+
+	  if (alig1->position > alig2->position) {
+	    //  _____________   _____________  //
+	    // [____ALIG2____] [____ALIG1____] //
+	    //Alig1->template_length -
+	    //Alig2->template_length +
+	    alig1->template_length = alig2->position - (alig1->position + alig1->map_len);
+	    alig2->template_length = (alig1->position + alig1->map_len) - alig2->position;
+	  } else {
+	    //  _____________   _____________  //
+	    // [____ALIG1____] [____ALIG2____] //
+	    //Alig1->template_length +
+	    //Alig2->template_length 
+	    alig1->template_length = (alig2->position + alig2->map_len) - alig1->position;
+	    alig2->template_length = alig1->position - (alig2->position + alig2->map_len);
+	  }
 
 	  if ( (++counter_hits) >= num_hits) {
 	    break;

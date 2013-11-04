@@ -662,10 +662,10 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
 	    if (genome_start < found_start) {
 	      found_start = 0;
 	    }
-	  }
+	  }	  
 	  
 	  //printf("Cigar Precision START 'S' & 'H' : %s\n", found_start == 0 ? "NO" : "YES");
-
+	  
 	  if (found_start) {
 	    //Search exact start and end position
 	    cigar_op_t *last_op = array_list_get(cigar_code->ops->size - 1, cigar_code->ops);	    
@@ -758,7 +758,7 @@ void rna_intersection_pair(cp_trie *trie, int margin, char *filename,
     //int start_p0 = bam_line->core.pos + 1;
     int distance = bam_line->core.isize;
     //printf("Distance %i\n", distance);
-    if (distance == 0) { printf("Distance 0!! Alarm!! %s\n", id); node = node_pair->pair_0;/*continue;*/ }
+    if (distance == 0) { /*printf("Distance 0!! Alarm!! %s\n", id);*/ node = node_pair->pair_0;/*continue;*/ }
     else {
       if (distance > 0) {
 	node = node_pair->pair_0;
@@ -798,7 +798,10 @@ void rna_intersection_pair(cp_trie *trie, int margin, char *filename,
 	
       // set region
       region_trie = (rna_map_region_t *) node->info;
+
+      if (bam_line->core.tid < 0) { continue; }
       char *chr_aux = bam_header_p->target_name[bam_line->core.tid];
+
       if (chr_aux[0] == 'c') {
 	//PATCH for mapSplice v2
 	region.chromosome = strdup(&chr_aux[3]);
