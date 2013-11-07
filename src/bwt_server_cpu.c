@@ -143,10 +143,15 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
       //printf("Strand (-): %i-%i\n", array_list_size(forward_anchor_list), array_list_size(backward_anchor_list));
     }
 
+    int *set_forward  = (int *)calloc(array_list_size(forward_anchor_list),  sizeof(int));
+    int *set_backward = (int *)calloc(array_list_size(backward_anchor_list), sizeof(int));
+
     //Associate Anchors (+)/(-)
     for (int i = 0; i < array_list_size(forward_anchor_list); i++) { 
+      if (set_forward[i]) { continue; }
       bwt_anchor_forw = array_list_get(i, forward_anchor_list);
       for (int j = 0; j < array_list_size(backward_anchor_list); j++) { 
+	if (set_backward[j]) { continue; }
 	bwt_anchor_back = array_list_get(j, backward_anchor_list);
 	anchor_forw = (bwt_anchor_forw->end - bwt_anchor_forw->start + 1);
 	anchor_back = (bwt_anchor_back->end - bwt_anchor_back->start + 1); 
@@ -220,9 +225,14 @@ size_t bwt_search_pair_anchors(array_list_t *list, unsigned int read_length) {
 
 	  array_list_set_flag(DOUBLE_ANCHORS, list);
 	  found_double_anchor = 1;
+	  set_forward[i]  = 1;
+	  set_backward[j] = 1;
+	  break;
 	}                                                                                                                      
       }         
     }
+    free(set_backward);
+    free(set_forward);
   }
 
   if (!found_double_anchor && found_anchor) { 

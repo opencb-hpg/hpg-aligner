@@ -67,6 +67,7 @@ size_t tot_reads_out = 0;
 FILE *fd_log;
 size_t junction_id;
 
+
 /*
 pthread_mutex_t sw_mutex;
 size_t *histogram_sw;
