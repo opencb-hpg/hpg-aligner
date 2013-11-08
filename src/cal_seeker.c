@@ -1682,19 +1682,33 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
    
     //printf("From CAL Seeker %s\n", read->id);
     list = mapping_batch->mapping_lists[target_index];
+
+    //    if (array_list_get_flag(list) == DOUBLE_ANCHORS) {
+    //      printf("******************************* double anchors\n");
+    //    } else {
+      max_seeds = (read->length / 15) * 2 + 10;      
+      num_cals = bwt_generate_cals_bs(read->sequence, read2->sequence, seed_size, 
+				      bwt_optarg, bwt_index, bwt_index2, list);
+      //    }
     
-    max_seeds = (read->length / 15) * 2 + 10;      
-    num_cals = bwt_generate_cals_bs(read->sequence, read2->sequence, seed_size, 
-				    bwt_optarg, bwt_index, bwt_index2, list);
-    
+    for (int c = 0; c < array_list_size(list); c++) {
+      cal_print(array_list_get(c, list));
+    }
+
     // filter CALs
     list = filter_cals(num_cals, read->length, list);
+
+    for (int c = 0; c < array_list_size(list); c++) {
+      cal_print(array_list_get(c, list));
+    }
+
 
     // and update targets
     mapping_batch->mapping_lists[target_index] = list;
     if (array_list_size(list) > 0) {
       mapping_batch->targets[target_pos++] = target_index;
     }
+
 
     // CT reads
     LOG_DEBUG("searching CALs for CT reads\n");
@@ -1705,12 +1719,23 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     //printf("From CAL Seeker %s\n", read->id);
     list = mapping_batch->mapping_lists2[target_index];
     
-    max_seeds = (read->length / 15) * 2 + 10;      
-    num_cals = bwt_generate_cals_bs(read->sequence, read2->sequence, seed_size, 
-				    bwt_optarg, bwt_index2, bwt_index, list);
+    //    if (array_list_get_flag(list) == DOUBLE_ANCHORS) {
+    //    } else {
+      max_seeds = (read->length / 15) * 2 + 10;      
+      num_cals = bwt_generate_cals_bs(read->sequence, read2->sequence, seed_size, 
+				      bwt_optarg, bwt_index2, bwt_index, list);
+      //    }
     
+    for (int c = 0; c < array_list_size(list); c++) {
+      cal_print(array_list_get(c, list));
+    }
+
     // filter CALs
     list = filter_cals(num_cals, read->length, list);
+
+    for (int c = 0; c < array_list_size(list); c++) {
+      cal_print(array_list_get(c, list));
+    }
 
     // and update targets
     mapping_batch->mapping_lists2[target_index] = list;

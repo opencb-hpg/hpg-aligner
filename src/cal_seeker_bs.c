@@ -165,8 +165,9 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
       // get cal and read index
       cal = array_list_get(j, cal_list);
-      LOG_DEBUG_F("CAL #%i of %i (strand %i), sr_list size = %i, sr_duplicate_list size = %i\n", 
-		  j, num_cals, cal->strand, cal->sr_list->size, cal->sr_duplicate_list->size);
+      cal_print(cal);
+      //      LOG_DEBUG_F("CAL #%i of %i (strand %i), sr_list size = %i, sr_duplicate_list size = %i\n", 
+      //		  j, num_cals, cal->strand, cal->sr_list->size, cal->sr_duplicate_list->size);
 
       prev_s = NULL;
       itr = linked_list_iterator_new(cal->sr_list);
@@ -219,6 +220,7 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
 	    if (gap_read_len > min_gap) {
 	      // the gap is too big, may be there's another CAL to cover it
+	      printf("**************************\n");
 	      cigar_code = cigar_code_new();
 	      cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
 	    } else {

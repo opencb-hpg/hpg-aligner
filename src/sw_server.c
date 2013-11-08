@@ -833,14 +833,18 @@ void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
   sw_optarg_t *sw_optarg = &input->sw_optarg;
 
   // fill gaps between seeds
+
+  for (int i = 0; i < mapping_batch->num_targets; i++)
+    array_list_clear(mapping_batch->mapping_lists[mapping_batch->targets[i]], (void *) NULL);
+
   fill_gaps_bs(mapping_batch, sw_optarg, genome2, genome1, 20, 5, 1);
-  fill_gaps_bs(mapping_batch, sw_optarg, genome1, genome2, 20, 5, 0);
+  //fill_gaps_bs(mapping_batch, sw_optarg, genome1, genome2, 20, 5, 0);
   
   merge_seed_regions_bs(mapping_batch, 0);
-  merge_seed_regions_bs(mapping_batch, 1);
+  //  merge_seed_regions_bs(mapping_batch, 1);
 
   fill_end_gaps_bs(mapping_batch, sw_optarg, genome1, genome2, 20, 400, 0);
-  fill_end_gaps_bs(mapping_batch, sw_optarg, genome2, genome1, 20, 400, 1);
+  //  fill_end_gaps_bs(mapping_batch, sw_optarg, genome2, genome1, 20, 400, 1);
 
   // now we can create the alignments
   fastq_read_t *read;
