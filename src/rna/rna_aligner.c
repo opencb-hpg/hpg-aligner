@@ -110,6 +110,30 @@ void thread_function(extra_stage_t *extra_stage_input) {
 }
 */
 
+int w1_function(void *data) {
+  batch_t *batch = (batch_t *) data;
+  apply_bwt_rna(batch->bwt_input, batch);
+  apply_caling_rna(batch->cal_input, batch);
+  apply_sw_rna(batch->sw_input, batch);
+
+  return CONSUMER_STAGE;
+}
+
+int w2_function(void *data) {
+  batch_t *batch = (batch_t *) data;
+  apply_rna_last(batch->sw_input, batch);
+  
+  return CONSUMER_STAGE;
+}
+ 
+int w3_function(void *data) {
+  batch_t *batch = (batch_t *) data;
+  apply_rna_last_hc(batch->sw_input, batch);
+
+  return CONSUMER_STAGE;
+}
+
+
 
 void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_mng,
 		     bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
@@ -332,7 +356,30 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
     workflow_set_stages(2, (workflow_stage_function_t *)&stage_functions_hc, stage_labels_hc, wf_hc);
     workflow_set_producer((workflow_producer_function_t *)file_reader_2, "Buffer reader", wf_hc);
     workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf_hc);
- 
+     
+    /*
+    workflow_t *wf = workflow_new();
+    workflow_stage_function_t stage_functions[] = { w1_function };
+    char *stage_labels[] = {"W1"};
+    workflow_set_stages(1, (workflow_stage_function_t *)&stage_functions, stage_labels, wf);
+    // optional producer and consumer functions
+    workflow_set_producer((workflow_producer_function_t *)fastq_reader, "FastQ reader", wf);
+    workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf);
+  
+    workflow_t *wf_last = workflow_new();
+    workflow_stage_function_t stage_functions_last[] = { w2_function };
+    char *stage_labels_last[] = { "W2" };
+    workflow_set_stages(1, (workflow_stage_function_t *)&stage_functions_last, stage_labels_last, wf_last);
+    workflow_set_producer((workflow_producer_function_t *)file_reader, "Buffer reader", wf_last);
+    workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf_last);
+
+    workflow_t *wf_hc = workflow_new();
+    workflow_stage_function_t stage_functions_hc[] = { w3_function };
+    char *stage_labels_hc[] = { "W3" };
+    workflow_set_stages(1, (workflow_stage_function_t *)&stage_functions_hc, stage_labels_hc, wf_hc);
+    workflow_set_producer((workflow_producer_function_t *)file_reader_2, "Buffer reader", wf_hc);
+    workflow_set_consumer((workflow_consumer_function_t *)bam_writer, "BAM writer", wf_hc);
+    */
 
     // Create new thread POSIX for search extra Splice Junctions
     //============================================================

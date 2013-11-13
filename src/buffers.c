@@ -593,15 +593,16 @@ int file_read_meta_alignments(size_t num_items, array_list_t *list,
 			 sr_list,
 			 linked_list_new(COLLECTION_MODE_ASYNCHRONIZED));
     cigar_code_t *cc = cigar_code_new_by_string(cigars_test[i]);
+    cc->distance = simple_a->map_distance;
     cal->info = cc;
 
-    meta_alignment_t *meta_alignment = meta_alignment_new();
-    
+    meta_alignment_t *meta_alignment = meta_alignment_new();    
     for (int m = 0; m < array_list_size(cc->ops); m++) {
       cigar_op_t *op = array_list_get(m, cc->ops);
       cigar_code_append_new_op(op->number, op->name, meta_alignment->cigar_code);
       //array_list_insert(cigar_op, ->ops);
     }
+    meta_alignment->cigar_code->distance = simple_a->map_distance;
 
     array_list_insert(cal, meta_alignment->cals_list);
     array_list_insert(meta_alignment, list);
@@ -859,6 +860,9 @@ void file_write_meta_alignments(fastq_read_t *fq_read, array_list_t *items, FILE
     int cigar_len = strlen(cigar_str);
 
     //cal_print(first_cal);
+    //if (strcmp(fq_read->id, "@ENST00000463781@ENSG00000145113@protein_coding@3@195473636@195539148@-1@KNOWN_7557_7641_0_1_0_0_7:0:0_5:0:0_26e/1")==0) {	
+    //printf("WRITE: (%i) %s\n", meta_alignment->cigar_code->distance, new_cigar_code_string(meta_alignment->cigar_code));
+    //}
 
     simple_a = &simple_alignment[i];
 

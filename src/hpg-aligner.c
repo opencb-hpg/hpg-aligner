@@ -67,6 +67,8 @@ size_t tot_reads_out = 0;
 FILE *fd_log;
 size_t junction_id;
 
+float min_score = 300.0, tot_score;
+size_t tot_rep;
 
 /*
 pthread_mutex_t sw_mutex;
