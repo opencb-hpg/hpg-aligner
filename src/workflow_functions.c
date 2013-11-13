@@ -628,7 +628,8 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
     //printf("name = %s\n", alig->query_name);
     //printf("read = %s\n", alig->sequence);
     //printf("\t-----> %s\n", alig->cigar);
-    //    alignment_print(alig);
+    LOG_DEBUG("writting bam..\n");
+    //alignment_print(alig);
 
     if (alig != NULL) {
       bam1 = convert_to_bam(alig, 33);

@@ -15,6 +15,23 @@ int bs_writer(void *data) {
   
   mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
   bs_context_t *bs_context = (mapping_batch->bs_context);
+  /*
+  {
+    LOG_DEBUG("before reverting 2...\n");
+    array_list_t **mapping_lists = mapping_batch->mapping_lists2;
+    size_t num_reads = array_list_size(mapping_batch->fq_batch);
+    for (size_t i = 0; i < num_reads; i++) {
+      num_items = array_list_size(mapping_lists[i]);
+      // mapped or not mapped ?	 
+      if (num_items > 0) {
+	for (size_t j = 0; j < num_items; j++) {
+	  alignment_t *alig = (alignment_t *) array_list_get(j, mapping_lists[i]);
+	  alignment_print(alig);
+	}
+      }
+    }
+  }
+  */
   
   // set the sequences of the mapping to the original
   revert_mappings_seqs(mapping_batch->mapping_lists, mapping_batch->mapping_lists2, mapping_batch->fq_batch);
@@ -60,6 +77,7 @@ int bs_writer(void *data) {
 	}
       } else {
 	found[i] = 1;
+	LOG_DEBUG_F("printing alignment (bs_id = %i)...\n", k);
 	write_mapped_read(mapping_lists[i], bam_file);
       }
     }

@@ -262,6 +262,7 @@ static void prepare_single_alignments_bs(pair_server_input_t *input, mapping_bat
   // convert the SW output to alignments
   for (size_t i = 0; i < num_targets; i++) {
     //    printf("pair_server.c, prepare_single_alignments: target = #%i of %i\n", i, num_targets);
+    LOG_DEBUG_F("------------------- list 1 item %i (%i)...\n", i, num_targets2);
     read_index = batch->targets[i];
     fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
     
@@ -381,6 +382,7 @@ static void prepare_single_alignments_bs(pair_server_input_t *input, mapping_bat
   // convert the SW output2 to alignments
   for (size_t i = 0; i < num_targets2; i++) {
     //    printf("pair_server.c, prepare_single_alignments: target = #%i of %i\n", i, num_targets);
+    LOG_DEBUG_F("------------------- list 2 item %i (%i)...\n", i, num_targets2);
     read_index = batch->targets2[i];
     fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
     
@@ -1275,14 +1277,13 @@ int prepare_alignments_bs(pair_server_input_t *input, batch_t *batch) {
   if (batch->mapping_mode == BS_MODE) {
     //printf("Convert\n");
     // convert Smith-Waterman output objects to alignments
-    prepare_single_alignments_bs(input, batch->mapping_batch);
+    //prepare_single_alignments_bs(input, batch->mapping_batch);
     //printf("\tEnd Convert\n");
   }
 
   if (input->pair_mng->pair_mode == SINGLE_END_MODE) {
     //printf("single end\n");
     // filter alignments by best-alignments, n-hits, all and unpaired reads
-
 
     filter_alignments_lists(input->report_optarg->all, 
 			    input->report_optarg->n_best, 

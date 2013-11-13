@@ -708,6 +708,7 @@ void fill_end_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
     read_len = read1->length;
     revcomp_seq = NULL;
 
+
     // processing each CAL from this read
     for(size_t j = 0; j < num_cals; j++) {
 
@@ -748,8 +749,6 @@ void fill_end_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	}
 	    
 	if (mode == NONE_POS) continue;
-
-
 
 	// get query sequence, revcomp if necessary
 	// get ref. sequence
@@ -808,13 +807,13 @@ void fill_end_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
   // debugging....
   for (size_t i = 0; i < num_targets; i++) {
-    read_index = mapping_batch->targets[i];
+    read_index = targets[i];
     read1 = (fastq_read_t *) array_list_get(read_index, fq_batch1);
-
-    LOG_DEBUG_F("Read %s\n", read1->id);
     
-    cal_list = mapping_batch->mapping_lists[read_index];
+    cal_list = mapping_lists[read_index];
     num_cals = array_list_size(cal_list);
+
+    LOG_DEBUG_F("Read %s: num_cals = %lu\n", read1->id, num_cals);
     
     if (num_cals <= 0) continue;
 

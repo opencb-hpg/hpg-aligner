@@ -476,7 +476,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 			 mapping_batch->CT_fq_batch, mapping_batch->CT_rev_fq_batch, 
 			 mapping_batch->GA_fq_batch, mapping_batch->GA_rev_fq_batch);
 
-  /*
+
   // mostrar las reads
   {
     fastq_read_t* fq_read_src;
@@ -494,7 +494,7 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
       printf("Id = %lu\tGA_rev: %s\n", i, fq_read_src->sequence);
     }
   }
-  */
+
 
   ////////////////////////////////
   /*
@@ -656,6 +656,8 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
 	//printf("-read %lu not mapped\n%s\n\n", i, fq_read->sequence);
       }
     }
+    printf("------------NUM ITEMS LIST   = %i\n", mapping_batch->mapping_lists[i]->size);
+    printf("------------NUM ITEMS LIST 2 = %i\n", mapping_batch->mapping_lists2[i]->size);
   }
 
   /*
