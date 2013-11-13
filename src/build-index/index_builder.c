@@ -45,7 +45,7 @@ void run_index_builder(char *genome_filename, char *bwt_dirname, int bwt_ratio) 
      LOG_DEBUG("...done !\n");
      
      LOG_DEBUG("Building BWT index...\n");
-     bwt_generate_index_files(genome_filename, bwt_dirname, bwt_ratio);
+     bwt_generate_index_files(genome_filename, bwt_dirname, bwt_ratio, false);
      LOG_DEBUG("...done !\n");
 }
 

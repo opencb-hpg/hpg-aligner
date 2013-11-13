@@ -166,7 +166,8 @@ int main(int argc, char* argv[]) {
   // BWT index
   LOG_DEBUG("Reading bwt index...");
   
-  bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname);
+  //TODO: CLI parameters, bwt_index_new(bwt_index, inverse_sa (more than one error), duplicate_strand (search strand + & - ))
+  bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname, false, false);
   
   stop_timer(time_genome_s, time_genome_e, time_genome);
   LOG_DEBUG("Reading bwt index done\n");
