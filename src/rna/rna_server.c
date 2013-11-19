@@ -5032,8 +5032,8 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 	meta_alignment = NULL;
 	meta_type = -1;
 	array_list_t *fusion_list = array_list_get(j, cals_targets);
-	
-	/*printf("==== FUSION CALS PROCESS ====\n");
+	/*
+	printf("==== FUSION CALS PROCESS ====\n");
 	for (int t = 0; t < array_list_size(fusion_list); t++) {
 	  cal_t *cal_aux = array_list_get(t, fusion_list);
 	  cal_print(cal_aux);

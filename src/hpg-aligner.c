@@ -194,7 +194,7 @@ int main(int argc, char* argv[]) {
 						     options->report_only_paired,
 						     options->report_best);  
   LOG_DEBUG("init table...");
-  initTable();
+  init_table(NULL);
   LOG_DEBUG("init table done !!");
 
   if (!strcmp(command, "rna")) {

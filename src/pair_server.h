@@ -29,6 +29,30 @@ struct pair_server_input {
 
 //------------------------------------------------------------------------------------
 
+inline void generate_alignment_len(alignment_t *alig) {
+  alig->map_len = 0;
+  char *cigar_str = alig->cigar;
+  int cigar_len = strlen(cigar_str);	  
+  int c = 0;
+  char op;
+  char op_value[1024]; 
+
+  for (int j = 0; j < cigar_len; j++) {
+    op = cigar_str[j];
+    if (op < 58) {
+      op_value[c++] = op;
+    } else {
+      if (op == 'N' || op == 'M' || op == 'D') {
+	op_value[c] = '\0';
+	alig->map_len += atoi(op_value);
+      }
+      c = 0;
+    }
+  } 
+
+}
+
+
 void pair_server_input_init(pair_mng_t *pair_mng, report_optarg_t *report_optarg,
 			    list_t* pair_list, list_t *sw_list,
 			    list_t *write_list, pair_server_input_t* input);
