@@ -226,6 +226,18 @@ void dna_intersection(cp_trie* trie, int margin, char* filename, trie_result_t* 
 void rna_intersection(cp_trie* trie, int margin, char* filename, 
 		      trie_result_t* result, cp_hashtable *t);
 
+void rna_intersection_real(cp_trie* trie, int margin, char* filename, 
+			   trie_result_t* result, cp_hashtable *t,
+			   array_list_t **crhomosome_trans);
+
+void rna_intersection_real_omp(cp_trie* trie, int margin, char* filename, 
+			     trie_result_t* result, cp_hashtable *t,
+			     array_list_t **crhomosome_trans);
+
+void rna_intersection_real_omp_pair(cp_trie *trie, int margin, char *filename, 
+				    trie_result_t *result, cp_hashtable *trans, 
+				    array_list_t **chromosome_trans);
+
 void rna_intersection_pair(cp_trie* trie, int margin, char* filename, 
 			   trie_result_t* result, cp_hashtable *t);
 
@@ -238,7 +250,9 @@ void print_result_pair(trie_result_t* result, int log);
 //--------------------------------------------------------------------
 
 cp_hashtable *load_transcriptome_validate(char *f);
+cp_hashtable *load_transcriptome_validate_real(char *file, array_list_t **chromosome_trans);
 
+cp_trie *rna_dataset_to_trie_real_pair(char * file, trie_result_t* result);
 cp_trie *rna_dataset_to_trie(char * file, trie_result_t* result);
 cp_trie *rna_dataset_to_trie_pair(char * file, trie_result_t* result);
 
@@ -251,12 +265,14 @@ typedef struct exon_data {
   int strand;
   int start;
   int end;
+  int chromosome;
   char *transcript_id;
 } exon_data_t;
 
 exon_coords_t *new_exon_coords(int start, int end);
 void exon_coords_free(exon_coords_t *p);
-exon_data_t *exon_data_new(int strand, 
+exon_data_t *exon_data_new(int chromosome,
+			   int strand, 
 			   int start, int end,
 			   char *transcript_id);
 void exon_data_free(exon_data_t *p);
