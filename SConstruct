@@ -41,6 +41,7 @@ env.Program('#bin/hpg-aligner',
 	               Glob('src/build-index/*.c'),
 	               Glob('src/dna/*.c'),
 	               Glob('src/rna/*.c'),
+	               Glob('src/bs/*.c'),
                        "%s/libcommon.a" % commons_path,
                        "%s/libbioinfo.a" % bioinfo_path
                       ]

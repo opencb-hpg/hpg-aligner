@@ -1168,7 +1168,6 @@ int metaexon_insert(unsigned int strand, unsigned int chromosome,
       }
       
 
-
       //Updating bypass_pointers structure
       //Update bypass_pointer chromosome ck_start.first?
       //printf(" =: %lu <= %lu\n", metaexon_ref->start, ((metaexon_t *)list_item->item)->start);
@@ -1198,6 +1197,7 @@ int metaexon_insert(unsigned int strand, unsigned int chromosome,
 	metaexons->bypass_pointer[chromosome][ck2].last = list_item_ref;	
       }
       */
+
       break;
     }
   }

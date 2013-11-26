@@ -174,13 +174,14 @@ static void prepare_single_alignments(pair_server_input_t *input, mapping_batch_
 				  sw_output->mref_len, 
 				  &distance,
 				  (int *) &num_cigar_ops);
-/*
+
+      /*
       printf(">>>>> %s : %s, pos = %lu\n", header_match, cigar, pos);
       printf("\tref_start = %lu, ref_len = %lu, mref_start = %lu ,mref_len = %lu\n",
 	     sw_output->ref_start, sw_output->ref_len, mref_start, sw_output->mref_len);
       printf("\tmquery = %s (start = %i)\n", sw_output->mquery, mquery_start);
       printf("\tmref   = %s (start = %i)\n", sw_output->mref, mref_start);
-*/
+      */
       // set optional fields
       //      optional_fields_length = 0;
       //      optional_fields = NULL;
@@ -231,6 +232,274 @@ static void prepare_single_alignments(pair_server_input_t *input, mapping_batch_
 }
 
 //------------------------------------------------------------------------------------
+
+static void prepare_single_alignments_bs(pair_server_input_t *input, mapping_batch_t *batch) {
+
+  static char aux[4096];
+
+  char *p, *optional_fields;
+  int optional_fields_length;
+      
+  array_list_t *fq_batch = batch->fq_batch;
+  fastq_read_t *fq_read;
+
+  int num_items, distance, AS;
+  size_t read_index, num_targets = batch->num_targets, num_targets2 = batch->num_targets2;
+
+  size_t read_len, header_len, mapped_len, len, pos;
+  size_t deletion_n, num_cigar_ops, shift;
+  char *cigar, *header_match, *read_match, *quality_match;
+
+  size_t mref_start, mquery_start;
+  alignment_t *alignment;
+
+  sw_output_t *sw_output;
+  array_list_t *sw_list, *alignment_list;
+
+  int c;
+  char *quality;
+
+  // convert the SW output to alignments
+  for (size_t i = 0; i < num_targets; i++) {
+    //    printf("pair_server.c, prepare_single_alignments: target = #%i of %i\n", i, num_targets);
+    LOG_DEBUG_F("------------------- list 1 item %i (%i)...\n", i, num_targets2);
+    read_index = batch->targets[i];
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
+    sw_list = batch->mapping_lists[read_index];
+    
+    read_len = fq_read->length;
+
+    header_len = strlen(fq_read->id);
+    num_items = array_list_size(sw_list);
+
+    alignment_list = array_list_new(1000, 
+				    1.25f, 
+				    COLLECTION_MODE_ASYNCHRONIZED);
+    array_list_set_flag(1, alignment_list);
+
+    //    printf("pair_server.c, prepare_single_alignments: process read #%i with %i mappings\n", 
+    //	   index, num_items);
+
+    for (size_t j = 0; j < num_items; j++) {
+      sw_output = (sw_output_t *) array_list_get(j, sw_list);
+      
+      mapped_len = sw_output->mref_len;
+
+      header_len = get_to_first_blank(fq_read->id, header_len, aux);
+      
+      header_match = (char *) malloc(sizeof(char) * (header_len + 1));
+      memcpy(header_match, aux, header_len);
+      header_match[header_len] = '\0';
+      
+      mquery_start = sw_output->mquery_start;
+      mref_start = sw_output->mref_start;
+
+      //printf("%s\n", header_match);
+      //printf("\tstrand = %i, chromosome = %i\n", sw_output->strand, sw_output->chromosome - 1);
+      //printf("\tmquery_start = %i, mref_start = %i\n", mquery_start, mref_start);
+
+      pos = sw_output->ref_start + mref_start - 1;
+
+      read_match = (char *) malloc(sizeof(char) * (mapped_len + 1));
+      quality_match = (char *) malloc(sizeof(char) * (mapped_len + 1));
+      c = 0;
+      quality = fq_read->quality + mquery_start;
+      for (int ii = 0; ii < mapped_len; ii++){
+	   if (sw_output->mquery[ii] != '-') {
+		read_match[c] = sw_output->mquery[ii]; 
+		quality_match[c] = quality[c];
+		c++;
+	   }
+      }
+      read_match[c] = '\0'; 
+      quality_match[c] = '\0'; 
+
+      cigar =  generate_cigar_str(sw_output->mquery, 
+				  sw_output->mref, 
+				  mquery_start, 
+				  read_len, 
+				  sw_output->mref_len, 
+				  &distance,
+				  (int *) &num_cigar_ops);
+
+      /*
+      printf(">>>>> %s : %s, pos = %lu\n", header_match, cigar, pos);
+      printf("\tref_start = %lu, ref_len = %lu, mref_start = %lu ,mref_len = %lu\n",
+	     sw_output->ref_start, sw_output->ref_len, mref_start, sw_output->mref_len);
+      printf("\tmquery = %s (start = %i)\n", sw_output->mquery, mquery_start);
+      printf("\tmref   = %s (start = %i)\n", sw_output->mref, mref_start);
+      */
+
+      // set optional fields
+      //      optional_fields_length = 0;
+      //      optional_fields = NULL;
+      optional_fields_length = 100;
+      optional_fields = (char *) calloc(optional_fields_length, sizeof(char));
+
+      p = optional_fields;
+      AS = (int) sw_output->score;
+
+      sprintf(p, "ASi");
+      p += 3;
+      memcpy(p, &AS, sizeof(int));
+      p += sizeof(int);
+      
+      sprintf(p, "NHi");
+      p += 3;
+      memcpy(p, &num_items, sizeof(int));
+      p += sizeof(int);
+
+      sprintf(p, "NMi");
+      p += 3;
+      memcpy(p, &distance, sizeof(int));
+      p += sizeof(int);
+      //      *p = '\0';
+
+
+      optional_fields_length = p - optional_fields;
+      // create the alignment and insert into the list
+      alignment = alignment_new();
+      alignment_init_single_end(header_match, read_match, quality_match, 
+				sw_output->strand, 
+				sw_output->chromosome - 1, 
+				pos,
+				cigar, num_cigar_ops, sw_output->norm_score * 254, 1, (num_items > 1),
+				optional_fields_length, optional_fields, alignment);
+
+      array_list_insert(alignment, alignment_list);
+
+      // free memory (sw output)
+      sw_output_free(sw_output);
+    } // end for sw items
+
+    // free the sw list, and update the mapping list with the alignment list
+    array_list_free(sw_list, NULL);
+    batch->mapping_lists[read_index] = alignment_list;
+  } // end for targets
+
+/////////////////////////////////////////////////
+  // convert the SW output2 to alignments
+  for (size_t i = 0; i < num_targets2; i++) {
+    //    printf("pair_server.c, prepare_single_alignments: target = #%i of %i\n", i, num_targets);
+    LOG_DEBUG_F("------------------- list 2 item %i (%i)...\n", i, num_targets2);
+    read_index = batch->targets2[i];
+    fq_read = (fastq_read_t *) array_list_get(read_index, fq_batch);
+    
+    sw_list = batch->mapping_lists2[read_index];
+    
+    read_len = fq_read->length;
+
+    header_len = strlen(fq_read->id);
+    num_items = array_list_size(sw_list);
+
+    alignment_list = array_list_new(1000, 
+				    1.25f, 
+				    COLLECTION_MODE_ASYNCHRONIZED);
+    array_list_set_flag(1, alignment_list);
+
+    //    printf("pair_server.c, prepare_single_alignments: process read #%i with %i mappings\n", 
+    //	   index, num_items);
+
+    for (size_t j = 0; j < num_items; j++) {
+      sw_output = (sw_output_t *) array_list_get(j, sw_list);
+      
+      mapped_len = sw_output->mref_len;
+
+      header_len = get_to_first_blank(fq_read->id, header_len, aux);
+      
+      header_match = (char *) malloc(sizeof(char) * (header_len + 1));
+      memcpy(header_match, aux, header_len);
+      header_match[header_len] = '\0';
+      
+      mquery_start = sw_output->mquery_start;
+      mref_start = sw_output->mref_start;
+
+      //printf("%s\n", header_match);
+      //printf("\tstrand = %i, chromosome = %i\n", sw_output->strand, sw_output->chromosome - 1);
+      //printf("\tmquery_start = %i, mref_start = %i\n", mquery_start, mref_start);
+
+      pos = sw_output->ref_start + mref_start - 1;
+
+      read_match = (char *) malloc(sizeof(char) * (mapped_len + 1));
+      quality_match = (char *) malloc(sizeof(char) * (mapped_len + 1));
+      c = 0;
+      quality = fq_read->quality + mquery_start;
+      for (int ii = 0; ii < mapped_len; ii++){
+	   if (sw_output->mquery[ii] != '-') {
+		read_match[c] = sw_output->mquery[ii]; 
+		quality_match[c] = quality[c];
+		c++;
+	   }
+      }
+      read_match[c] = '\0'; 
+      quality_match[c] = '\0'; 
+
+      cigar =  generate_cigar_str(sw_output->mquery, 
+				  sw_output->mref, 
+				  mquery_start, 
+				  read_len, 
+				  sw_output->mref_len, 
+				  &distance,
+				  (int *) &num_cigar_ops);
+      /*
+      printf(">>>>> %s : %s, pos = %lu\n", header_match, cigar, pos);
+      printf("\tref_start = %lu, ref_len = %lu, mref_start = %lu ,mref_len = %lu\n",
+	     sw_output->ref_start, sw_output->ref_len, mref_start, sw_output->mref_len);
+      printf("\tmquery = %s (start = %i)\n", sw_output->mquery, mquery_start);
+      printf("\tmref   = %s (start = %i)\n", sw_output->mref, mref_start);
+      */
+      // set optional fields
+      //      optional_fields_length = 0;
+      //      optional_fields = NULL;
+      optional_fields_length = 100;
+      optional_fields = (char *) calloc(optional_fields_length, sizeof(char));
+
+      p = optional_fields;
+      AS = (int) sw_output->score;
+
+      sprintf(p, "ASi");
+      p += 3;
+      memcpy(p, &AS, sizeof(int));
+      p += sizeof(int);
+      
+      sprintf(p, "NHi");
+      p += 3;
+      memcpy(p, &num_items, sizeof(int));
+      p += sizeof(int);
+
+      sprintf(p, "NMi");
+      p += 3;
+      memcpy(p, &distance, sizeof(int));
+      p += sizeof(int);
+      //      *p = '\0';
+
+
+      optional_fields_length = p - optional_fields;
+      // create the alignment and insert into the list
+      alignment = alignment_new();
+      alignment_init_single_end(header_match, read_match, quality_match, 
+				sw_output->strand, 
+				sw_output->chromosome - 1, 
+				pos,
+				cigar, num_cigar_ops, sw_output->norm_score * 254, 1, (num_items > 1),
+				optional_fields_length, optional_fields, alignment);
+
+      array_list_insert(alignment, alignment_list);
+
+      // free memory (sw output)
+      sw_output_free(sw_output);
+    } // end for sw items
+
+    // free the sw list, and update the mapping list with the alignment list
+    array_list_free(sw_list, NULL);
+    batch->mapping_lists2[read_index] = alignment_list;
+  } // end for targets
+  //printf("pair_server.c, prepare_single_alignments: Done\n");
+}
+
+//------------------------------------------------------------------------------------
+
 void update_mispaired_pair(int pair_num, size_t num_items, array_list_t *list) {
   alignment_t *alig;
 
@@ -756,11 +1025,17 @@ inline void select_best (array_list_t *mapping_list) {
 
   //int dbg = 0;
 
+  //printf("items = %i\tmax quality = %i\n", num_items, max_quality);
+
   for (int i = num_items - 1; i >= 0; i--) {
     alig = array_list_get(i, mapping_list);
+    //printf("elem = %i\tquality = %i\n", i, alig->map_quality);
     if (alig->map_quality != max_quality) {
+      //printf("borrar item = %i\n", i);
       alig = array_list_remove_at(i, mapping_list);
+      //printf("item %i borrado\n", i);
       alignment_free(alig);
+      //printf("item %i liberado\n", i);
     } /*else {
       dbg++;
       }*/
@@ -787,27 +1062,36 @@ inline void filter_alignments(char report_all,
 			      array_list_t *mapping_list) {
 
   size_t num_mappings = array_list_size(mapping_list);
+  //printf("filter\n");
+  //printf("\treport all = '%c'\nreport n best = %lu\nreport hits = %lu\nreport best = %i\n", report_all, report_n_best, report_n_hits, report_best);
 
   if (!report_all && num_mappings) {
+    //printf("select reports\n");
     if (report_best) {
+      //printf("report best\n");
       // max-score
       select_best(mapping_list);
+      //printf("end select best\n");
     } else if (report_n_best > 0) {
+      //printf("report n best\n");
       // n-best
       if (num_mappings > report_n_best) { 
+	//printf("select n best\n");
 	select_best_hits(mapping_list, report_n_best);
       }
     } else if (report_n_hits > 0) {
+      //printf("report n hits\n");
       // n-hits
       if (num_mappings > report_n_hits) { 	
+	//printf("select n hits\n");
 	select_n_hits(mapping_list, report_n_hits);        
       }
     }
   }
+  //printf("end filter\n");
 }
 
 //-----------------------------------------------------------------------------
-
 
 void filter_alignments_lists(char report_all, 
 			     size_t report_n_best, 
@@ -816,17 +1100,19 @@ void filter_alignments_lists(char report_all,
 			     size_t num_lists,
 			     array_list_t **mapping_lists) {
   array_list_t *mapping_list;
+  //printf("num_list = %lu\n", num_lists);
+  //printf("report all = '%c'\nreport best = %lu\nreport hits = %lu\n", report_all, report_n_best, report_n_hits);
   for (int i = 0; i < num_lists; i++) {
+    //printf("%i\n", i);
     mapping_list = mapping_lists[i];
     filter_alignments(report_all, 
 		      report_n_best, 
 		      report_n_hits,
 		      report_best,
 		      mapping_list);
-    
   }
+  //printf("\n");
 }
-
 
 //====================================================================================
 // main functions: apply pair and prperare alignments
@@ -1011,6 +1297,56 @@ int prepare_alignments(pair_server_input_t *input, batch_t *batch) {
 
   //printf("pair_server.c: prepare_alignments done (pair mode = %i)\n", input->pair_mng->pair_mode);
   //  printf("pair_server.c: 1: after prepare_single_alignments\n");
+}
+
+//------------------------------------------------------------------------------------
+
+int prepare_alignments_bs(pair_server_input_t *input, batch_t *batch) {
+
+  //printf("---------->Prepare alignments\n");
+  if (batch->mapping_mode == BS_MODE) {
+    //printf("Convert\n");
+    // convert Smith-Waterman output objects to alignments
+    //prepare_single_alignments_bs(input, batch->mapping_batch);
+    //printf("\tEnd Convert\n");
+  }
+
+  if (input->pair_mng->pair_mode == SINGLE_END_MODE) {
+    //printf("single end\n");
+    // filter alignments by best-alignments, n-hits, all and unpaired reads
+
+    filter_alignments_lists(input->report_optarg->all, 
+			    input->report_optarg->n_best, 
+			    input->report_optarg->n_hits,
+			    input->report_optarg->best,
+			    array_list_size(batch->mapping_batch->fq_batch),
+			    batch->mapping_batch->mapping_lists);
+
+    //printf("  single end\n");
+
+    filter_alignments_lists(input->report_optarg->all, 
+			    input->report_optarg->n_best, 
+			    input->report_optarg->n_hits,
+			    input->report_optarg->best,
+			    array_list_size(batch->mapping_batch->fq_batch),
+			    batch->mapping_batch->mapping_lists2);
+
+    //printf("    end single end\n");
+  } else {
+    // first, search for proper pairs and
+    // then filter paired alignments by best-alignments, n-hits, all and unpaired reads
+    prepare_paired_alignments(input, batch->mapping_batch);
+  }
+
+  //*********************************************************
+
+  //printf("---------->pair_server.c: prepare_alignments done (pair mode = %i)\n", input->pair_mng->pair_mode);
+  //  printf("pair_server.c: 1: after prepare_single_alignments\n");
+
+  // return for the analysis without the postprocess
+  return CONSUMER_STAGE;
+  // return for the analysis without the postprocess
+  //return BS_STATUS_STAGE;
 }
 
 //------------------------------------------------------------------------------------

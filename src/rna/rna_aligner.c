@@ -264,8 +264,8 @@ void run_rna_aligner(genome_t *genome, bwt_index_t *bwt_index, pair_mng_t *pair_
   linked_list_set_flag(options->pair_mode, alignments_list);
 
   sw_optarg_t sw_optarg;
-  sw_optartg_init(options->gap_open, options->gap_extend, 
-		  options->match, options->mismatch, &sw_optarg);
+  sw_optarg_init(options->gap_open, options->gap_extend, 
+		 options->match, options->mismatch, &sw_optarg);
 
   bwt_server_input_t bwt_input;
   bwt_server_input_init(NULL,  0,  bwt_optarg, 

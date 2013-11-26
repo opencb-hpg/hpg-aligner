@@ -66,6 +66,7 @@ void prepare_pair_server(pair_server_input_t* input);
 int apply_pair(pair_server_input_t* input, batch_t *batch);
 
 int prepare_alignments(pair_server_input_t* input, batch_t *batch);
+int prepare_alignments_bs(pair_server_input_t* input, batch_t *batch);
 
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
