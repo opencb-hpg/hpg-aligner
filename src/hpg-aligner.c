@@ -1,6 +1,7 @@
 #include "dna/dna_aligner.h"
 #include "rna/rna_aligner.h"
 #include "bs/bs_aligner.h"
+#include "bs/bs_unified_aligner.h"
 #include "build-index/index_builder.h"
 
 
@@ -131,9 +132,10 @@ int main(int argc, char* argv[]) {
   argc -= 1;
   argv += 1;
 
-  if(strcmp(command, "dna") != 0 && 
-     strcmp(command, "rna") != 0 &&
-     strcmp(command, "bs" ) != 0 && 
+  if(strcmp(command, "dna"  ) != 0 && 
+     strcmp(command, "rna"  ) != 0 &&
+     strcmp(command, "bs"   ) != 0 && 
+     strcmp(command, "bs-un") != 0 && 
      strcmp(command, "build-index") != 0) {
     LOG_FATAL("Command unknown.\nValid commands are:\n\tdna: to map DNA sequences\n\trna: to map RNA sequences\n\tbs: to map BS sequences\n\tbuild-index: to create the genome index.\nUse -h or --help to display hpg-aligner options.");
   }
@@ -169,8 +171,8 @@ int main(int argc, char* argv[]) {
       run_index_builder(options->genome_filename, options->bwt_dirname, options->index_ratio);
       // generate binary code for original genome
       char binary_filename[strlen(options->bwt_dirname) + 128];
-      sprintf(binary_filename, "%s/dna_compression.bin", options->bwt_dirname);
-      generate_codes(binary_filename, options->genome_filename);
+      //sprintf(binary_filename, "%s/dna_compression.bin", options->bwt_dirname);
+      //generate_codes(binary_filename, options->genome_filename);
 
       char bs_dir1[256];
       sprintf(bs_dir1, "%s/AGT_index", options->bwt_dirname);
@@ -203,6 +205,10 @@ int main(int argc, char* argv[]) {
 
       run_index_builder_bs(genome_2, bs_dir2, options->index_ratio, "ACT");
       LOG_DEBUG("ACT index Done !!\n");
+      
+      LOG_DEBUG("Generation of CT & GA context\n");
+      encode_context(options->genome_filename, options->bwt_dirname);
+      LOG_DEBUG("CT & GA context Done !!\n");
       exit(0);
     }
   }
@@ -220,11 +226,10 @@ int main(int argc, char* argv[]) {
   // load index for dna/rna or for bisulfite case
 
   start_timer(time_genome_s);
-  if (strcmp(command, "bs" ) != 0)
+  if (strcmp(command, "bs" ) != 0 && strcmp(command, "bs-un" ) != 0)
   {
     // genome parameters
     LOG_DEBUG("Reading genome...");
-    //genome_t* genome = genome_new("dna_compression.bin", options->bwt_dirname);
     genome = genome_new("dna_compression.bin", options->bwt_dirname);
     LOG_DEBUG("Done !!");
     
@@ -233,8 +238,6 @@ int main(int argc, char* argv[]) {
 
     // BWT index
     LOG_DEBUG("Reading bwt index...");
-    //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
-    //bwt_index_t *bwt_index = bwt_index_new(options->bwt_dirname);
     
     bwt_index = bwt_index_new(options->bwt_dirname);
     LOG_DEBUG("Reading bwt index done !!");
@@ -253,42 +256,20 @@ int main(int argc, char* argv[]) {
     ////////////////////////
     //descomentar la siguiente linea para probar con el alfabeto de 4 letras
     ////////////////////////
-    //printf("dir %s\n", options->bwt_dirname);
     genome  = genome_new("dna_compression.bin", options->bwt_dirname);
-    //genome = genome_new("dna_compression.bin", bs_dir1);
     genome1 = genome_new("dna_compression.bin", bs_dir1);
     genome2 = genome_new("dna_compression.bin", bs_dir2);
 
     LOG_DEBUG("Done !!");
     
     // BWT index
-    //if (time_on) { timing_start(INIT_BWT_INDEX, 0, timing_p); }
-
-    //printf("Load index1 (%s)\n", bs_dir1);
     LOG_DEBUG("Loading AGT index...");
     bwt_index1 = bwt_index_new(bs_dir1);
-    //printf("Load index1 done\n");
-    /*
-    printf("+++bwt_index1 -> %s\n" ,bwt_index1->nucleotides);
-    bwt_index1->nucleotides = strdup(readNucleotide(bs_dir1, "Nucleotide"));
-    bwt_init_replace_table(bwt_index1->nucleotides, bwt_index1->table, bwt_index1->rev_table);
-    printf("***bwt_index1 -> %s\n" ,bwt_index1->nucleotides);
-    */
     LOG_DEBUG("Loading AGT index done !!");
 
-    //printf("Load index2 (%s)\n", bs_dir2);
     LOG_DEBUG("Loading ACT index...");
     bwt_index2 = bwt_index_new(bs_dir2);
-    //printf("Load index2 done\n");
-    /*
-    printf("+++bwt_index2 -> %s\n", bwt_index2->nucleotides);
-    bwt_index2->nucleotides = strdup(readNucleotide(bs_dir2, "Nucleotide"));
-    bwt_init_replace_table(bwt_index2->nucleotides, bwt_index2->table, bwt_index2->rev_table);
-    printf("***bwt_index2 -> %s\n", bwt_index2->nucleotides);
-    */
     LOG_DEBUG("Loading ACT index done !!");
-
-    //exit(-1);
   }
   stop_timer(time_genome_s, time_genome_e, time_genome);
 
@@ -313,36 +294,32 @@ int main(int argc, char* argv[]) {
 						     options->report_n_hits, 
 						     options->report_only_paired,
 						     options->report_best);  
-  // Now the table is initialized into the index loading function
-  //LOG_DEBUG("init table...");
-  //initTable();
-  //LOG_DEBUG("init table done !!");
 
   if (!strcmp(command, "rna")) {
-    //    LOG_DEBUG("init table...");
-    //    initTable();
-    //    LOG_DEBUG("init table done !!");
     // RNA version
     run_rna_aligner(genome, bwt_index, pair_mng, bwt_optarg, cal_optarg, report_optarg, metaexons, options);
   } else if (!strcmp(command, "dna")) {
-    //    LOG_DEBUG("init table...");
-    //    initTable();
-    //    LOG_DEBUG("init table done !!");
     // DNA version
     run_dna_aligner(genome, bwt_index, bwt_optarg, cal_optarg, pair_mng, report_optarg, metaexons, options);
-  } else { // if (!strcmp(command, "bs")) {
+  } else if (!strcmp(command, "bs")) {
     // BS version
     run_bs_aligner(genome1, genome2, genome, bwt_index1, bwt_index2,
 		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
+  } else if (!strcmp(command, "bs-un")) {
+    // BS-UNIFIED version
+    printf("\n*****************************\n\n");
+    printf("New line of execution\n");
+    printf("\n*****************************\n\n");
+    run_bs_unified_aligner(genome1, genome2, genome, bwt_index1, bwt_index2,
+			   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   }
-
+  
   LOG_DEBUG("main done !!");
 
   //show_metaexons(metaexons);
   // Free memory
   
-  if (strcmp(command, "bs" ) != 0)
-  {
+  if (strcmp(command, "bs" ) != 0 && strcmp(command, "bs-un" ) != 0) {
     bwt_index_free(bwt_index);
     genome_free(genome);
   } else {
@@ -376,7 +353,7 @@ int main(int argc, char* argv[]) {
       fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
     }
 
-    sprintf(str_log, "TOTAL READS PROCESSED: %i\n\0", basic_st->total_reads);
+    sprintf(str_log, "TOTAL READS PROCESSED: %lu\n\0", basic_st->total_reads);
     fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
 
     sprintf(str_log, "    TOTAL READS MAPPED: %0.2f%%\n\0", basic_st->num_mapped_reads * 100.0 / basic_st->total_reads);
@@ -385,7 +362,7 @@ int main(int argc, char* argv[]) {
     sprintf(str_log, "    TOTAL READS UNMAPPED: %0.2f%%\n\0", (basic_st->total_reads - basic_st->num_mapped_reads) * 100.0 / basic_st->total_reads);
     fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
 
-    sprintf(str_log, "    TOTAL SPLICE JUNCTIONS FOUND: %i\n\0", junction_id);
+    sprintf(str_log, "    TOTAL SPLICE JUNCTIONS FOUND: %lu\n\0", junction_id);
     fwrite(str_log, sizeof(char), strlen(str_log), fd_log);
 
     sprintf(str_log, "TIME ALIGNER: %0.2f (s)\n\0", time_alig / 1000000);
@@ -402,6 +379,10 @@ int main(int argc, char* argv[]) {
   options_free(options);
   
   metaexons_free(metaexons);
+
+  // new addition
+  stop_log();
+
   //printf("Reads mapped in BWT Section %lu (%lu correct(%f) and %lu misses(%f))\n", bwt_correct + bwt_error, bwt_correct, (float)(bwt_correct * 100)/(float)(bwt_correct + bwt_error), bwt_error, (float)(bwt_error * 100)/(float)(bwt_correct + bwt_error));
 
 

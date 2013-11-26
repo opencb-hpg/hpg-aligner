@@ -1,16 +1,16 @@
-#include "bs_aligner.h"
+#include "bs_unified_aligner.h"
 
 //--------------------------------------------------------------------
-// run bs aligner
+// run bs unified aligner
 //--------------------------------------------------------------------
 
-//void run_bs_aligner(genome_t *genome, genome_t *genome1, genome_t *genome2,
-void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
-		    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1, 
-		    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
-		    pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
-		    options_t *options) {
+void run_bs_unified_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
+			    bwt_index_t *bwt_index2, bwt_index_t *bwt_index1, 
+			    bwt_optarg_t *bwt_optarg, cal_optarg_t *cal_optarg, 
+			    pair_mng_t *pair_mng, report_optarg_t *report_optarg, 
+			    options_t *options) {
 
+  LOG_DEBUG("========= BS UNIFIED START =========\n");
   //printf("index1 %s\n", bwt_index1->nucleotides);
   //printf("index2 %s\n", bwt_index2->nucleotides);
 
@@ -59,8 +59,6 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   batch_writer_input_init(output_filename, NULL, NULL, NULL, genome, &writer_input);
 
   metil_file_t *metil_file = calloc(1, sizeof(metil_file_t));
-  //printf("out = %s\n", options->output_name);
-  //metil_file_init(metil_file, "/home/pascual/tmp/", genome);
   metil_file_init(metil_file, options->output_name, genome);
   writer_input.metil_file = metil_file;
   
@@ -100,8 +98,6 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   sw_input.valuesCT = (unsigned long long **)malloc(50 * sizeof(unsigned long long *));
   sw_input.valuesGA = (unsigned long long **)malloc(50 * sizeof(unsigned long long *));
   load_encode_context(options->bwt_dirname, sw_input.valuesCT, sw_input.valuesGA);
-  //printf("-------- CT = %llu -------- GA = %llu\n", sw_input.valuesCT[0][100000], sw_input.valuesGA[0][100000]);
-  //return;
 
   //--------------------------------------------------------------------------------------
   // workflow management
@@ -112,27 +108,25 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   extern double main_time;
 
   batch_t *batch = batch_new(&bwt_input, &region_input, &cal_input, 
-			     &pair_input, NULL, &sw_input, &writer_input, BS_MODE, NULL);
+			     &pair_input, NULL, &sw_input, &writer_input, BS_UN_MODE, NULL);
   
   wf_input_t *wf_input = wf_input_new(&reader_input, batch);
   
   // create and initialize workflow
   workflow_t *wf = workflow_new();
-  
-  // workflow definition for the analysis without the postprocess
 
-  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, cal_stage_bs, 
-						 pre_pair_stage, sw_stage_bs, post_pair_stage_bs};
-  char *stage_labels[] = {"BWT", "CAL", "PRE PAIR", "SW", "POST PAIR"};
+  /*
+  // workflow definition for the analysis without the postprocess
+  workflow_stage_function_t stage_functions[] = {bwt_stage_bs_un, pre_pair_stage_bs_un, sw_stage_bs_un, post_pair_stage_bs_un};
+  char *stage_labels[] = {"BWT UNIFIED", "PRE PAIR", "SW", "POST PAIR"};
+  workflow_set_stages(4, &stage_functions, stage_labels, wf);
+  */
+  // workflow definition for the analysis with the postprocess
+  workflow_stage_function_t stage_functions[] = {bwt_stage_bs_un, pre_pair_stage_bs_un, sw_stage_bs_un,
+                                                post_pair_stage_bs_un, bs_status_stage};
+  char *stage_labels[] = {"BWT UNIFIED", "PRE PAIR", "SW", "POST PAIR", "BS STATUS"};
   workflow_set_stages(5, &stage_functions, stage_labels, wf);
 
-  // workflow definition for the analysis with the postprocess
-  /*  
-  workflow_stage_function_t stage_functions[] = {bwt_stage_bs, seeding_stage_bs, cal_stage_bs, 
-  						 pre_pair_stage, sw_stage_bs, post_pair_stage_bs, bs_status_stage};
-  char *stage_labels[] = {"BWT", "SEEDING", "CAL", "PRE PAIR", "SW", "POST PAIR", "BS STATUS"};
-  workflow_set_stages(7, &stage_functions, stage_labels, wf);
-  */
   // optional producer and consumer functions
   workflow_set_producer(fastq_reader, "FastQ reader", wf);
   workflow_set_consumer(bs_writer, "BAM BS writer", wf);
@@ -145,13 +139,32 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   
   //if (time_on) {
   stop_timer(start, end, main_time);
+  LOG_DEBUG("========= END OF WORKFLOW =========\n");
   //printf("Total Time: %4.04f sec\n", time / 1000000);
   //}
   
   // free memory
+  LOG_DEBUG("========= BEGIN FREEING CT CONTEXT =========\n");
+  if (sw_input.valuesCT != NULL){
+    for (int i = 0; i < 50; i++) {
+      LOG_DEBUG_F("========= CT CONTEXT %i =========\n", i);
+      if (sw_input.valuesCT[i] != NULL) free(sw_input.valuesCT[i]);
+    }
+    free(sw_input.valuesCT);
+  }
+  LOG_DEBUG("========= BEGIN FREEING GA CONTEXT =========\n");
+  if (sw_input.valuesGA != NULL){
+    for (int i = 0; i < 50; i++) {
+      if (sw_input.valuesGA[i] != NULL) free(sw_input.valuesGA[i]);
+    }
+    free(sw_input.valuesGA);
+  }
+
+  LOG_DEBUG("========= BEGIN FREEING MEMORY =========\n");
   workflow_free(wf);
   wf_input_free(wf_input);
   batch_free(batch);
+  LOG_DEBUG("========= END FREEING MEMORY =========\n");
 
 
   // show statistics for cytosines methylated/unmethylated
@@ -287,4 +300,5 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
     printf("\n\tTotal SWs: %lu, Max time = %0.4f, Throughput = %0.2f SW/s\n", 
 	   total_item, max_time / 1e6, total_throughput);
   }
+  LOG_DEBUG("========= END OF BS UNIFIED =========\n");
 }

@@ -47,14 +47,24 @@
 #define CONSUMER_STAGE         -1
 
 
+//--------  DEFINE WORKFLOW BS VARS  -----------
+
 // added by PP
 #define BS_BWT_STAGE            0
-//#define BS_SEEDING_STAGE        1
 #define BS_CAL_STAGE            1
 #define BS_PRE_PAIR_STAGE       2
 #define BS_SW_STAGE             3
 #define BS_POST_PAIR_STAGE      4
 #define BS_STATUS_STAGE         5
+
+//--------  DEFINE WORKFLOW BS UNIFIED VARS  -----------
+
+// added by PP
+#define BS_UN_BWT_STAGE            0
+#define BS_UN_PRE_PAIR_STAGE       1
+#define BS_UN_SW_STAGE             2
+#define BS_UN_POST_PAIR_STAGE      3
+#define BS_UN_STATUS_STAGE         4
 
 //--------  DEFINE WORKFLOW DNA VARS  -----------
 
@@ -91,6 +101,7 @@
 #define RNA_MODE           1
 // added by PP
 #define BS_MODE            2
+#define BS_UN_MODE         3
 
 //------------------------------------------------------------------------------------
 

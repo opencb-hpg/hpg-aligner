@@ -700,6 +700,15 @@ int bwt_stage_bs(void *data) {
 
 //--------------------------------------------------------------------
 
+int bwt_stage_bs_un(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  printf("Init BWT BS UNIFIED\n");
+  return apply_bwt_bs_un(batch->bwt_input, batch);     
+}
+
+//--------------------------------------------------------------------
+
 int seeding_stage(void *data) {
   batch_t *batch = (batch_t *) data;
 
@@ -759,6 +768,15 @@ int pre_pair_stage_bs(void *data) {
 
 //--------------------------------------------------------------------
 
+int pre_pair_stage_bs_un(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  printf("Init pre_pair BS UNIFIED\n");
+  return apply_pair(batch->pair_input, batch);
+}
+
+//--------------------------------------------------------------------
+
 int sw_stage(void *data) {
   batch_t *batch = (batch_t *) data;
      
@@ -776,6 +794,15 @@ int sw_stage_bs(void *data) {
 
   //printf("Init SW\n");
   return apply_sw_bs(batch->sw_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int sw_stage_bs_un(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  printf("Init SW BS UNIFIED\n");
+  return apply_sw_bs_un(batch->sw_input, batch);
 }
 
 //--------------------------------------------------------------------
@@ -805,6 +832,15 @@ int post_pair_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
 
   return prepare_alignments_bs(batch->pair_input, batch);
+}
+
+//--------------------------------------------------------------------
+
+int post_pair_stage_bs_un(void *data) {
+  batch_t *batch = (batch_t *) data;
+
+  printf("Init Post-Pair BS UNIFIED\n");
+  return prepare_alignments_bs_un(batch->pair_input, batch);
 }
 
 //--------------------------------------------------------------------

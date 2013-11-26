@@ -1686,7 +1686,7 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     //    if (array_list_get_flag(list) == DOUBLE_ANCHORS) {
     //      printf("******************************* double anchors\n");
     //    } else {
-    printf("---------------------------> SEEDING 1\nindex1 %s\tindex2 %s\n", bwt_index->nucleotides, bwt_index2->nucleotides);
+    //printf("---------------------------> SEEDING 1\nindex1 %s\tindex2 %s\n", bwt_index->nucleotides, bwt_index2->nucleotides);
 
       max_seeds = (read->length / 15) * 2 + 10;      
       num_cals = bwt_generate_cals_bs(read->sequence, read2->sequence, seed_size, 
@@ -1694,14 +1694,14 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
       //    }
     
     for (int c = 0; c < array_list_size(list); c++) {
-      cal_print(array_list_get(c, list));
+      //cal_print(array_list_get(c, list));
     }
 
     // filter CALs
     list = filter_cals(num_cals, read->length, list);
 
     for (int c = 0; c < array_list_size(list); c++) {
-      cal_print(array_list_get(c, list));
+      //cal_print(array_list_get(c, list));
     }
 
 
@@ -1721,7 +1721,7 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
     //printf("From CAL Seeker %s\n", read->id);
     list = mapping_batch->mapping_lists2[target_index];
 
-    printf("---------------------------> SEEDING 2\n");
+    //printf("---------------------------> SEEDING 2\n");
     
     //    if (array_list_get_flag(list) == DOUBLE_ANCHORS) {
     //    } else {
@@ -1731,14 +1731,14 @@ int apply_caling_bs(cal_seeker_input_t* input, batch_t *batch) {
       //    }
     
     for (int c = 0; c < array_list_size(list); c++) {
-      cal_print(array_list_get(c, list));
+      //cal_print(array_list_get(c, list));
     }
 
     // filter CALs
     list = filter_cals(num_cals, read->length, list);
 
     for (int c = 0; c < array_list_size(list); c++) {
-      cal_print(array_list_get(c, list));
+      //cal_print(array_list_get(c, list));
     }
 
     // and update targets

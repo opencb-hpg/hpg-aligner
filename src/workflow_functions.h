@@ -46,30 +46,52 @@ int bam_writer(void *data);
 //--------------------------------------------------------------------
 
 int bwt_stage(void *data);
-int bwt_stage_bs(void *data);
 
 int seeding_stage(void *data);
-int seeding_stage_bs(void *data);
 
 int cal_stage(void *data);
-int cal_stage_bs(void *data);
 
 int pre_pair_stage(void *data);
-int pre_pair_stage_bs(void *data);
 
 int rna_preprocess_stage(void *data);
 
 int sw_stage(void *data);
-int sw_stage_bs(void *data);
 
 int post_pair_stage(void *data);
-int post_pair_stage_bs(void *data);
-
-int bs_status_stage(void *data);
 
 int rna_last_stage(void *data);
 
 int rna_last_hc_stage(void *data);
+
+//--------------------------------------------------------------------
+// stage bs functions
+//--------------------------------------------------------------------
+
+int bwt_stage_bs(void *data);
+
+int seeding_stage_bs(void *data);
+
+int cal_stage_bs(void *data);
+
+int pre_pair_stage_bs(void *data);
+
+int sw_stage_bs(void *data);
+
+int post_pair_stage_bs(void *data);
+
+int bs_status_stage(void *data);
+
+//--------------------------------------------------------------------
+// stage bs unified functions
+//--------------------------------------------------------------------
+
+int bwt_stage_bs_un(void *data);
+
+int pre_pair_stage_bs_un(void *data);
+
+int sw_stage_bs_un(void *data);
+
+int post_pair_stage_bs_un(void *data);
 
 //---------------------------------------------------------------------
 //workflow input

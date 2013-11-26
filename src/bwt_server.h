@@ -78,6 +78,7 @@ int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch);
 //int first_phase(bwt_server_input_t* input, batch_t *batch);
 
 int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch_p);
+int apply_bwt_bs_un(bwt_server_input_t* input, batch_t *batch_p);
 
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
