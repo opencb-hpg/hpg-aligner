@@ -282,8 +282,9 @@ mapping_batch_t *mapping_batch_new(array_list_t *fq_batch, pair_mng_t *pair_mng)
 					 1.25f, 
 					 COLLECTION_MODE_ASYNCHRONIZED); 
   }
-    
-  p->histogram_sw = (size_t *)calloc(1024, sizeof(size_t));
+  
+  p->margin = BS_HIST_MARGIN;
+  p->histogram_sw = (float *)calloc(num_reads, sizeof(float));
 
   // added by PP for bisulfite
   p->num_targets2 = 0;
@@ -396,6 +397,7 @@ void mapping_batch_free(mapping_batch_t *p) {
   if (p->mapping_lists2) { free(p->mapping_lists2); }
   if (p->targets2) { free(p->targets2); }
   if (p->bs_status) {free(p->bs_status); }
+  if (p->histogram_sw) {free(p->histogram_sw); }
   
   free(p);
 }

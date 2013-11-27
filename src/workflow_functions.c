@@ -356,7 +356,7 @@ void *file_reader(void *input) {
     if (type == CAL_TYPE) {
       //printf("\tCal Report\n");
       file_read_cals(num_items, mapping_batch->mapping_lists[num_reads], 
-		     fq_read, fd);      
+		     fq_read, fd);
       array_list_set_flag(BITEM_SINGLE_ANCHORS, 
 			  mapping_batch->mapping_lists[num_reads]);
     } else if (type == META_ALIGNMENT_TYPE) {
@@ -364,7 +364,7 @@ void *file_reader(void *input) {
       array_list_set_flag(BITEM_META_ALIGNMENTS, 
 			  mapping_batch->mapping_lists[num_reads]);
       file_read_meta_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
-				fq_read, fd);            
+				fq_read, fd);
     } else {
       //printf("\tAlignments Report\n");
       file_read_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
@@ -375,10 +375,9 @@ void *file_reader(void *input) {
 	       fq_read->id) == 0) {
       exit(-1);
       }*/
-            
+    
     num_reads++;
     if (num_reads >= MAX_READS) { break; }
-
   }
 
   //w2_r += num_reads;
@@ -395,7 +394,6 @@ void *file_reader(void *input) {
   }
 
   return new_batch;
-
 }
 
 void *file_reader_2(void *input) {
@@ -431,19 +429,19 @@ void *file_reader_2(void *input) {
     array_list_insert(fq_read, reads);
     
     mapping_batch->mapping_lists[num_reads] = array_list_new(50,
-							     1.25f, 
+							     1.25f,
 							     COLLECTION_MODE_ASYNCHRONIZED);
     if (type == CAL_TYPE) {
       //exit(-1);
       //printf("\tCal Report\n");
-      file_read_cals(num_items, mapping_batch->mapping_lists[num_reads], 
-		     fq_read, fd);      
+      file_read_cals(num_items, mapping_batch->mapping_lists[num_reads],
+		     fq_read, fd);
     } else if (type == META_ALIGNMENT_TYPE) {
       //printf("\tMeta Alignments Report\n");
-      file_read_meta_alignments(num_items, mapping_batch->mapping_lists[num_reads], 
-				fq_read, fd);            
+      file_read_meta_alignments(num_items, mapping_batch->mapping_lists[num_reads],
+				fq_read, fd);
       array_list_set_flag(BITEM_META_ALIGNMENTS,
-			  mapping_batch->mapping_lists[num_reads]);    
+			  mapping_batch->mapping_lists[num_reads]);
     } else {
       //exit(-1);
       //printf("\tAlignments Report\n");
@@ -454,7 +452,6 @@ void *file_reader_2(void *input) {
     //printf("W3 file read %i\n", array_list_size(mapping_batch->mapping_lists[num_reads]));
     num_reads++;
     if (num_reads >= MAX_READS) { break; }
-
   }
 
   tot_reads2 += num_reads;
@@ -464,9 +461,9 @@ void *file_reader_2(void *input) {
 
   if (num_reads) {
     mapping_batch->num_allocated_targets = num_reads;
-    new_batch = batch_new(batch->bwt_input, batch->region_input, batch->cal_input, 
+    new_batch = batch_new(batch->bwt_input, batch->region_input, batch->cal_input,
 			  batch->pair_input, batch->preprocess_rna, batch->sw_input,
-			  batch->writer_input, batch->mapping_mode, mapping_batch); 
+			  batch->writer_input, batch->mapping_mode, mapping_batch);
   } else {
     mapping_batch_free(mapping_batch);
   }
@@ -510,7 +507,7 @@ int bam_writer(void *data) {
      num_gaps += mapping_batch->num_gaps;
 
      batch_writer_input_t *writer_input = batch->writer_input;
-     bam_file_t *bam_file = writer_input->bam_file;     
+     bam_file_t *bam_file = writer_input->bam_file;
      linked_list_t *linked_list = writer_input->list_p;
      size_t num_reads_b = array_list_size(mapping_batch->fq_batch);
      size_t num_mapped_reads = 0;
@@ -540,13 +537,13 @@ int bam_writer(void *data) {
        total_mappings += num_items;
        fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
        
-       // mapped or not mapped ?	 
+       // mapped or not mapped ?
        if (num_items == 0) {
 	 total_mappings++;
 	 write_unmapped_read(fq_read, bam_file);
 	 if (mapping_batch->mapping_lists[i]) {
 	   array_list_free(mapping_batch->mapping_lists[i], NULL);
-	 }	 
+	 }
        } else {
 	 num_mapped_reads++;
 	 write_mapped_read(mapping_batch->mapping_lists[i], bam_file);
@@ -579,13 +576,12 @@ int bam_writer(void *data) {
 	 TOTAL_READS_SEEDING2,
 	 TOTAL_READS_SA;
        
-
        fprintf(stderr, "TOTAL READS PROCESS = %lu,\n TOTAL READS SEEDING x1 = %lu,\n TOTAL READS SEEDING x2 = %lu,\n TOTAL SW = %lu,\n TOTAL READS SINGLE ANCHOR FINAL = %lu\n\n",
 	       TOTAL_READS_PROCESS, TOTAL_READS_SEEDING, TOTAL_READS_SEEDING2, TOTAL_SW, TOTAL_READS_SA);
        
      }
      
-     //printf("Batch Write OK!\n");     
+     //printf("Batch Write OK!\n");
      
      if (mapping_batch) {
        mapping_batch_free(mapping_batch);
@@ -634,7 +630,7 @@ void write_mapped_read(array_list_t *array_list, bam_file_t *bam_file) {
     if (alig != NULL) {
       bam1 = convert_to_bam(alig, 33);
       bam_fwrite(bam1, bam_file);
-      bam_destroy1(bam1);	 
+      bam_destroy1(bam1);
       alignment_free(alig);
     } else {
       LOG_FATAL_F("alig is NULL, num_items = %lu\n", num_items)
@@ -654,25 +650,24 @@ void write_unmapped_read(fastq_read_t *fq_read, bam_file_t *bam_file) {
   bam1_t *bam1;
 
   // calculating cigar
-  sprintf(aux, "%luX", fq_read->length);	       
-  alig = alignment_new();	       
+  sprintf(aux, "%luX", fq_read->length);
+  alig = alignment_new();
   header_len = strlen(fq_read->id);
   id = (char *) malloc(sizeof(char) * (header_len + 1));
   get_to_first_blank(fq_read->id, header_len, id);
   //free(fq_read->id);
-  alignment_init_single_end(id, fq_read->sequence, fq_read->quality, 
+  alignment_init_single_end(id, fq_read->sequence, fq_read->quality,
 			    0, -1, -1, aux, 1, 0, 0, 0, 0, NULL, alig);
 
   bam1 = convert_to_bam(alig, 33);
   bam_fwrite(bam1, bam_file);
   bam_destroy1(bam1);
-	       
+
   alig->sequence = NULL;
   alig->quality = NULL;
   alig->cigar = NULL;
-  alignment_free(alig);	       
+  alignment_free(alig);
   //printf("\tWRITE : read %i (%d items): unmapped...done !!\n", i, num_items);
-  
 }
 
 //--------------------------------------------------------------------
@@ -683,9 +678,9 @@ int bwt_stage(void *data) {
   batch_t *batch = (batch_t *) data;
 
   if (batch->mapping_mode == DNA_MODE) {
-    return apply_bwt(batch->bwt_input, batch);     
+    return apply_bwt(batch->bwt_input, batch);
   } else {
-    return apply_bwt_rna(batch->bwt_input, batch);     
+    return apply_bwt_rna(batch->bwt_input, batch);
   }
 }
 
@@ -693,25 +688,22 @@ int bwt_stage(void *data) {
 
 int bwt_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
-
   //printf("Init BWT\n");
-  return apply_bwt_bs(batch->bwt_input, batch);     
+  return apply_bwt_bs(batch->bwt_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int bwt_stage_bs_un(void *data) {
   batch_t *batch = (batch_t *) data;
-
-  printf("Init BWT BS UNIFIED\n");
-  return apply_bwt_bs_un(batch->bwt_input, batch);     
+  //printf("Init BWT BS UNIFIED\n");
+  return apply_bwt_bs_un(batch->bwt_input, batch);
 }
 
 //--------------------------------------------------------------------
 
 int seeding_stage(void *data) {
   batch_t *batch = (batch_t *) data;
-
   return apply_seeding(batch->region_input, batch);
 }
 
@@ -719,7 +711,6 @@ int seeding_stage(void *data) {
 
 int seeding_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
-
   //printf("Init seeding\n");
   return apply_seeding_bs(batch->region_input, batch);
 }
@@ -728,7 +719,6 @@ int seeding_stage_bs(void *data) {
 
 int cal_stage(void *data) {
   batch_t *batch = (batch_t *) data;
-
   return apply_caling_rna(batch->cal_input, batch);
 }
 
@@ -736,7 +726,6 @@ int cal_stage(void *data) {
 
 int cal_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
-
   //printf("Init CAL\n");
   return apply_caling_bs(batch->cal_input, batch);
 }
@@ -745,15 +734,13 @@ int cal_stage_bs(void *data) {
 
 int rna_preprocess_stage(void *data) {
   batch_t *batch = (batch_t *) data;
-
-  return apply_preprocess_rna(batch->preprocess_rna, batch);  
+  return apply_preprocess_rna(batch->preprocess_rna, batch);
 }
 
 //---------------------------------------------------------------------
 
 int pre_pair_stage(void *data) {
   batch_t *batch = (batch_t *) data;
-
   return apply_pair(batch->pair_input, batch);
 }
 
@@ -761,7 +748,6 @@ int pre_pair_stage(void *data) {
 
 int pre_pair_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
-
   //printf("Init pre_pair\n");
   return apply_pair(batch->pair_input, batch);
 }
@@ -770,8 +756,7 @@ int pre_pair_stage_bs(void *data) {
 
 int pre_pair_stage_bs_un(void *data) {
   batch_t *batch = (batch_t *) data;
-
-  printf("Init pre_pair BS UNIFIED\n");
+  //printf("Init pre_pair BS UNIFIED\n");
   return apply_pair(batch->pair_input, batch);
 }
 
@@ -791,7 +776,6 @@ int sw_stage(void *data) {
 
 int sw_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
-
   //printf("Init SW\n");
   return apply_sw_bs(batch->sw_input, batch);
 }
@@ -800,8 +784,7 @@ int sw_stage_bs(void *data) {
 
 int sw_stage_bs_un(void *data) {
   batch_t *batch = (batch_t *) data;
-
-  printf("Init SW BS UNIFIED\n");
+  //printf("Init SW BS UNIFIED\n");
   return apply_sw_bs_un(batch->sw_input, batch);
 }
 
@@ -830,7 +813,6 @@ int post_pair_stage(void *data) {
 
 int post_pair_stage_bs(void *data) {
   batch_t *batch = (batch_t *) data;
-
   return prepare_alignments_bs(batch->pair_input, batch);
 }
 
@@ -838,8 +820,7 @@ int post_pair_stage_bs(void *data) {
 
 int post_pair_stage_bs_un(void *data) {
   batch_t *batch = (batch_t *) data;
-
-  printf("Init Post-Pair BS UNIFIED\n");
+  //printf("Init Post-Pair BS UNIFIED\n");
   return prepare_alignments_bs_un(batch->pair_input, batch);
 }
 
@@ -847,7 +828,6 @@ int post_pair_stage_bs_un(void *data) {
 
 int bs_status_stage(void *data) {
   batch_t *batch = (batch_t *) data;
-
   //printf("Init bs_status\n");
   return methylation_status_report(batch->sw_input, batch);
 }

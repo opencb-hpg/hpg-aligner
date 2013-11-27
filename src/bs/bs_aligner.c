@@ -99,7 +99,7 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
 
   sw_input.valuesCT = (unsigned long long **)malloc(50 * sizeof(unsigned long long *));
   sw_input.valuesGA = (unsigned long long **)malloc(50 * sizeof(unsigned long long *));
-  load_encode_context(options->bwt_dirname, sw_input.valuesCT, sw_input.valuesGA);
+  int gen_loads = load_encode_context(options->bwt_dirname, sw_input.valuesCT, sw_input.valuesGA);
   //printf("-------- CT = %llu -------- GA = %llu\n", sw_input.valuesCT[0][100000], sw_input.valuesGA[0][100000]);
   //return;
 
@@ -149,9 +149,28 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   //}
   
   // free memory
+  // free memory
+  LOG_DEBUG_F("========= BEGIN FREEING CT CONTEXT (%i) =========\n", gen_loads);
+  if (sw_input.valuesCT != NULL){
+    for (int i = 0; i < gen_loads; i++) {
+      LOG_DEBUG_F("========= CT CONTEXT %i =========\n", i);
+      if (sw_input.valuesCT[i] != NULL) free(sw_input.valuesCT[i]);
+    }
+    free(sw_input.valuesCT);
+  }
+  LOG_DEBUG("========= BEGIN FREEING GA CONTEXT =========\n");
+  if (sw_input.valuesGA != NULL){
+    for (int i = 0; i < gen_loads; i++) {
+      if (sw_input.valuesGA[i] != NULL) free(sw_input.valuesGA[i]);
+    }
+    free(sw_input.valuesGA);
+  }
+
+  LOG_DEBUG("========= BEGIN FREEING MEMORY =========\n");
   workflow_free(wf);
   wf_input_free(wf_input);
   batch_free(batch);
+  LOG_DEBUG("========= END FREEING MEMORY =========\n");
 
 
   // show statistics for cytosines methylated/unmethylated

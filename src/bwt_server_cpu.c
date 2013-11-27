@@ -508,56 +508,80 @@ int apply_bwt_bs(bwt_server_input_t* input, batch_t *batch) {
   fastq_read_t* fq_read;
   mapping_batch->num_targets = 0;
 
+  size_t Nc, Ng;
+  float Ncg, Ngc;
+  float margen = mapping_batch->margin;
+
   for (size_t i = 0; i < num_reads; i++) {
     //printf("\n********** read %lu **********\n", i);
+
+    // obtain histogram of each read to filter the number of searches realized
+    //---------------------------------
+    LOG_DEBUG_F("========= OBTAIN HISTOGRAM OF READ %lu =========\n", i);
+    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->fq_batch);
+    Nc = 0;
+    Ng = 0;
+    for (size_t j = 0; j < fq_read->length; j++){
+      if (fq_read->sequence[j] == 'C')
+        Nc++;
+      else if (fq_read->sequence[j] == 'G')
+        Ng++;
+    }
+    Ngc = 1.0 * Ng / (Nc + Ng);
+    Ncg = 1.0 - Ngc;
+    mapping_batch->histogram_sw[i] = Ncg;
+    LOG_DEBUG_F("========= END OF HISTOGRAM OF %s =========\n", fq_read->sequence);
+    LOG_DEBUG_F("========= VALUES Ncg %f =========\n", Ncg);
+    LOG_DEBUG_F("========= VALUES Ngc %f =========\n", Ngc);
+    LOG_DEBUG_F("========= VALUE STORE - %f =========\n", mapping_batch->histogram_sw[i]);
+    //---------------------------------
+
     array_list_set_flag(1, mapping_batch->mapping_lists[i]);
     array_list_set_flag(1, mapping_batch->mapping_lists2[i]);
 
-    //////////
-    // first search the reverse of the G->A transformation
-    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
-    //printf("Search 1\n");
-    bwt_map_inexact_read_bs(fq_read,
-			    input->bwt_optarg_p, input->bwt_index2_p,
-			    mapping_batch->mapping_lists[i], 1);
-    //printf("Search 1 end! with flag %i | items %i\n", mapping_batch->mapping_lists[i]->flag,
-    //	   mapping_batch->mapping_lists[i]->size);
-    
-    if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2) {
-      // next search the direct of the G->A transformation
-      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);      
-      //array_list_set_flag(array_list_get_flag(items_list2), items_list1);
-      //printf("Search 2\n");
-      bwt_map_inexact_read_bs(fq_read,
-			      input->bwt_optarg_p, input->bwt_index_p,
-			      mapping_batch->mapping_lists[i], 0);
-      //printf("Search 2 end! with flag %i | items %i\n", mapping_batch->mapping_lists[i]->flag,
-      //     mapping_batch->mapping_lists[i]->size);
-    }
-  
-    // first search the reverse of the C->T transformation
-    fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
-    //printf("Search 3\n");
-    bwt_map_inexact_read_bs(fq_read,
-			    input->bwt_optarg_p, input->bwt_index_p,
-			    mapping_batch->mapping_lists2[i], 1);
-    //printf("Search 3 end! with flag %i | items %i\n", mapping_batch->mapping_lists2[i]->flag, 
-    //	   mapping_batch->mapping_lists2[i]->size);
-    // transform the mappings of search 4 to the reverse strand
-    //if (array_list_get_flag(mapping_batch->mapping_lists2[i]) == 0 && 
-    //	mapping_batch->mapping_lists2[i]->size > 0) {
-    //transform_mappings(mapping_batch->mapping_lists2[i]);
-    //}
-
-    if (array_list_get_flag(mapping_batch->mapping_lists2[i]) != 2) {
-      // next search the direct of the C->T transformation
-      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
-      //printf("Search 4\n");
+    if (Ngc <= margen) {
+      // first search the reverse of the G->A transformation
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_rev_fq_batch);
+      //printf("Search 1\n");
       bwt_map_inexact_read_bs(fq_read,
 			      input->bwt_optarg_p, input->bwt_index2_p,
-			      mapping_batch->mapping_lists2[i], 0);
-      //printf("Search 4 end! with flag %i | items %i\n", mapping_batch->mapping_lists2[i]->flag,
-      //     mapping_batch->mapping_lists2[i]->size);
+			      mapping_batch->mapping_lists[i], 1);
+      //printf("Search 1 end! with flag %i | items %i\n", mapping_batch->mapping_lists[i]->flag,
+      //	   mapping_batch->mapping_lists[i]->size);
+      
+      if (array_list_get_flag(mapping_batch->mapping_lists[i]) != 2) {
+	// next search the direct of the G->A transformation
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->GA_fq_batch);      
+	//array_list_set_flag(array_list_get_flag(items_list2), items_list1);
+	//printf("Search 2\n");
+	bwt_map_inexact_read_bs(fq_read,
+				input->bwt_optarg_p, input->bwt_index_p,
+				mapping_batch->mapping_lists[i], 0);
+	//printf("Search 2 end! with flag %i | items %i\n", mapping_batch->mapping_lists[i]->flag,
+	//     mapping_batch->mapping_lists[i]->size);
+      }
+    }
+  
+    if (Ncg <= margen) {
+      // first search the reverse of the C->T transformation
+      fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_rev_fq_batch);
+      //printf("Search 3\n");
+      bwt_map_inexact_read_bs(fq_read,
+			      input->bwt_optarg_p, input->bwt_index_p,
+			      mapping_batch->mapping_lists2[i], 1);
+      //printf("Search 3 end! with flag %i | items %i\n", mapping_batch->mapping_lists2[i]->flag, 
+      //	   mapping_batch->mapping_lists2[i]->size);
+      
+      if (array_list_get_flag(mapping_batch->mapping_lists2[i]) != 2) {
+	// next search the direct of the C->T transformation
+	fq_read = (fastq_read_t *) array_list_get(i, mapping_batch->CT_fq_batch);
+	//printf("Search 4\n");
+	bwt_map_inexact_read_bs(fq_read,
+				input->bwt_optarg_p, input->bwt_index2_p,
+				mapping_batch->mapping_lists2[i], 0);
+	//printf("Search 4 end! with flag %i | items %i\n", mapping_batch->mapping_lists2[i]->flag,
+	//     mapping_batch->mapping_lists2[i]->size);
+      }
     }
 
     //printf("NUM ITEMS LIST   = %i\n", mapping_batch->mapping_lists[i]->size);

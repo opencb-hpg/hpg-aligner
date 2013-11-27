@@ -307,9 +307,9 @@ int main(int argc, char* argv[]) {
 		   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   } else if (!strcmp(command, "bs-un")) {
     // BS-UNIFIED version
-    printf("\n*****************************\n\n");
-    printf("New line of execution\n");
-    printf("\n*****************************\n\n");
+    printf("\n*****************************\n");
+    printf("\tNew line of execution\n");
+    printf("*****************************\n\n");
     run_bs_unified_aligner(genome1, genome2, genome, bwt_index1, bwt_index2,
 			   bwt_optarg, cal_optarg, pair_mng, report_optarg, options);
   }

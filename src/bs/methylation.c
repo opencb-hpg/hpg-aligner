@@ -926,6 +926,10 @@ void remove_duplicates(size_t reads, array_list_t **list, array_list_t **list2) 
 
 int methylation_status_report(sw_server_input_t* input, batch_t *batch) {
 
+  LOG_DEBUG("========= METHYLATION STATUS REPORT START =========\n");
+
+  return CONSUMER_STAGE;
+
   mapping_batch_t *mapping_batch = (mapping_batch_t *) batch->mapping_batch;
   array_list_t **mapping_lists;
   size_t num_items;
@@ -1945,15 +1949,18 @@ int encode_context(char* filename, char* directory) {
 
 int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned long long **valuesGA) {
 
-  //printf("Init Load Genome\n");
-
-  FILE *f2, *f3, *f4;
+  FILE *f1, *f2, *f3;
   size_t size, size2 = strlen(directory);
   char *tmp = (char *)malloc((size2 + 40) * sizeof(char));
   int chromosome, i;
 
+  sprintf(tmp, "%s/Genome_context_size.txt", directory);
+  f1 = fopen (tmp, "r");
+  if (f1==NULL) {
+    perror("No se puede abrir el fichero de tamaños");
+    return -1;
+  }
   sprintf(tmp, "%s/Genome_context_CT.bin", directory);
-  //printf("Fichero salida 1: %s\n", tmp);
   f2 = fopen (tmp, "rb");
   if (f2==NULL) {
     perror("No se puede abrir el fichero de contexto CT");
@@ -1965,20 +1972,14 @@ int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned
     perror("No se puede abrir el fichero de contexto GA");
     return -1;
   }
-  sprintf(tmp, "%s/Genome_context_size.txt", directory);
-  //printf("Fichero salida 3: %s\n", tmp);
-  f4 = fopen (tmp, "r");
-  if (f4==NULL) {
-    perror("No se puede abrir el fichero de tamaños");
-    return -1;
-  }
 
-  fscanf(f4, "%i\n", &chromosome);
-  //printf("chromosomes %2i\n", chromosome);
+  fscanf(f1, "%i\n", &chromosome);
+
+  //valuesCT = (unsigned long long **)malloc(chromosome * sizeof(unsigned long long *));
+  //valuesGA = (unsigned long long **)malloc(chromosome * sizeof(unsigned long long *));
 
   for (i = 0; i < chromosome; i++) {
-    fscanf(f4, "%lu\n", &size);
-    //printf("\tchromosome %2i (%10lu)\n", i, size);
+    fscanf(f1, "%lu\n", &size);
 
     valuesCT[i] = (unsigned long long *)calloc(size, sizeof(unsigned long long));
     fread (valuesCT[i], sizeof(unsigned long long), size, f2);
@@ -1988,12 +1989,9 @@ int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned
   }
 
   free(tmp);
+  fclose(f1);
   fclose(f2);
   fclose(f3);
-  fclose(f4);
-
-  //printf("--------\nCT = %llu\n--------\nGA = %llu\n", valuesCT[0][100000], valuesGA[0][100000]);
-  //printf("End Load Genome\n");
 
   return chromosome;
 }

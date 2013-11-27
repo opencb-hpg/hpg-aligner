@@ -49,7 +49,8 @@
 
 //--------  DEFINE WORKFLOW BS VARS  -----------
 
-// added by PP
+#define BS_HIST_MARGIN          0.90
+
 #define BS_BWT_STAGE            0
 #define BS_CAL_STAGE            1
 #define BS_PRE_PAIR_STAGE       2
@@ -59,21 +60,18 @@
 
 //--------  DEFINE WORKFLOW BS UNIFIED VARS  -----------
 
-// added by PP
-#define BS_UN_BWT_STAGE            0
-#define BS_UN_PRE_PAIR_STAGE       1
-#define BS_UN_SW_STAGE             2
-#define BS_UN_POST_PAIR_STAGE      3
-#define BS_UN_STATUS_STAGE         4
+#define BS_UN_BWT_STAGE         0
+#define BS_UN_PRE_PAIR_STAGE    1
+#define BS_UN_SW_STAGE          2
+#define BS_UN_POST_PAIR_STAGE   3
+#define BS_UN_STATUS_STAGE      4
 
 //--------  DEFINE WORKFLOW DNA VARS  -----------
-
 
 #define CAL_STAGE               1
 #define PRE_PAIR_STAGE          2
 #define SW_STAGE                3
 #define DNA_POST_PAIR_STAGE     4
-
 
 //--------  DEFINE WORKFLOW RNA VARS   -----------
 
@@ -358,7 +356,9 @@ typedef struct mapping_batch {
   array_list_t **old_mapping_lists;
   unsigned char *bwt_mappings;
 
-  size_t *histogram_sw;
+  // histogram handling for filtering
+  float margin;
+  float *histogram_sw;
 
   // bs handling
   size_t num_targets2;
