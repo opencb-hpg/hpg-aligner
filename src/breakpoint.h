@@ -65,6 +65,7 @@ cigar_op_t *cigar_code_get_last_op(cigar_code_t *p);
 void cigar_code_delete_nt(int nt, int direction, cigar_code_t *cigar_code);
 void cigar_code_print(cigar_code_t *cigar_code);
 void cigar_code_inc_distance(int distance, cigar_code_t *p);
+void cigar_code_add_op(cigar_op_t *op, cigar_code_t *p);
 void cigar_code_append_new_op(int value, char name, cigar_code_t *p);
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p);
 void cigar_code_insert_first_op(cigar_op_t *op, cigar_code_t *p);

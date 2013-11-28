@@ -1951,26 +1951,29 @@ int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned
 
   FILE *f1, *f2, *f3;
   size_t size, size2 = strlen(directory);
-  char *tmp = (char *)malloc((size2 + 40) * sizeof(char));
-  int chromosome, i;
+  char *tmp = (char *)malloc((size2 + 50) * sizeof(char));
+  int ret, chromosome, i;
 
   sprintf(tmp, "%s/Genome_context_size.txt", directory);
   f1 = fopen (tmp, "r");
   if (f1==NULL) {
     perror("No se puede abrir el fichero de tamaños");
-    return -1;
+    ret = -1;
+    goto end1;
   }
   sprintf(tmp, "%s/Genome_context_CT.bin", directory);
   f2 = fopen (tmp, "rb");
   if (f2==NULL) {
     perror("No se puede abrir el fichero de contexto CT");
-    return -1;
+    ret = -1;
+    goto end2;
   }
   sprintf(tmp, "%s/Genome_context_GA.bin", directory);
   f3 = fopen (tmp, "rb");
   if (f3==NULL) {
     perror("No se puede abrir el fichero de contexto GA");
-    return -1;
+    ret = -1;
+    goto end3;
   }
 
   fscanf(f1, "%i\n", &chromosome);
@@ -1987,13 +1990,17 @@ int load_encode_context(char* directory, unsigned long long **valuesCT, unsigned
     valuesGA[i] = (unsigned long long *)calloc(size, sizeof(unsigned long long));
     fread (valuesGA[i], sizeof(unsigned long long), size, f3);
   }
+  ret = chromosome;
 
-  free(tmp);
-  fclose(f1);
-  fclose(f2);
   fclose(f3);
+end3:
+  fclose(f2);
+end2:
+  fclose(f1);
+end1:
+  free(tmp);
 
-  return chromosome;
+  return ret;
 }
 
 //====================================================================================

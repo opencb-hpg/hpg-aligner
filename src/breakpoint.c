@@ -68,8 +68,8 @@ cigar_code_t *cigar_code_new_by_string(char *cigar_str) {
 
 void cigar_code_free(cigar_code_t* p) {
   if (p) {
-    //    if (p->ops) array_list_free(p->ops, (void *) cigar_op_free);
-    if (p->ops) array_list_free(p->ops, (void *) NULL);
+    if (p->ops) array_list_free(p->ops, (void *) cigar_op_free);
+    //if (p->ops) array_list_free(p->ops, (void *) NULL);
     if (p->cigar_str) free(p->cigar_str);
     free(p);
   }
@@ -143,14 +143,20 @@ cigar_op_t *cigar_code_get_last_op(cigar_code_t *p) {
 
 //--------------------------------------------------------------------------------------
 
+void cigar_code_add_op(cigar_op_t *op, cigar_code_t *p) {
+  if (p && p->ops && op) {
+    array_list_insert(op, p->ops);
+  }
+}
+
 void cigar_code_append_op(cigar_op_t *op, cigar_code_t *p) {
   if (p && p->ops && op) {
     cigar_op_t *last = cigar_code_get_last_op(p);
     if (last && last->name == op->name) {
       last->number += op->number;
-      cigar_op_free(op);
+      //cigar_op_free(op);
     } else {
-      array_list_insert(op, p->ops);
+      array_list_insert(cigar_op_new(op->number, op->name), p->ops);
     }
   }
 }

@@ -69,8 +69,9 @@ void display_sr_lists_bs(char *msg, mapping_batch_t *mapping_batch, int bs_id) {
       itr = linked_list_iterator_new(cal->sr_list);
       s = (seed_region_t *) linked_list_iterator_curr(itr);
       while (s != NULL) {
-	LOG_DEBUG_F("\t\t%s (dist. %i)\t[%i|%i - %i|%i]\n", 
+	LOG_DEBUG_F("\t\t%s %x (dist. %i)\t[%i|%i - %i|%i]\n", 
 		    (s->info ? new_cigar_code_string((cigar_code_t *) s->info) : ">>>>>> gap"),
+		    s->info,
 		    (s->info ? ((cigar_code_t *) s->info)->distance : -1),
 		    s->genome_start, s->read_start, s->read_end, s->genome_end);
 	linked_list_iterator_next(itr);
@@ -198,7 +199,7 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	// set the cigar for the current region
 	gap_read_len = s->read_end - s->read_start + 1;
 	cigar_code = cigar_code_new();
-	cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
+	cigar_code_add_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
 	s->info = (void *) cigar_code;
 
 	cigar_code = NULL;
@@ -227,15 +228,15 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	      // the gap is too big, may be there's another CAL to cover it
 	      //printf("**************************\n");
 	      cigar_code = cigar_code_new();
-	      cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
+	      cigar_code_add_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
 	    } else {
 	      left_flank = 0;
 	      right_flank = DOUBLE_FLANK;
 	    }
-	  } else {
+	  } else { // gap at a middle position
 	    assert(prev_s->read_end < s->read_start);
 
-	    // gap in a middle position
+	    // gap at a middle position
 	    gap_read_start = prev_s->read_end + 1;
 	    gap_read_end = s->read_start - 1;
 
@@ -314,9 +315,12 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	      LOG_DEBUG_F("ref      : %s (%i:%lu-%lu)\n", ref, cal->chromosome_id, start, end);
 	      LOG_DEBUG_F("distance : %i\n", distance);
 
+	      // free memory
+	      free(ref);
+
 	      if (distance < min_distance) {
 		cigar_code = cigar_code_new();
-		cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
+		cigar_code_add_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
 		cigar_code_inc_distance(distance, cigar_code);
 	      }
 	    }
@@ -417,7 +421,7 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	if (gap_read_len > min_gap) {
 	  // the gap is too big, may be there's another CAL to cover it
 	  cigar_code = cigar_code_new();
-	  cigar_code_append_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
+	  cigar_code_add_op(cigar_op_new(gap_read_len, 'H'), cigar_code);	      
 	} else {
 	  // we have to try to fill this gap and get a cigar
 	  
@@ -458,9 +462,12 @@ void fill_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 	  LOG_DEBUG_F("ref      : %s (%i:%lu-%lu)\n", ref, cal->chromosome_id, start, end);
 	  LOG_DEBUG_F("distance : %i\n", distance);
 
+	  // free memory
+	  free(ref);
+
 	  if (distance < min_distance) {
 	    cigar_code = cigar_code_new();
-	    cigar_code_append_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
+	    cigar_code_add_op(cigar_op_new(gap_read_len, 'M'), cigar_code);
 	    cigar_code_inc_distance(distance, cigar_code);
 	  } else {
 	    //    2) second, prepare SW to run
@@ -706,7 +713,7 @@ void fill_end_gaps_bs(mapping_batch_t *mapping_batch, sw_optarg_t *sw_optarg,
 
   int first, last, mode, distance, flank = 5;
   sw_prepare_t *sw_prepare;
-  array_list_t *sw_prepare_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
+  //array_list_t *sw_prepare_list = array_list_new(1000, 1.25f, COLLECTION_MODE_ASYNCHRONIZED);
   
   char *ref, *query;
 
@@ -911,7 +918,7 @@ void merge_seed_regions_bs(mapping_batch_t *mapping_batch, int bs_id) {
 	while (s) {
 	  //LOG_DEBUG_F("\t\tItem [%lu|%i - %i|%lu]: \n", s->genome_start, s->read_start, s->read_end, s->genome_end);
 	  cigar_code = (cigar_code_t *)s->info;
-	  if (cigar_code) { //TODO: delete
+	  if (cigar_code) {
 	    num_ops = array_list_size(cigar_code->ops);
 	    for (op = 0, cigar_op = array_list_get(op, cigar_code->ops); 
 		 op < num_ops;
@@ -919,11 +926,14 @@ void merge_seed_regions_bs(mapping_batch_t *mapping_batch, int bs_id) {
 	      cigar_code_append_op(cigar_op, cigar_code_prev);	    
 	    }
 	    cigar_code_prev->distance += cigar_code->distance;
+	    cigar_code_free(cigar_code);
 	  } 
 	  
 	  s_first->read_end = s->read_end;
 	  s_first->genome_end = s->genome_end;
 	  
+	  seed_region_free(s);
+
 	  linked_list_iterator_remove(&itr);	
 	  s = linked_list_iterator_curr(&itr);
 	}

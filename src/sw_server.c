@@ -958,7 +958,7 @@ void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
 	
 	  alignment_init_single_end(head_id, match_seq, match_qual, 
 				    cal->strand, cal->chromosome_id - 1, cal->start - 1,
-				    new_cigar_code_string(cigar_code), 
+				    strdup(new_cigar_code_string(cigar_code)), 
 				    cigar_code_get_num_ops(cigar_code), 
 				    norm_score * 254, 1, (num_cals > 1),
 				    optional_fields_length, optional_fields, alignment);
@@ -969,6 +969,8 @@ void apply_sw_bs_4nt(sw_server_input_t* input, batch_t *batch) {
 	  //alignment_print(alignment);
 
 	}
+	// free cigar
+	cigar_code_free(cigar_code);
       }
       
       // free the cal list, and update the mapping list with the alignment list

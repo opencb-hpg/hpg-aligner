@@ -152,16 +152,20 @@ void run_bs_aligner(genome_t *genome2, genome_t *genome1, genome_t *genome,
   // free memory
   LOG_DEBUG_F("========= BEGIN FREEING CT CONTEXT (%i) =========\n", gen_loads);
   if (sw_input.valuesCT != NULL){
-    for (int i = 0; i < gen_loads; i++) {
-      LOG_DEBUG_F("========= CT CONTEXT %i =========\n", i);
-      if (sw_input.valuesCT[i] != NULL) free(sw_input.valuesCT[i]);
+    if (gen_loads != -1) {
+      for (int i = 0; i < gen_loads; i++) {
+	LOG_DEBUG_F("========= CT CONTEXT %i =========\n", i);
+	if (sw_input.valuesCT[i] != NULL) free(sw_input.valuesCT[i]);
+      }
     }
     free(sw_input.valuesCT);
   }
   LOG_DEBUG("========= BEGIN FREEING GA CONTEXT =========\n");
   if (sw_input.valuesGA != NULL){
-    for (int i = 0; i < gen_loads; i++) {
-      if (sw_input.valuesGA[i] != NULL) free(sw_input.valuesGA[i]);
+    if (gen_loads != -1) {
+      for (int i = 0; i < gen_loads; i++) {
+	if (sw_input.valuesGA[i] != NULL) free(sw_input.valuesGA[i]);
+      }
     }
     free(sw_input.valuesGA);
   }
