@@ -290,7 +290,8 @@ void options_display(options_t *options) {
      printf("\tGap open   : %0.4f\n", gap_open);
      printf("\tGap extend : %0.4f\n", gap_extend);
      printf("\n");
-     if (strcmp(options->mode, "rna") == 0) {
+
+     if (strcmp(options->mode, "RNA") == 0) {
        printf("RNA parameters\n");
        printf("\tMax intron length: %d\n", max_intron_length);
        printf("\tMin intron length: %d\n", min_intron_length);

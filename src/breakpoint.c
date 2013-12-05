@@ -338,6 +338,40 @@ void cigar_code_print(cigar_code_t *cigar_code) {
 
 //--------------------------------------------------------------------------------------
 
+int cigar_code_score(cigar_code_t *cigar_code, int read_length) {
+  int num_M = 0, num_D = 0, num_I = 0, t_D = 0, t_I = 0;
+
+  for (int c = 0; c < array_list_size(cigar_code->ops); c++) {
+    cigar_op_t *op = array_list_get(c, cigar_code->ops);
+    if (op->name == 'M') {
+      num_M += op->number;
+    } else if (op->name == 'D') {
+      num_D += op->number;
+      t_D++;
+    } else if (op->name == 'I') {
+      num_I += op->number;
+      t_I++;
+    }
+  }      
+  	
+  int tot_DI = num_D + num_I;
+  int mismatches = cigar_code->distance - (tot_DI);
+
+  if (mismatches < 0) {
+    mismatches = 0;
+  }
+
+  int matches = num_M - mismatches;
+  int score_m = (matches * 1) - ((mismatches + num_D + num_I)* 0.4);//mismatches + num_D + num_I == cigar_code->distance
+  int read_span = (int)score_m * 100 / read_length;
+
+  //printf("score = %i, distance = %i\n", read_span, cigar_code->distance);
+
+  return read_span;
+}
+
+//--------------------------------------------------------------------------------------
+
 void cigar_code_delete_nt(int nt, int direction, cigar_code_t *cigar_code) {
   int refresh = nt;
   int pos;

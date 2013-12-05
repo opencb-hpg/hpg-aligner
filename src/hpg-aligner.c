@@ -303,10 +303,15 @@ int main(int argc, char* argv[]) {
 					    options->filter_seed_mappings);
   
   // CAL parameters
-  cal_optarg_t *cal_optarg = cal_optarg_new(options->min_cal_size, options->seeds_max_distance, 
-					    options->num_seeds, options->min_num_seeds_in_cal,
-					    options->seed_size, options->min_seed_size, 
-					    options->cal_seeker_errors);
+  cal_optarg_t *cal_optarg = cal_optarg_new(options->min_cal_size, 
+					    options->seeds_max_distance, 
+					    options->num_seeds, 
+					    options->min_num_seeds_in_cal,
+					    options->seed_size, 
+					    options->min_seed_size, 
+					    options->cal_seeker_errors, 
+					    options->max_intron_length, 
+					    options->min_intron_length);
   
   // paired mode parameters
   pair_mng_t *pair_mng = pair_mng_new(options->pair_mode, options->pair_min_distance, 

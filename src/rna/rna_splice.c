@@ -470,9 +470,9 @@ allocate_buffers_t* process_avlnode_ends(avl_node_t *node_val, unsigned char st,
   for (i = 0; i < num_ends; i++) {
     if ((allocate_batches->write_exact_sp->size + 100) > write_size) {
       fwrite((char *)allocate_batches->write_exact_sp->buffer_p, allocate_batches->write_exact_sp->size, 1, allocate_batches->fd_exact);
-      fwrite((char *)allocate_batches->write_extend_sp->buffer_p, allocate_batches->write_extend_sp->size, 1, allocate_batches->fd_extend);
+      //fwrite((char *)allocate_batches->write_extend_sp->buffer_p, allocate_batches->write_extend_sp->size, 1, allocate_batches->fd_extend);
       allocate_batches->write_exact_sp->size = 0;
-      allocate_batches->write_extend_sp->size = 0;
+      //allocate_batches->write_extend_sp->size = 0;
     } 
     splice_end_t *end_sp = array_list_get(i, start_data->list_ends);
     if (end_sp->reads_number) {
@@ -483,13 +483,13 @@ allocate_buffers_t* process_avlnode_ends(avl_node_t *node_val, unsigned char st,
 				  end_sp->splice_nt,
 				  &(((char *)allocate_batches->write_exact_sp->buffer_p)[allocate_batches->write_exact_sp->size]));
       
-      bytes_extend = pack_junction(chromosome, st, start_data->start_extend, 
+      /*bytes_extend = pack_junction(chromosome, st, start_data->start_extend, 
 				   end_sp->end_extend, junction_id, end_sp->reads_number, 
 				   end_sp->splice_nt,
 				   &(((char *)allocate_batches->write_extend_sp->buffer_p)[allocate_batches->write_extend_sp->size])); 
-      
+      */
       allocate_batches->write_exact_sp->size += bytes_exact;
-      allocate_batches->write_extend_sp->size += bytes_extend;
+      //allocate_batches->write_extend_sp->size += bytes_extend;
       
       total_splice += end_sp->reads_number;
       junction_id++;
@@ -538,11 +538,11 @@ void write_chromosome_avls( char *extend_sp, char *exact_sp,
     exit(-1);
   }
 
-  FILE *fd_extend = fopen(extend_sp, "w");
-  if (!fd_extend) { 
-    printf("Imposible to create FILE: %s\n", exact_sp);
-    exit(-1);
-  }
+  FILE *fd_extend = NULL;//fopen(extend_sp, "w");
+  //if (!fd_extend) { 
+  //printf("Imposible to create FILE: %s\n", exact_sp);
+  //exit(-1);
+  //}
 
   allocate_batches->fd_exact = fd_exact;
   allocate_batches->fd_extend = fd_extend;
@@ -560,9 +560,9 @@ void write_chromosome_avls( char *extend_sp, char *exact_sp,
 	if(allocate_batches->write_extend_sp != NULL) {
 	  if(allocate_batches->write_extend_sp->size > 0) {	  
 	    fwrite((char *)allocate_batches->write_exact_sp->buffer_p, allocate_batches->write_exact_sp->size, 1, allocate_batches->fd_exact);
-	    fwrite((char *)allocate_batches->write_extend_sp->buffer_p, allocate_batches->write_extend_sp->size, 1, allocate_batches->fd_extend);
+	    //fwrite((char *)allocate_batches->write_extend_sp->buffer_p, allocate_batches->write_extend_sp->size, 1, allocate_batches->fd_extend);
 	    allocate_batches->write_exact_sp->size = 0;
-	    allocate_batches->write_extend_sp->size = 0;
+	    //allocate_batches->write_extend_sp->size = 0;
 	  }
 	}
       } //end IF chromosome splice not NULL
@@ -577,11 +577,11 @@ void write_chromosome_avls( char *extend_sp, char *exact_sp,
   free(avls_list->ends_avls);
 
   free(avls_list);
-  fclose(fd_extend);
+  //fclose(fd_extend);
   fclose(fd_exact);
   
   write_batch_free(allocate_batches->write_exact_sp);
-  write_batch_free(allocate_batches->write_extend_sp);
+  //write_batch_free(allocate_batches->write_extend_sp);
 
   free(allocate_batches);
 

@@ -574,15 +574,15 @@ int bam_writer(void *data) {
 
        writer_input->limit_print += 100000;
 
-       extern size_t TOTAL_SW,
-	 TOTAL_READS_PROCESS,
-	 TOTAL_READS_SEEDING,
-	 TOTAL_READS_SEEDING2,
-	 TOTAL_READS_SA;
+       //extern size_t TOTAL_SW,
+       //TOTAL_READS_PROCESS,
+       //TOTAL_READS_SEEDING,
+       //TOTAL_READS_SEEDING2,
+       //TOTAL_READS_SA;
        
 
-       fprintf(stderr, "TOTAL READS PROCESS = %lu,\n TOTAL READS SEEDING x1 = %lu,\n TOTAL READS SEEDING x2 = %lu,\n TOTAL SW = %lu,\n TOTAL READS SINGLE ANCHOR FINAL = %lu\n\n",
-	       TOTAL_READS_PROCESS, TOTAL_READS_SEEDING, TOTAL_READS_SEEDING2, TOTAL_SW, TOTAL_READS_SA);
+       //fprintf(stderr, "TOTAL READS PROCESS = %lu,\n TOTAL READS SEEDING x1 = %lu,\n TOTAL READS SEEDING x2 = %lu,\n TOTAL SW = %lu,\n TOTAL READS SINGLE ANCHOR FINAL = %lu\n\n",
+       //      TOTAL_READS_PROCESS, TOTAL_READS_SEEDING, TOTAL_READS_SEEDING2, TOTAL_SW, TOTAL_READS_SA);
        
      }
      

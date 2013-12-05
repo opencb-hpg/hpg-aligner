@@ -365,11 +365,15 @@ int apply_bwt_rna(bwt_server_input_t* input, batch_t *batch) {
     fastq_read_t *read = array_list_get(i, mapping_batch->fq_batch);
     //printf("BWT: %s\n", read->id);
     list = mapping_batch->mapping_lists[i];    
+    
     array_list_set_flag(1, list);
+    //array_list_set_flag(0, list); //TODO: DELETE!!!
+
     num_mappings = bwt_map_inexact_read(read,
 					input->bwt_optarg_p,
 					input->bwt_index_p,
 					list);
+
     if (array_list_get_flag(list) != 2) { //If flag 2, the read exceded the max number of mappings
       if (array_list_get_flag(list) == 1) {
 	if (num_mappings > 0) {

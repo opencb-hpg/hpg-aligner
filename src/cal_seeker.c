@@ -834,6 +834,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   metaexons_t *metaexons = input->metaexons;
   bwt_optarg_t *bwt_optarg = input->bwt_optarg;
   bwt_index_t *bwt_index = input->index;
+  cal_optarg_t *cal_optarg = input->cal_optarg;
   mapping_batch_t *mapping_batch = batch->mapping_batch;
   array_list_t *allocate_cals;
   size_t num_cals, select_cals, total_cals = 0;
@@ -842,6 +843,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   size_t num_targets, target_pos, total_targets, extra_target_pos;
   fastq_read_t *read;
   genome_t *genome = input->genome;
+  unsigned int num_chromosomes = genome->num_chromosomes;
   size_t *targets_aux;
   int min_seeds, max_seeds;
   int seed_size = input->cal_optarg->seed_size;
@@ -884,7 +886,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   for (size_t i = 0; i < num_targets; i++) {
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
     
-    //printf("From CAL Seeker %s\n", read->id);
+    printf("From CAL Seeker %s\n", read->id);
     list = mapping_batch->mapping_lists[mapping_batch->targets[i]];
     
     //if (array_list_get_flag(region_list) == 0 || 
@@ -892,8 +894,13 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     //We have normal and extend seeds (anchors)
     max_seeds = (read->length / 15)*2 + 10;      
 
-    num_cals = bwt_generate_cals(read->sequence, seed_size, bwt_optarg,
-				 bwt_index, list);
+    num_cals = bwt_generate_cals(read->sequence, 
+				 seed_size, 
+				 bwt_optarg,
+				 cal_optarg,
+				 bwt_index, 
+				 list, 
+				 num_chromosomes + 1);
 
 
     // if we want to seed with 24-length seeds,
