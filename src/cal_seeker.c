@@ -869,9 +869,9 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
     target = mapping_batch->targets[t];
     mapping_batch->mapping_lists[target]->size = 0;
   }
-
   return RNA_POST_PAIR_STAGE;
   */
+
   array_list_t *region_list = array_list_new(1000, 
 					     1.25f, 
 					     COLLECTION_MODE_ASYNCHRONIZED);
@@ -886,25 +886,26 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
   for (size_t i = 0; i < num_targets; i++) {
     read = array_list_get(mapping_batch->targets[i], mapping_batch->fq_batch); 
     
-    printf("From CAL Seeker %s\n", read->id);
+    //printf("From CAL Seeker %s\n", read->id);
     list = mapping_batch->mapping_lists[mapping_batch->targets[i]];
     
     //if (array_list_get_flag(region_list) == 0 || 
     //	array_list_get_flag(region_list) == 2) {
     //We have normal and extend seeds (anchors)
     max_seeds = (read->length / 15)*2 + 10;      
-
+    //printf("%i\n", input->cal_optarg->min_cal_size);
     num_cals = bwt_generate_cals(read->sequence, 
 				 seed_size, 
 				 bwt_optarg,
 				 cal_optarg,
 				 bwt_index, 
 				 list, 
-				 num_chromosomes + 1);
+				 num_chromosomes);
 
 
     // if we want to seed with 24-length seeds,
     if (num_cals == 0) {
+      //printf("No Cals seeding...\n");
       int seed_size = 24;
       //First, Delete old regions
       array_list_clear(region_list, (void *)region_bwt_free);
@@ -916,7 +917,7 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 				region_list);
       
       max_seeds = (read->length / 15)*2 + 10;
-      int prev_min_cal = input->cal_optarg->min_cal_size;
+      //int prev_min_cal = input->cal_optarg->min_cal_size;
       //input->cal_optarg->min_cal_size = seed_size + seed_size / 2;
       //printf("NO CALS, new seeds %lu\n", array_list_size(region_list));
 
@@ -924,7 +925,8 @@ int apply_caling_rna(cal_seeker_input_t* input, batch_t *batch) {
 						   input->cal_optarg,
 						   &min_seeds, &max_seeds,
 						   genome->num_chromosomes + 1,
-						   list, read->length);
+						   list, read->length,
+						   cal_optarg->min_cal_size);
 
       //input->cal_optarg->min_cal_size = prev_min_cal;
 
@@ -1223,7 +1225,8 @@ int apply_caling(cal_seeker_input_t* input, batch_t *batch) {
 						   input->cal_optarg,
 						   &min_seeds, &max_seeds,
 						   num_chromosomes,
-						   list, read->length);
+						   list, read->length,
+						   input->cal_optarg->min_cal_size);
     } else {
       //We have double anchors with smaller distance between they
       //printf("Easy case... Two anchors and same distance between read gap and genome distance\n");

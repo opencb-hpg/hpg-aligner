@@ -1858,7 +1858,6 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
     id[c] = '\0';
 
     if ((node = cp_trie_exact_match(trie, id/*bam1_qname(bam_line)*/)) == NULL)  {
-
       printf("id %s not found !!\n", id);
       //continue;
       exit(-1);
@@ -1880,7 +1879,10 @@ void rna_intersection(cp_trie *trie, int margin, char *filename,
       region_trie = (rna_map_region_t *) node->info;
       if (!region_trie) { continue; }
 
+      //if (bam_line->core.tid < 0 || bam_line->core.tid > 25) { continue; }
       char *chr_aux = bam_header_p->target_name[bam_line->core.tid];
+
+      if (chr_aux == NULL) { continue; }
       if (chr_aux[0] == 'c') {
 	//PATCH for mapSplice v2
 	region.chromosome = strdup(&chr_aux[3]);
@@ -2161,14 +2163,14 @@ void print_result_pair(trie_result_t *result, int log) {
 	} else {
 	  result->wrong_mapped++;
 	  if (node->wrong_mapped_chromosome) {
-	    if (++limit_wrong_mapped < 10) {
-	      //printf("\twrong mapped (chromosome): %s\n", id);
-	    }
+	    //if (++limit_wrong_mapped < 10) {
+	    printf("\twrong mapped (chromosome): %s\n", id);
+	    //}
 	    result->wrong_mapped_chromosome++;
 	  } else if (node->wrong_mapped_strand) {
-	    if (++limit_wrong_mapped < 10) {
-	      //printf("\twrong mapped (strand): %s\n", id);
-	    } 
+	    //if (++limit_wrong_mapped < 10) {
+	    printf("\twrong mapped (strand): %s\n", id);
+	    //} 
 	    result->wrong_mapped_strand++;
 	  }
 	}

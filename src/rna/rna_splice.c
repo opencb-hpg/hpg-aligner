@@ -557,8 +557,8 @@ void write_chromosome_avls( char *extend_sp, char *exact_sp,
 	//printf("Chromosome %i(%i)\n", chr, st);
 	allocate_batches = process_avlnode(avls_list->avls[st][c].avl->root, st, chr, allocate_batches);
 	
-	if(allocate_batches->write_extend_sp != NULL) {
-	  if(allocate_batches->write_extend_sp->size > 0) {	  
+	if(allocate_batches->write_exact_sp != NULL) {
+	  if(allocate_batches->write_exact_sp->size > 0) {	  
 	    fwrite((char *)allocate_batches->write_exact_sp->buffer_p, allocate_batches->write_exact_sp->size, 1, allocate_batches->fd_exact);
 	    //fwrite((char *)allocate_batches->write_extend_sp->buffer_p, allocate_batches->write_extend_sp->size, 1, allocate_batches->fd_extend);
 	    allocate_batches->write_exact_sp->size = 0;

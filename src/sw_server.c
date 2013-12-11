@@ -43,7 +43,7 @@ void sw_optarg_init(float gap_open, float gap_extend,
 
 void sw_server_input_init(list_t* sw_list, list_t* alignment_list, unsigned int write_size, 
 			  float match, float mismatch, float gap_open, float gap_extend, 
-			  float min_score, unsigned int flank_length, genome_t* genome, 
+			  int min_score, unsigned int flank_length, genome_t* genome, 
 			  size_t max_intron_size, int min_intron_size, 
 			  size_t seed_max_distance, bwt_optarg_t* bwt_optarg_p, 
 			  avls_list_t *avls_list,

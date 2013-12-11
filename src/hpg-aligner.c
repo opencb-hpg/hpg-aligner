@@ -303,6 +303,7 @@ int main(int argc, char* argv[]) {
 					    options->filter_seed_mappings);
   
   // CAL parameters
+  //printf("%i\n", options->min_cal_size);
   cal_optarg_t *cal_optarg = cal_optarg_new(options->min_cal_size, 
 					    options->seeds_max_distance, 
 					    options->num_seeds, 

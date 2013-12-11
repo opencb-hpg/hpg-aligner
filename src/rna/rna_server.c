@@ -4020,14 +4020,7 @@ int generate_cals_between_anchors (int mode,
     chromosome_id = last_cal->chromosome_id;
   }
   //printf("Region BACK(%i)[%i:%lu|%i-%i|%lu]\n ", region_next->id, region_next->chromosome_id, 
-  //	   region_next->start, region_next->seq_start, region_next->seq_end, region_next->end);
-  
-  int min_cal_size = cal_optarg->min_cal_size;
-  if (mode == CALING_DOUBLE_ANCHORS ) {
-    if (last_cal->start - first_cal->end < 50000) {
-      cal_optarg->min_cal_size = 15;
-    }
-  }
+  //	   region_next->start, region_next->seq_start, region_next->seq_end, region_next->end);  
 
   //printf(":::::::::::::: seeds %i\n", array_list_size(seeds_list));
   for (int j = 0; j < array_list_size(seeds_list); j++) {
@@ -4060,13 +4053,29 @@ int generate_cals_between_anchors (int mode,
     }
   }
 
+    
+  int min_cal_size = cal_optarg->min_cal_size;
+  if (mode == CALING_DOUBLE_ANCHORS ) {
+    if (last_cal->start - first_cal->end < 50000) {
+      min_cal_size = 15;      
+    }
+  }
+  
+
   bwt_generate_cal_list_linked_list(mapping_list,
 				    cal_optarg,
 				    &min_seeds, &max_seeds,
 				    num_chromosomes,
 				    cals_list,
-				    fq_read->length);
+				    fq_read->length,
+				    min_cal_size);
 
+  if (cal_optarg->min_cal_size != 20) { 
+    printf("------> No value %i\n", min_cal_size);
+    exit(-1);
+  }
+
+  //cal_optarg->min_cal_size = min_cal_size;
   int num_cals = array_list_size(cals_list);
   if (num_cals > 0) {
     for (int j = num_cals - 1; j >= 0; j--) {
@@ -4096,7 +4105,7 @@ int generate_cals_between_anchors (int mode,
   }
 
   num_cals = array_list_size(cals_list);
-  cal_optarg->min_cal_size = min_cal_size;
+
   int founds[num_cals];
   int found = 0;
   cal_t *cal;
@@ -4561,7 +4570,7 @@ int apply_sw_rna(sw_server_input_t* input_p, batch_t *batch) {
 
     scores_ranking[i] = (float *)calloc(num_cals + 10, sizeof(float));//[num_reads][200];
 
-    printf("%s : flag %i : %i\n", fq_read->id, flag, array_list_size(cals_list));
+    //printf("%s : flag %i : %i\n", fq_read->id, flag, array_list_size(cals_list));
     //if (flag == ALIGNMENTS_FOUND || flag == ALIGNMENTS_EXCEEDED) {
     //data_type[i] = ALIGNMENT_TYPE;
     if (flag == DOUBLE_ANCHORS) {
@@ -5995,7 +6004,7 @@ int apply_rna_last(sw_server_input_t* input_p, batch_t *batch) {
 				   seed_size, bwt_optarg,
 				   cal_optarg,
 				   bwt_index, new_cals_list, 
-				   genome->num_chromosomes);
+				   genome->num_chromosomes + 1);
       //filter-incoherent CALs
       int founds[num_cals], found = 0;
       for (size_t j = 0; j < num_cals; j++) {
@@ -7019,7 +7028,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
   bwt_index_t *bwt_index = input_p->bwt_index_p;
   linked_list_t *buffer = input_p->buffer;
   linked_list_t *buffer_hc = input_p->buffer_hc;
-
+  int min_score = input_p->min_score;
   //fprintf(stderr, "APPLY RNA LAST START... %i\n", num_reads);
 
   array_list_t *cals_list, *fusion_cals, *fusion_cals_aux;
@@ -7610,6 +7619,8 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
 	continue;
       }
       
+      int read_score = cigar_code_score(cigar_code, fq_read->length);
+      /*
       int num_M = 0, num_D = 0, num_I = 0, t_D = 0, t_I = 0;
       for (int c = 0; c < array_list_size(meta_alignment->cigar_code->ops); c++) {
 	cigar_op_t *op = array_list_get(c, meta_alignment->cigar_code->ops);
@@ -7634,6 +7645,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       float read_span = (float)score_m * 100 / (float)fq_read->length;
 
       extern float min_score;
+      */
       //if (read_span < min_score) {
       //printf("META CIGAR CODE (%i), (Tot M : %i, Tot D: %i, Tot I: %i, h_right = %i, h_left = %i, Tot D + I = %i, MATCHES = %i, MISMATCHES = %i): %s | %i |%0.2f | %s\n",
       //     meta_alignment->cigar_code->distance, 
@@ -7643,7 +7655,7 @@ int apply_rna_last_hc(sw_server_input_t* input_p, batch_t *batch) {
       //}
       //printf("SCORE: %i\n", cigar_code_score(cigar_code, fq_read->length));
       
-      if (read_span < 40.0) { 
+      if (read_score < min_score) { 
 	meta_alignment_complete_free(meta_alignment);
 	continue;
       }
